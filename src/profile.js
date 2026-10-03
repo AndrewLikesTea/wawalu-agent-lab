@@ -576,8 +576,31 @@ function el(tag, className, text) {
 // appearance and JS owns only the transition: loading reserves a square that
 // cannot shift the grid, ready shows the image, error leaves the caption to
 // carry the post on its own.
+// A tile whose post carries a description and no source opens in `error`: every
+// post on this page is an image post, so a tile with nothing to fetch is still
+// one of them and still counts as one — it draws the placeholder, not a blank
+// square and not one fewer tile. The heading, the count and the ordering line
+// above the grid read the posts, never the state of their pictures.
 function renderTileMedia(image, description) {
   const frame = el("div", "profile-media");
+
+  // A dead tile used to say "Image unavailable" and stop there, which told a
+  // reader that something was missing without telling them what. The tile's
+  // caption is the post's words, not the image's; the description is the only
+  // thing that says what the picture was, so the placeholder keeps it, under a
+  // sentence naming what happened. Built before the branch below so the
+  // no-source and the died-on-load states are one node and one wording.
+  const fallback = renderImageUnavailable("profile-media-fallback", description.alt, {
+    textClassName: "media-fallback-text",
+    lineClassName: "media-fallback-text",
+  });
+
+  if (!image.src) {
+    frame.dataset.state = "error";
+    frame.append(fallback);
+    return frame;
+  }
+
   frame.dataset.state = "loading";
 
   const img = document.createElement("img");
@@ -595,11 +618,6 @@ function renderTileMedia(image, description) {
     img.height = image.height;
   }
 
-  // A dead tile used to say "Image unavailable" and stop there, which told a
-  // reader that something was missing without telling them what. The tile's
-  // caption is the post's words, not the image's; the description is the only
-  // thing that says what the picture was, so the placeholder keeps it.
-  const fallback = renderImageUnavailable("profile-media-fallback", description.alt, { textClassName: "media-fallback-text" });
   fallback.hidden = true;
 
   const settle = (state) => {
