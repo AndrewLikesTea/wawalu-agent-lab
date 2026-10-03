@@ -469,51 +469,14 @@
                a part of something larger without naming the thing. What this
                view leaves out — posts with no image — is still said here, and
                the link still wraps Social alone, the destination. -->
-          <p class="profile-lede hint">Open <a class="text-link" href="/social.html">Social</a> when you want the Social feed, including posts with no image. Select Open post to see a post on its own page, with a link you can share. Posts labelled “Example post” are invented to demonstrate Shiplog and use no customer or production data.</p>
-          <!-- Everything publishing costs, in the paragraph that hands a reader
-               to the composer. The last three sentences are shared copy and are
-               compared byte for byte against src/social.js by
-               tests/published-post-reach.test.js: PUBLISHED_POST_REACH, then
-               PUBLISHED_POST_TERMS, then the reporting clause People and Social
-               both carry. The reach sentence arrived here in #2734, from the
-               intro above, which said the same thing in People's own noun; the
-               terms were People's sentence first (#2484) and Social's composer
-               adopted them (#2648), and they split off the reporting clause in
-               #2734 so the shared post page can carry them too. Order matters:
-               who reads it, then whether it can come back, then the route that
-               takes one down, then the one instruction. -->
-          <p class="feed-create hint">
-            To add yours: <a class="text-link paint-link" id="profile-paint-route" href="/paint/?from=profile" target="_blank" rel="noopener">Create or open an image in Paint <span class="new-tab-note">(opens in a new tab)</span></a>. Select “Use this image in a Social post”, then fill in the required image description. <a class="text-link" id="profile-publish-route" href="/social.html#post-form">Publish a post on Social</a>. A published post with an image appears on People, under the display name you publish it with. Anyone can read a published post, on any device or browser. A published post is public and cannot be edited or deleted. Anyone can select Report post on it. Do not include customer or production data.
+          <!-- Keep guidance in reading order, with one Example-post advisory. -->
+          <p class="profile-lede hint">Open <a class="text-link" href="/social.html">Social</a> when you want the Social feed, including posts with no image. Select Open post to see a post on its own page, with a link you can share. Posts labelled “Example post” are invented to demonstrate Shiplog and use no customer or production data. Their display names are invented.</p>
+          <p class="hint">
+            <span class="feed-create hint">
+              To add yours: <a class="text-link paint-link" id="profile-paint-route" href="/paint/?from=profile" target="_blank" rel="noopener">Create or open an image in Paint <span class="new-tab-note">(opens in a new tab)</span></a>. Select “Use this image in a Social post”, then fill in the required image description. <a class="text-link" id="profile-publish-route" href="/social.html#post-form">Publish a post on Social</a>. A published post with an image appears on People, under the display name you publish it with. Anyone can read a published post, on any device or browser. A published post is public and cannot be edited or deleted. Anyone can select Report post on it. Do not include customer or production data.
+            </span>
+            <span class="profile-role hint">On any other post, whoever published it chose the name. Nobody owns or verifies a display name, and anyone can publish under any name.</span>
           </p>
-          <!-- People is a filtered view of Social, and the nav says so by
-               nesting them. This is where People defines the thing its picker
-               selects, in the bytes Social's feed note and the permalink both
-               render. It is the whole definition — where the names come from,
-               and that nobody owns one — which the site used to split across
-               three paragraphs in three wordings.
-               It used to close the profile header at the top of this panel,
-               above the ordering line, above the status region and above the
-               grid, so the first screen of a page that is nothing but pictures
-               was provenance. It sits under the pictures it explains now: same
-               bytes, same class, same panel, and no disclosure widget over it,
-               because a sentence a reader has to open is a sentence they meet
-               too late. It is authored markup outside every branch profile.js
-               swaps, so a load, an empty name, a filtered grid and a failed
-               fetch all render it.
-               It states the caveat about display names in general and names
-               nobody: it used to open on the selected name, which made it a
-               third visible copy of a name the heading above had already
-               established. The heading is the subject this sentence is read
-               against.
-               What this paragraph does not do is point at Social. The intro
-               states the rule and carries the link; this paragraph stays on the
-               display name it defines. It names the posts the site invented
-               apart from every other post (#2348) rather than calling the feed
-               a demo, and it names them by the marker their tiles print —
-               EXAMPLE_POST_LABEL in src/social.js (#2683). This sentence used
-               to say "the posts already on Social", then "the example posts on
-               Social" (#2549), and only that noun phrase changed. -->
-          <p class="profile-role hint">Display names on posts labelled “Example post” are invented. On any other post, whoever published it chose the name. Nobody owns or verifies a display name, and anyone can publish under any name.</p>
         </div>
       </section>
       </main>

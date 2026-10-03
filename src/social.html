@@ -409,41 +409,11 @@
                stopped closing on who can read a published post for the same
                reason — that is the composer's sentence, one press from the act,
                and said here too it warned a reader four screens early. -->
-          <p class="social-feed-intro hint">Open People when you want the image posts from one display name. Select Open post to see a post on its own page, with a link you can share. Posts labelled “Example post” are invented to demonstrate Shiplog and use no customer or production data.</p>
-          <!-- Who wrote what a reader has just scrolled through, said once and
-               said here, because here is where the names are. A reader meets
-               "Ari" on a card and reads an account unless the page tells them
-               otherwise; "invented" is the word this site already uses for what
-               it made up, and "display name" is the one term the composer's
-               field, this panel's filter, and People's picker all use for the
-               name a post carries.
-               It used to open this panel, above the filters, above the status
-               region and above the first card, so a first-time visitor read a
-               screen of provenance before a single post. Same bytes, same
-               class, same panel: only its place in the document moved, and it
-               moved below the posts it explains rather than behind a disclosure
-               widget, because a sentence a reader has to open is a sentence
-               they meet too late.
-               It is still the feed panel's own markup, outside every branch
-               social.js swaps — loading, ready, empty, error, and no-match all
-               render it — so the claim about who wrote the posts does not
-               depend on a fetch having answered. Plain prose: no heading,
-               nothing focusable, no live region, and no rule of its own in the
-               stylesheet. People and the permalink render these exact bytes;
-               the composer's field hint keeps only what neither says, which is
-               what the name is used for.
-               It names the two cases apart (#2348): a post labelled "Example
-               post" carries an invented name, and every other post carries the
-               name its publisher typed. It used to call the whole feed "this
-               demo", which a reader of a real, permanent post has no reason to
-               believe. It used to name the first case and leave the reader to
-               find it — "the posts already on Social", then "the example posts
-               on Social" (#2549) — and it now points at the marker those cards
-               print, EXAMPLE_POST_LABEL in src/social.js (#2683), so the case
-               a reader is in is visible on the card. Only that noun phrase
-               changed — the structure, the place and the length are
-               untouched. -->
-          <p class="hint" id="feed-source-note">Display names on posts labelled “Example post” are invented. On any other post, whoever published it chose the name. Nobody owns or verifies a display name, and anyone can publish under any name.</p>
+          <!-- Keep guidance in reading order, with one Example-post advisory. -->
+          <p class="hint">
+            <span class="social-feed-intro hint">Open People when you want the image posts from one display name. Select Open post to see a post on its own page, with a link you can share. Posts labelled “Example post” are invented to demonstrate Shiplog and use no customer or production data. Their display names are invented.</span>
+            <span class="hint" id="feed-source-note">On any other post, whoever published it chose the name. Nobody owns or verifies a display name, and anyone can publish under any name.</span>
+          </p>
           <!-- The route to reporting a post (#2343), beside the caveat about who
                publishes here and outside the composer panel on purpose: the
                composer's tab order is pinned stop by stop, and this link is not

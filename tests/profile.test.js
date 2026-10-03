@@ -4,6 +4,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { parseHtml, textOf } from "./support/browser.js";
 import { byClass, createElement, first, ids, installDocument, tags, walk } from "./support/dom.js";
 // The one owner of the label Social prints on the control that opens its
 // composer. People's own offers of that trip are no longer built from it
@@ -927,7 +928,7 @@ test("People offers the trip to Social's composer in one phrase, in one place", 
 
   // And the retired name is gone from both of People's layers: the paragraph a
   // visitor reads before hydration, and the sentence the module renders.
-  const invitation = html.match(/<p class="feed-create hint">([\s\S]*?)<\/p>/)[1];
+  const invitation = textOf(parseHtml(html).querySelector(".feed-create"));
   assert.equal((invitation.match(/on Social/g) ?? []).length, 1,
     "People offers the trip to Social more than once in the one paragraph");
   assert.doesNotMatch(loadingSummaryText(), /Open Social/,

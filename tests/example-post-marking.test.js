@@ -308,8 +308,8 @@ const QUOTED_LABEL = `labelled “${EXAMPLE_POST_LABEL}”`;
 
 test("every caveat that points at the label quotes the label the posts are drawn with", async (t) => {
   const caveats = {
-    "social.html": [".social-feed-intro", "#feed-source-note"],
-    "profile.html": [".profile-lede.hint", ".profile-role"],
+    "social.html": [".social-feed-intro"],
+    "profile.html": [".profile-lede.hint"],
     // One paragraph on the permalink, and it is the standing hedge: src/post-page.js
     // replaces it with the answer about the loaded post, which names no marker.
     "post.html": ["#post-provenance"],
