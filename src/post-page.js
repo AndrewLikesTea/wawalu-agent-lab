@@ -11,7 +11,7 @@ import {
   postProvenanceSentence, renderPostDetail,
 } from "/post-detail.js";
 
-import { mountPostReport, renderReportButton } from "/post-report.js";
+import { REPORT_EMAIL_NOTE, mountPostReport, renderReportButton } from "/post-report.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -20,8 +20,16 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
 // account of what a report leads to serves both surfaces, so a reader who meets
 // it on a forwarded link and a reader who meets it on the feed read the same
 // sentences. tests/post-page-flow.test.js reads both out of src/social.html.
+//
+// What the form does with the address it asks for is the report module's own
+// string (#2745), spliced in rather than retyped: the same bytes stand beside
+// the field in src/post-report.js, so the answer a reader gets here is the
+// answer the form gives. src/social.html ships the assembled paragraph, and
+// tests/post-page-flow.test.js reads the two back against each other.
 const REPORT_DISCLOSURE_SUMMARY = "How reporting works";
-const REPORT_DISCLOSURE_BODY = "Report post opens a short form about that one post. Choose a reason, add a note if you want to, and give your email address. The report goes only to the Wawalu team, who review each one. The post stays up unless the team decides after review to remove it.";
+const REPORT_DISCLOSURE_BODY = "Report post opens a short form about that one post. Choose a reason, add a note if you want to, and give your email address. "
+  + `${REPORT_EMAIL_NOTE} `
+  + "The report goes only to the Wawalu team, who review each one. The post stays up unless the team decides after review to remove it.";
 
 // The two sentences of the follow-up invitation that tell a reader to select a
 // control, and the sentence they are threaded around. Both controls — Report
