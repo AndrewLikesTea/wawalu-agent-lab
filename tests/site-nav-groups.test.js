@@ -24,8 +24,16 @@ const visibleNavStops = (document) => tabSequence(document).filter((node) => {
   return true;
 });
 
-test("Shiplog leads and unrelated tools have a neutral secondary label", () => {
-  assert.deepEqual(NAV_SETS.map((set) => set.label), ["Shiplog", "More lab tools"]);
+// The secondary label is true of everything inside it and says nothing about
+// what is or is not Shiplog (#2746). "More lab tools" said the second thing,
+// and said it of Social, People and Paint, which the footer marks as Shiplog's
+// own — so the header and the footer answered "is this page part of Shiplog?"
+// two different ways. The set, its order and its membership are unchanged.
+test("Shiplog leads and the secondary label only says there are more destinations", () => {
+  assert.deepEqual(NAV_SETS.map((set) => set.label), ["Shiplog", "More destinations"]);
+  const [, group] = NAV_SETS;
+  assert.doesNotMatch(group.label, /Shiplog|lab|tool|demo|other|separate/i,
+    "the group name must not classify the destinations inside it");
   assert.deepEqual(SITE_NAV.filter((link) => link.set === "primary").map((link) => link.label), primary);
   assert.deepEqual(SITE_NAV.filter((link) => link.set === "secondary").map((link) => link.label), secondary);
   assert.equal(pages.length, 17);
@@ -43,7 +51,7 @@ test("every global navigation exposes named lists and a native, keyboard-operabl
     }
     const details = nav.querySelector("details");
     const summary = details.querySelector("summary");
-    assert.equal(textOf(summary), "More lab tools");
+    assert.equal(textOf(summary), "More destinations");
     // Native details supplies expanded state to assistive technology. Duplicated
     // aria-expanded or menu roles would introduce a second state model.
     assert.equal(summary.getAttribute("aria-expanded"), null);
@@ -58,15 +66,15 @@ test("every global navigation exposes named lists and a native, keyboard-operabl
     assert.equal(details.hasAttribute("open"), startsOpen, file);
     assert.equal(document.activeElement.tagName, "SUMMARY");
     details.removeAttribute("open");
-    assert.deepEqual(visibleNavStops(document).map(textOf), [...primary, "More lab tools"], file);
+    assert.deepEqual(visibleNavStops(document).map(textOf), [...primary, "More destinations"], file);
     summary.focus();
     pressKey(document, "Enter");
-    assert.deepEqual(visibleNavStops(document).map(textOf), [...primary, "More lab tools", ...secondary], file);
+    assert.deepEqual(visibleNavStops(document).map(textOf), [...primary, "More destinations", ...secondary], file);
     pressKey(document, " ");
-    assert.deepEqual(visibleNavStops(document).map(textOf), [...primary, "More lab tools"], file);
+    assert.deepEqual(visibleNavStops(document).map(textOf), [...primary, "More destinations"], file);
     details.setAttribute("open", "");
     const stops = tabSequence(document).filter((node) => node.closest(".site-nav"));
-    assert.deepEqual(stops.map(textOf), [...primary, "More lab tools", ...secondary], file);
+    assert.deepEqual(stops.map(textOf), [...primary, "More destinations", ...secondary], file);
     assert.equal(nav.querySelectorAll("[tabindex]").length, 0);
     assert.equal(nav.querySelectorAll('[aria-current="page"]').length, 1);
   }

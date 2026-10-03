@@ -87,9 +87,9 @@ export const ASSETS_HREF = "/#shiplog-evaluation-brief";
  * from outside. Between them they claim no customer, usage, funding, or result.
  */
 export const IDENTITY = "Shiplog is a decision and release log: it records a decision, tracks the release "
-  + "it shaped, and keeps the two linked. AI FinOps and Prompt coach are separate tools hosted in the same "
-  + "lab, not part of Shiplog. Shiplog is a demonstration product, built and operated by Wawalu at "
-  + "labs.wawalu.org.";
+  + "it shaped, and keeps the two linked. AI FinOps, Prompt coach, Personal AI history, and Agent "
+  + "observatory are separate tools hosted in the same lab, not part of Shiplog. Shiplog is a "
+  + "demonstration product, built and operated by Wawalu at labs.wawalu.org.";
 
 // Who Shiplog is for, and the page that shows it working; the tests say why.
 export const PITCH = "Shiplog is for engineering teams that have to explain why something shipped.";

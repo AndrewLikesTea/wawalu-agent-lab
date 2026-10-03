@@ -571,10 +571,15 @@ test("Personal AI history is pitched once, in the card under the grade, with a d
   assert.equal(neighbour.querySelectorAll("a")
     .filter((link) => link.getAttribute("tabindex") !== null).length, 0);
 
-  // The footer directory is the site's, not this page's: it keeps its own entry
-  // and is the only other place the destination is named.
+  // The footer is the site's, not this page's. Two of its site-wide statements
+  // name the destination, and both come from src/site-footer.js: the About
+  // sentence that says it is not part of Shiplog (#2746), and its own row in the
+  // directory. The count is pinned per statement, so a third mention — one this
+  // page wrote — still fails here.
   const footer = textOf(byId(document, "site-footer"));
-  assert.equal(occurrences(footer, "Personal AI history"), 1);
+  assert.equal(occurrences(footer, "Personal AI history"), 2);
+  assert.equal(occurrences(textOf(document.querySelector(".site-footer-identity")), "Personal AI history"), 1);
+  assert.equal(occurrences(textOf(document.querySelector(".site-footer-demos")), "Personal AI history"), 1);
 });
 
 test("“Start here” names the region for a screen reader and no longer heads it", async () => {
