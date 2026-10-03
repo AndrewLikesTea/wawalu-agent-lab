@@ -35,11 +35,16 @@
 // carries no prefix of its own on purpose — "/" is a prefix of every path on
 // the site, so matching it that way would mark Decisions current everywhere.
 //
-// Shiplog's path stays visible; unrelated lab tools use a native disclosure.
+// Shiplog's path stays visible; the rest of the list uses a native disclosure.
 // Static HTML keeps both groups usable when scripts fail or are disabled.
+//
+// The secondary label names what is inside it and claims nothing else. It read
+// "More lab tools" until #2746, which was false of Social, People and Paint:
+// `separate` in src/site-footer.js is the one place that says which
+// destinations are not Shiplog's, and a group name is not a second place.
 export const NAV_SETS = [
   { key: "primary", id: "nav-set-own", label: "Shiplog" },
-  { key: "secondary", id: "nav-set-demo", label: "More lab tools" },
+  { key: "secondary", id: "nav-set-demo", label: "More destinations" },
 ];
 
 export const SITE_NAV = [

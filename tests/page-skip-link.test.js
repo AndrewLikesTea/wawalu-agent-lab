@@ -354,7 +354,7 @@ test("the post page's loading tab order reaches Social without a placeholder Peo
       SKIP_TEXT,
       "Shiplog",
       ...SITE_NAV.slice(0, 3).map((link) => link.label),
-      "More lab tools",
+      "More destinations",
       ...SITE_NAV.slice(3).map((link) => link.label),
       "Read the Social feed",
       "Publish a post on Social",

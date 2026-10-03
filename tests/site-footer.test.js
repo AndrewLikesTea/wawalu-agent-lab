@@ -45,6 +45,16 @@ const PAGES = [
 const pageUrl = (file) => new URL(`../src/${file}`, import.meta.url);
 const read = (file) => readFile(pageUrl(file), "utf8");
 
+// The destinations the directory marks "Separate tool in the lab.", in the
+// directory's own order, and the series the About band has to list them as:
+// an Oxford-comma list, the shape every other series in this copy takes. Both
+// are derived from DEMOS so the two statements cannot drift apart — adding or
+// removing a `separate` row rewrites the sentence this file demands.
+const SEPARATE_LABELS = DEMOS.filter((demo) => demo.separate).map((demo) => demo.label);
+const SEPARATE_SERIES = `${SEPARATE_LABELS.slice(0, -1).join(", ")}, and ${SEPARATE_LABELS.at(-1)}`;
+// The destinations the footer presents as Shiplog's own; the band must name none.
+const SHIPLOG_LABELS = DEMOS.filter((demo) => !demo.separate).map((demo) => demo.label);
+
 const TYPED_EMAIL = "director@example.com";
 
 // The recovery paragraph, in the order a person needs it: what happened, then
@@ -316,10 +326,12 @@ test("the footer names the log as the product before it names the other tools (#
       assert.ok(opening.includes(act), `the definition must say the log "${act}"`);
     assert.ok(!opening.includes("On this site you can"), "the errand list must not be the opening sentence");
 
-    // The two browser tools are named, and named as separate from the product —
+    // The separate tools are named, and named as separate from the product —
     // the boundary the home page's own directory draws, in the footer's words.
-    assert.match(tools, /^AI FinOps and Prompt coach are separate tools/,
-      "the second sentence must demote the other tools");
+    // Every one of them, by the rule below: the sentence is built from the rows
+    // the directory marks, so naming three of four cannot pass here (#2746).
+    assert.ok(tools.startsWith(`${SEPARATE_SERIES} are separate tools`),
+      `the second sentence must demote every tool the directory marks separate: ${tools}`);
     assert.match(tools, /hosted in the same lab, not part of Shiplog$/,
       "the second sentence must say the tools are not the product");
 
@@ -959,6 +971,60 @@ test("the directory is headed by the lab, and every destination outside Shiplog 
     const page = await openFooterPage(file);
     try {
       marked(page.document, `${file} as painted`);
+    } finally {
+      page.restore();
+    }
+  }
+});
+
+// #2746: three surfaces answered "is this page part of Shiplog?" and they did
+// not agree. The directory marked four destinations "Separate tool in the lab.";
+// the About band above it named two of those four; the header filed Social,
+// People and Paint behind "More lab tools", which says of them the opposite of
+// what their own rows say. The marks are the single answer, and the other two
+// surfaces are pinned to them here rather than to a string: promote a tool or
+// add a fifth, and the sentence and this test move together or this fails.
+test("the About band names exactly the destinations the directory marks separate (#2746)", async () => {
+  assert.deepEqual(SEPARATE_LABELS, ["AI FinOps", "Prompt coach", "Personal AI history", "Agent observatory"]);
+  assert.deepEqual(SHIPLOG_LABELS, ["Decisions", "Releases", "Social", "People", "Paint"]);
+  assert.equal(SEPARATE_SERIES, "AI FinOps, Prompt coach, Personal AI history, and Agent observatory");
+
+  // Read off the sentence rather than beside it: whichever destinations the band
+  // names are the set it is claiming sit outside the product.
+  const namedIn = (text) => DEMOS.map((demo) => demo.label).filter((label) => text.includes(label));
+
+  const band = (document, where) => {
+    const paragraph = document.querySelector(".site-footer-identity");
+    const identity = textOf(paragraph);
+    assert.deepEqual(namedIn(identity), SEPARATE_LABELS,
+      `${where}: the band's separate tools are not the destinations the directory marks`);
+    for (const label of SHIPLOG_LABELS) {
+      assert.equal(identity.includes(label), false,
+        `${where}: the band names ${label}, which the directory presents as Shiplog's own`);
+    }
+    // Still one sentence for them, in the band's register, and still text: the
+    // band adds no stop to pages whose first screen has no spare tab stop.
+    assert.equal(identity.split(". ").length, 3, `${where}: the band is no longer three sentences`);
+    assert.equal(paragraph.querySelectorAll("a").length, 0,
+      `${where}: the sentence must stay text, not a second site map`);
+
+    // And the header's group name classifies nothing. It is the surface that
+    // contradicted the marks, so it is asserted beside them, not elsewhere.
+    const group = document.getElementById("nav-set-demo");
+    assert.equal(textOf(group), "More destinations", `${where}: the header group was relabelled`);
+    for (const label of SHIPLOG_LABELS) {
+      assert.equal(textOf(group).includes(label), false, `${where}: the group name claims ${label}`);
+    }
+  };
+
+  for (const file of PAGES) {
+    const html = await read(file);
+    assert.equal(html.includes("More lab tools"), false,
+      `${file} still files Shiplog's own destinations under "More lab tools"`);
+    band(parseHtml(html), `${file} as authored`);
+    const page = await openFooterPage(file);
+    try {
+      band(page.document, `${file} as painted`);
     } finally {
       page.restore();
     }
