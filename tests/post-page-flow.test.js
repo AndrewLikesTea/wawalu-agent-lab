@@ -104,7 +104,7 @@ const IDENTITY = "Whoever published this post chose the display name on it; nobo
 // Social's and People's version, which this page no longer carries. Those two
 // pages keep it and are asserted on elsewhere; here it is the string that must
 // not come back.
-const FEED_NOTE = "Display names on posts labelled “Example post” are invented. On any other post, whoever published it chose the name. Nobody owns or verifies a display name, and anyone can publish under any name.";
+const FEED_NOTE = "On any other post, whoever published it chose the name. Nobody owns or verifies a display name, and anyone can publish under any name.";
 
 const SOCIAL = { label: "Read the Social feed", href: "/social.html" };
 const PEOPLE = { label: "Open People to see Mina Okafor’s other image posts", href: "/profile.html" };
@@ -185,7 +185,7 @@ test("the permalink names who chose the display name in one sentence, not Social
   const shipped = [];
   for (const file of ["social.html", "profile.html"]) {
     const html = (await readFile(new URL(`../src/${file}`, import.meta.url), "utf8")).replace(/<!--[\s\S]*?-->/g, "");
-    const clause = html.match(/Display names on posts labelled[^<]*anyone can publish under any name\./)?.[0];
+    const clause = html.match(/On any other post,[^<]*anyone can publish under any name\./)?.[0];
     assert.ok(clause, `${file} no longer tells a reader what a display name is`);
     shipped.push(clause);
   }

@@ -272,13 +272,13 @@ test("the nav names people, and never promises the visitor a personal profile", 
 
 test("the profile page defines the selected name as a display name", async () => {
   const html = await readFile(pageUrl("profile.html"), "utf8");
-  const role = html.match(/<p class="profile-role hint">([\s\S]*?)<\/p>/);
+  const role = html.match(/<span class="profile-role hint">([\s\S]*?)<\/span>/);
   assert.ok(role, "the profile page must preserve its display-name guidance");
   // It defines display names in general and names none of them. The selected
   // name is established once above it, by the heading that opens the profile
   // header this paragraph closes; it used to open on that name, which made it a
   // third visible copy of something the reader had just been told twice.
-  assert.match(role[1], /^Display names on posts labelled “Example post” are invented\. On any other post, whoever published it chose the name\./);
+  assert.match(role[1], /^On any other post, whoever published it chose the name\./);
   assert.doesNotMatch(role[1], /\bdemo\b/i, "the caveat calls a feed of real posts a demo");
   assert.equal(role[1].includes("Ari"), false, "the caveat restates the selected display name");
   assert.doesNotMatch(html, /id="profile-role-name"/, "the caveat still holds a slot for the name");
@@ -343,7 +343,7 @@ test("Social and People preserve guidance explaining the other surface", async (
   const pages = [
     // The heading is followed by the one-line tagline, and the description is
     // the paragraph under that.
-    { file: "social.html", heading: "Social", other: "People", lede: /<h1 id="page-title">Social<\/h1>[\s\S]*?<p class="social-feed-intro hint">([^<]*)<\/p>/ },
+    { file: "social.html", heading: "Social", other: "People", lede: /<h1 id="page-title">Social<\/h1>[\s\S]*?<span class="social-feed-intro hint">([^<]*)<\/span>/ },
     // People's description carries the link to Social inside itself, so the
     // capture takes markup: the sentence that names the other surface is the
     // sentence that opens it.

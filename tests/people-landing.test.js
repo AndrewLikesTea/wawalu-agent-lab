@@ -210,7 +210,7 @@ test("a first-time visitor lands on a display name that has image posts", async 
     assert.equal(textOf(document.querySelector("#profile-name")), "Showing 2 image posts published as Zed, all example posts.",
       "the header names someone other than the picker's own value");
     assert.match(textOf(document.querySelector(".profile-role")),
-      /^Display names on posts labelled “Example post” are invented\.[\s\S]*anyone can publish under any name\.$/,
+      /^On any other post,[\s\S]*anyone can publish under any name\.$/,
       "the display-name caveat is not the general one");
     assert.equal(textOf(document.querySelector(".profile-role")).includes("Zed"), false,
       "the caveat spends a third visible copy of the display name");
@@ -785,7 +785,7 @@ test("one profile header opens the results, above the line that orders them", as
     // paragraph in this panel, and still not in the hero.
     assert.ok(at(".profile-role") > at("#profile-grid"),
       "the display-name caveat is still read before the posts");
-    assert.equal(panel.childElements.at(-1).className, "profile-role hint",
+    assert.equal(panel.childElements.at(-1).childElements.at(-1).className, "profile-role hint",
       "something other than the caveat closes the results region");
     // And the hero it came from keeps no piece of it behind.
     const hero = document.querySelector(".hero-profile");
@@ -844,7 +844,7 @@ test("the display name is visible twice in the results region, and no more", asy
     // The lines that gave up their copy still say their own thing: Ari has
     // posted, just never a picture, and the counts carry that without a name.
     assert.match(textOf(document.querySelector("#profile-summary")), /^0 image posts · 1 post in total · last posted /);
-    assert.match(textOf(document.querySelector(".profile-role")), /^Display names on posts labelled “Example post” are invented\./);
+    assert.match(textOf(document.querySelector(".profile-role")), /^On any other post, whoever published it chose the name\./);
     // The announcement keeps the name, because it is heard away from the page.
     assert.match(textOf(document.querySelector("#profile-announcer")), /Ari/);
   } finally {
@@ -941,10 +941,11 @@ test("tabbing from the top reaches the picker, then the posts under the header",
 // src/profile.js takes that paragraph off the page while the first fetch is open
 // and has to put it back under the grid rather than at a remembered index.
 
-// The results panel's own element children, in order. The harness keeps text
-// nodes in `children`, so this filters on nodeType the way documentOrder does.
+// The results panel in reading order, including the inline guidance that now
+// shares one paragraph. Keep the invitation and caveat as separate test anchors.
 const panelBlocks = (document) =>
-  document.querySelector(".list-panel").children.filter((node) => node.nodeType === 1);
+  document.querySelector(".list-panel").children.filter((node) => node.nodeType === 1)
+    .flatMap((node) => node.querySelector(".profile-role") ? node.childElements : [node]);
 
 // Where a block sits among them. Index, never the node: comparing harness
 // elements with a deep assertion walks the whole parsed page.
@@ -1213,7 +1214,7 @@ function insideDisclosure(node) {
 // The site's one definition of a display name, in the bytes Social's feed note
 // renders. The invented set is named by the marker its tiles print (#2683), so a
 // reader can see which names the first sentence is about.
-const CAVEAT = "Display names on posts labelled “Example post” are invented. On any other post, whoever published it chose the name. Nobody owns or verifies a display name, and anyone can publish under any name.";
+const CAVEAT = "On any other post, whoever published it chose the name. Nobody owns or verifies a display name, and anyone can publish under any name.";
 
 // The reported defect (issue #1789): the display-name caveat closed the profile
 // header at the top of this panel, above the ordering line, above the status
@@ -1290,8 +1291,13 @@ test("once People has drawn its tiles, the display-name caveat tells both cases 
     await waitFor(() => drawnTiles(document).length > 0, "the grid drew a tile");
     const caveat = textOf(document.querySelector(".profile-role"));
     assert.equal(caveat, CAVEAT);
+    const guidance = textOf(document.querySelector("#main-content"));
+    assert.equal(guidance.split('labelled “Example post”').length - 1, 1);
+    assert.equal(guidance.split(PEOPLE_PROVENANCE).length - 1, 1);
+    assert.equal(guidance.split(CAVEAT).length - 1, 1);
+    assert.equal(document.querySelector(".profile-role").tagName, "SPAN");
     assert.doesNotMatch(caveat, /\bdemo\b/i, "the caveat calls the posts a demo");
-    assert.match(caveat, /on posts labelled “Example post” are invented\./);
+
     assert.match(caveat, /On any other post, whoever published it chose the name\./);
   } finally {
     page.restore();
@@ -1509,7 +1515,7 @@ test("People claims no result before its first image post, and the loaded page i
 // render PUBLISHED_POST_REACH now, and People renders it in the helper below,
 // beside the rest of what publishing costs. What is left here is Social's bytes
 // for the provenance, word for word.
-const PEOPLE_PROVENANCE = "Posts labelled “Example post” are invented to demonstrate Shiplog and use no customer or production data.";
+const PEOPLE_PROVENANCE = "Posts labelled “Example post” are invented to demonstrate Shiplog and use no customer or production data. Their display names are invented.";
 const RETIRED_DATA_SENTENCE = "Posts use no customer or production data.";
 const PUBLISH_INSTRUCTION = "Do not include customer or production data.";
 // The four second-person sentences Social's composer used to stack, retired from
