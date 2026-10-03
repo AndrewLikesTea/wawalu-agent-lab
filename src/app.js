@@ -1399,7 +1399,45 @@ function syncSupersedesOptions(select, decisions) {
   select.value = decisions.some((decision) => decision.id === current) ? current : "";
 }
 
+// Use only the canonical seed layer: browser-added records cannot become
+// homepage evidence, even if imported data imitates a provenance marker.
+//
+// WHICH ONE OF THEM, SAID OUT LOUD: the newest repository decision that carries
+// a citable pull request number, a title, and a date this page can order by.
+// `sort` is named here rather than inherited from the default view, because the
+// one record a buyer reads first must not change because somebody reordered the
+// seed array or changed which sort the history list opens on. The three
+// requirements are a filter rather than a fallback: an unparseable date makes
+// "newest" arbitrary, and an uncitable number is the single thing this block
+// exists to rule out, so a record missing either is dropped instead of shown.
+export function renderRepositoryEvidence(root, decisions = SEED_DECISIONS) {
+  const target = root.querySelector("#repository-evidence-records");
+  if (!target) return;
+  const records = selectHistory(toHistoryRecords(decisions, []), {
+    repositoryOnly: true, type: "decision", sort: "newest",
+  }).filter((record) => Number.isSafeInteger(record.repository?.pullRequest)
+    && record.repository.pullRequest > 0 && record.title?.trim()
+    && Number.isFinite(Date.parse(record.createdAt)));
+  target.replaceChildren();
+  const record = records[0];
+  if (!record) {
+    const empty = root.createElement("p");
+    empty.setAttribute("class", "release-followup-lead");
+    empty.textContent = "No repository-backed decisions are available in this log.";
+    target.append(empty);
+    return;
+  }
+  const paragraph = root.createElement("p");
+  paragraph.setAttribute("class", "release-followup-lead");
+  const link = root.createElement("a");
+  link.setAttribute("href", pullRequestUrl(record.repository.pullRequest));
+  link.textContent = `${record.title} — public pull request #${record.repository.pullRequest}`;
+  paragraph.append(link);
+  target.append(paragraph);
+}
+
 export async function initDecisionLog(root = document, storage = localStorage, options = {}) {
+  renderRepositoryEvidence(root);
   initLeadCapture(root);
   // The log entry's route to the follow-up form. Guarded inside, so a page that
   // mounts this log without the route or without the band gets nothing.
