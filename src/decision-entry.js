@@ -35,9 +35,9 @@ import { STORED_DECISION_STATUSES, canonicalDecisionStatus } from "./decision-st
 // checks a submitted status against — not "non-empty", and not the wider set a
 // stored record may legally carry.
 //
-// The select offers exactly these two and the hint beside it says so: "Records
-// can also read Proposed or Superseded; this form does not set those." The
-// checking used to be the wider STORED_DECISION_STATUSES, so a submit that did
+// The select offers exactly these two; its hint explains how records can also
+// show Proposed or Superseded. The checking used to be the wider
+// STORED_DECISION_STATUSES, so a submit that did
 // not come from the select — a scripted post, a devtools edit of the option
 // value, a replayed form body — could mint "superseded" or the legacy
 // "approved" straight into the log. Superseded is the state the supersede path
