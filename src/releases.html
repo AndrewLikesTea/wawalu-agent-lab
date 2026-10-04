@@ -389,31 +389,16 @@
              these same bytes, from the same constant. -->
         <p class="shiplog-proof-note" id="coverage-gap-definition">A release is covered when it links at least one decision the decision log holds; every other release is uncovered.</p>
         <p class="shiplog-proof-note" id="reasoning-proof-scope">Both numbers are over every release loaded on this page, not the filtered view: the search and the filters below do not change them.</p>
-        <!-- THE GAP, AS SOMETHING A READER CAN OPEN (#2630). The figure above
-             says how many releases keep their reasoning; these two nodes are how
-             a reader reaches the ones that do not. The chip states the live
-             coverage in words and in both values — it is the one filled chip in
-             this block, because it is the one thing here that changes as the log
-             does, and read with no colour at all it says the same thing. The
-             reveal is a real button element whose label carries the count,
-             written by release-coverage-gaps.js from the list it renders.
-
-             BOTH SHIP QUIET. A count is a claim the page cannot make until the
-             log has loaded, so the chip is empty, the button is hidden — no
-             reveal while the data is unknown, and nothing disabled and
-             mysterious — and the section carries aria-busy until the log answers.
-             The skeleton below them is the coverage figure's own wait: it is
-             decorative and aria-hidden, because the log's status region is the
-             page's one voice for "loading" and a second one would say it twice.
-
-             The announcement is a polite region in the normal flow of the block,
-             never inside a disclosure: a live region behind a closed details is
-             silent in a real browser. It ships empty and stays empty until a
-             reveal actually changes what is on screen. -->
+        <!-- One count and one review action, derived from the existing worklist.
+             The text announces loading, success and failure; only dynamic
+             coverage status uses a filled badge. Review reveals and focuses the
+             worklist. Count completion alone never moves focus. -->
         <p class="coverage-gap-skeleton" id="coverage-gap-skeleton" aria-hidden="true"></p>
         <div class="coverage-gap-reveal">
+          <p class="shiplog-proof-note" id="coverage-gap-result" role="status" aria-live="polite" aria-atomic="true" tabindex="-1">Counting releases…</p>
+          <button class="empty-action empty-action-secondary" id="coverage-gap-retry" type="button" hidden>Retry coverage count</button>
           <span class="badge" id="coverage-gap-chip" hidden></span>
-          <button class="empty-action empty-action-secondary coverage-gap-toggle" id="coverage-gap-toggle" type="button" aria-pressed="false" aria-controls="coverage-gap-list" hidden>Show uncovered releases</button>
+          <button class="empty-action empty-action-secondary coverage-gap-toggle" id="coverage-gap-toggle" type="button" aria-expanded="false" aria-controls="coverage-gap-worklist" hidden>Review uncovered releases</button>
           <p class="shiplog-proof-note" id="coverage-gap-status" role="status" aria-live="polite" aria-atomic="true"></p>
         </div>
         <!-- THE COPIED SENTENCE, ON SCREEN (#2682). The control below hands over
@@ -662,6 +647,7 @@
           <h3 id="coverage-gap-worklist-title">Uncovered releases</h3>
           <p class="shiplog-proof-note" id="coverage-gap-worklist-rule">A release is on this list when it links no decision at all, or when every decision it links is one this log does not hold.</p>
           <p class="shiplog-proof-note" id="coverage-gap-worklist-lead"></p>
+          <button class="empty-action empty-action-secondary" id="coverage-gap-reset" type="button" hidden>Show all releases</button>
           <ol class="coverage-gap-list" id="coverage-gap-list"></ol>
         </section>
         <!-- The log's one status region: the only place loading, no releases

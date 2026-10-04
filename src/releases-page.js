@@ -387,7 +387,16 @@ export function initReleasesPage(root = document, storage = localStorage, option
   // through the same update() every other filter goes through — it is a filter,
   // not a second renderer — so the rows, the count sentence and the export all
   // follow it without being told about it.
-  const coverageGaps = initReleaseCoverageGaps(root, { onFilter: () => update() });
+  const coverageGaps = initReleaseCoverageGaps(root, { onFilter: (reviewing) => {
+    if (reviewing) {
+      // The count covers the whole log; its action must expose that whole set.
+      if (search) search.value = "";
+      if (statusFilter) statusFilter.value = "all";
+      if (decisionFilter) decisionFilter.value = ALL_DECISIONS_FILTER;
+      for (const input of decisionStatusInputs) input.checked = input.value === "all";
+      filtersChanged();
+    } else update();
+  } });
   const update = () => {
     // Whatever the list is showing, the figure is over the whole loaded log —
     // and over nothing at all when the log could not be read, because a log that
@@ -401,6 +410,7 @@ export function initReleasesPage(root = document, storage = localStorage, option
     const gapView = coverageGaps.update(unread ? [] : releases, decisions, {
       linkableDecisions: decisionsRead ? decisions.length : 0,
       reported: options.reportedUncovered,
+      failed: unread || !decisionsRead,
     });
     if (unread) {
       // Nothing is shown, so nothing is counted, exported or followed up.
@@ -454,18 +464,35 @@ export function initReleasesPage(root = document, storage = localStorage, option
   // read re-announces the error and leaves the panel, and its Retry, in place.
   const reload = () => {
     announce("loading");
+    coverageGaps.setState("loading");
     const next = readLog();
     if (!next) {
       announce("error");
+      coverageGaps.setState("error");
       return false;
     }
     unread = false;
     releases = next.releases;
+    decisionsRead = decisionLogReadable();
+    decisions = next.decisions;
+    linkableDecisions = decisionsRead ? decisions : [];
+    fillDecisionOptions(linkableDecisions);
+    if (decisionsRead) recorder?.setDecisions(decisions);
+    else recorder?.setFailed();
     exampleReleaseIds.clear();
     for (const id of next.exampleReleaseIds) exampleReleaseIds.add(id);
     update();
     return true;
   };
+
+  root.querySelector("#coverage-gap-retry")?.addEventListener("click", () => {
+    if (reload() && decisionsRead) {
+      // This focus move belongs to the retry activation, never count completion.
+      (root.querySelector("#coverage-gap-toggle")?.hidden === false
+        ? root.querySelector("#coverage-gap-toggle")
+        : root.querySelector("#coverage-gap-result"))?.focus?.();
+    }
+  });
 
   // The next step each state offers. Delegated to the status region rather than
   // bound to a button, because the button is relabelled from state to state; and
