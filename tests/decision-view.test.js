@@ -1,4 +1,5 @@
 import test from "node:test";
+import { loadPage, textOf } from "./support/browser.js";
 import assert from "node:assert/strict";
 import {
   selectDecisions,
@@ -254,10 +255,6 @@ test("decision list exposes semantic loading, empty, and error states", async ()
     /id="alternatives-hint">Other options considered and why they were not chosen\. Write “None considered” if there were none\.<\/span>/,
   );
   assert.match(page, /id="owner-hint">The person responsible for the decision\.<\/span>/);
-  // The form's two statuses, and the sentence that names the two it cannot set
-  // — the filter offers all four, so the gap is stated rather than discovered.
-  assert.match(page, /<option value="pending">Pending<\/option>\s*<option value="accepted">Accepted<\/option>/);
-  assert.match(page, /id="status-hint">Set Pending or Accepted\. Records can also read Proposed or Superseded; this form does not set those\.<\/span>/);
   // Replaces says what happens to the decision it names: the status it gets, that
   // it is still in the log, and that the named filter only hides it from a view.
   assert.match(page, /id="supersedes-hint">The decision this one replaces, if any\. That decision is marked Superseded by this one and stays in the log — you can still open and export it\. Pressing “Current only” hides it from the list\.<\/span>/);
@@ -272,4 +269,23 @@ test("decision list exposes semantic loading, empty, and error states", async ()
   assert.match(source, /"Couldn’t load your history"/);
   assert.match(page, /id="exit-decision-recorder" type="button">Back to decision history<\/button>/);
   assert.match(page, /id="decisions-title" tabindex="-1"/);
+});
+
+
+test("Home decision form explains each status beside its Status control", async (t) => {
+  const page = await loadPage(new URL("../src/index.html", import.meta.url));
+  t.after(() => page.restore());
+  assert.equal(enterDecisionRecorder(page.document), true);
+  const form = page.document.querySelector("#decision-form");
+  const status = form.querySelector("#status");
+  assert.equal(status.getAttribute("aria-describedby"), "status-hint");
+  assert.deepEqual(status.querySelectorAll("option").map(textOf), ["Pending", "Accepted"]);
+  assert.equal(textOf(form.querySelector("#status-hint")),
+    "Choose Pending while the decision is under review and waiting on the owner to call it. "
+    + "Choose Accepted when the team has committed to it. "
+    + "To replace an older decision, select it under Replaces when recording the new one. "
+    + "The older decision is then marked Superseded, so you cannot select Superseded here. "
+    + "Proposed means the team has not committed to it; it may appear on example or imported records, "
+    + "but this form cannot set Proposed.");
+  assert.ok(form.querySelector("#supersedes"), "the named Replaces control is in the same form");
 });
