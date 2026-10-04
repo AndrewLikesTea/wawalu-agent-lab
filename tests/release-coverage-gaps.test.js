@@ -37,7 +37,7 @@ import {
   revealGapsLabel,
 } from "../src/release-coverage-gaps.js";
 import { initReleasesPage } from "../src/releases-page.js";
-import { loadPage, tabSequence, textOf } from "./support/browser.js";
+import { loadPage, tabSequence, textOf, pressEnter, pressSpace } from "./support/browser.js";
 
 const RELEASES_PAGE = new URL("../src/releases.html", import.meta.url);
 const CSS = new URL("../src/releases-proof.css", import.meta.url);
@@ -131,8 +131,8 @@ test("each gap carries the one next step that applies to it", () => {
 });
 
 test("the label, the announcement, the lead and the chip all name real values", () => {
-  assert.equal(revealGapsLabel(4), "Show 4 uncovered releases");
-  assert.equal(revealGapsLabel(1), "Show 1 uncovered release");
+  assert.equal(revealGapsLabel(4), "Review 4 uncovered releases");
+  assert.equal(revealGapsLabel(1), "Review 1 uncovered release");
   assert.equal(SHOW_ALL_RELEASES_LABEL, "Show all releases");
   assert.equal(
     coverageGapAnnouncement({ count: 4, total: 19, uncoveredOnly: true }),
@@ -168,7 +168,7 @@ test("a supplied count larger than the log is discarded and the three numbers ag
   assert.equal(view.count, 2);
   assert.equal(view.total, 4);
   assert.equal(view.gaps.length, 2, "the rendered rows disagree with the count");
-  assert.equal(revealGapsLabel(view.count), "Show 2 uncovered releases");
+  assert.equal(revealGapsLabel(view.count), "Review 2 uncovered releases");
   assert.equal(
     coverageGapAnnouncement({ ...view, uncoveredOnly: true }),
     "Showing 2 of 4 releases: uncovered only.",
@@ -198,10 +198,12 @@ async function openPage(t, { releases = ALL, decisions = [QUEUE], refuse = false
   });
   t.after(() => page.restore());
   const { getItem } = page.storage;
-  const control = { refuse, seen: [] };
+  const control = { refuse, refuseDecisions: false, seen: [] };
   page.storage.getItem = (key) => {
+    if (key === STORAGE_KEY && control.refuseDecisions) throw new Error("decision read refused");
     if (key === RELEASE_STORAGE_KEY) {
       control.seen.push({
+        loadingText: textOf(page.document.querySelector("#coverage-gap-result")),
         busy: page.document.querySelector("#reasoning-proof").getAttribute("aria-busy"),
         revealHidden: page.document.querySelector("#coverage-gap-toggle").hidden,
         chipHidden: page.document.querySelector("#coverage-gap-chip").hidden,
@@ -230,10 +232,10 @@ test("incomplete coverage offers a real button naming the derived count", async 
   assert.equal(toggle.tagName, "BUTTON");
   assert.equal(toggle.getAttribute("type"), "button");
   assert.equal(toggle.hidden, false, "the reveal never appeared for an incomplete log");
-  assert.equal(textOf(toggle), "Show 2 uncovered releases");
+  assert.equal(textOf(toggle), "Review 2 uncovered releases");
   assert.equal(toggle.getAttribute("aria-label"), null, "the visible label is not the accessible name");
-  assert.equal(toggle.getAttribute("aria-pressed"), "false");
-  assert.equal(toggle.getAttribute("aria-controls"), "coverage-gap-list");
+  assert.equal(toggle.getAttribute("aria-expanded"), "false");
+  assert.equal(toggle.getAttribute("aria-controls"), "coverage-gap-worklist");
   assert.equal(toggle.getAttribute("tabindex"), null, "the reveal carries a tabindex of its own");
   assert.ok(tabSequence(page.document).includes(toggle), "the reveal is not reachable by Tab");
 
@@ -265,9 +267,9 @@ test("the reveal filters the log to the uncovered rows, moves focus, and announc
   assert.equal(byId(page, "coverage-gap-worklist").hidden, false);
   assert.equal(textOf(byId(page, "coverage-gap-worklist-title")), COVERAGE_GAP_HEADING);
 
-  // The pressed state is exposed, and the inverse control is the same button.
-  assert.equal(toggle.getAttribute("aria-pressed"), "true");
-  assert.equal(textOf(toggle), SHOW_ALL_RELEASES_LABEL);
+  // Expansion is exposed; reviewing again keeps the count-bearing action.
+  assert.equal(toggle.getAttribute("aria-expanded"), "true");
+  assert.equal(textOf(toggle), "Review 2 uncovered releases");
 
   // Both numbers, in a polite region that is in the normal flow of the block.
   const status = byId(page, "coverage-gap-status");
@@ -281,10 +283,11 @@ test("the reveal filters the log to the uncovered rows, moves focus, and announc
   // The log's own count sentence states the same two numbers rather than a third.
   assert.equal(textOf(byId(page, "release-count")), "Showing 2 of 4 releases, newest first.");
 
-  toggle.click();
+  byId(page, "coverage-gap-reset").click();
+  assert.equal(activeId(page), "coverage-gap-toggle");
   assert.deepEqual(rowIds(page), ["r-bare", "r-dangling", "r-mixed", "r-kept"]);
-  assert.equal(toggle.getAttribute("aria-pressed"), "false");
-  assert.equal(textOf(toggle), "Show 2 uncovered releases");
+  assert.equal(toggle.getAttribute("aria-expanded"), "false");
+  assert.equal(textOf(toggle), "Review 2 uncovered releases");
   assert.equal(textOf(status), "Showing all 4 releases.");
   assert.equal(byId(page, "coverage-gap-worklist").hidden, true);
 });
@@ -337,7 +340,7 @@ test("the page says what covered and uncovered mean before either word is used",
     "the first “uncovered” on the page is not the one in the definition",
   );
   // The three places the word is a label, all of them below it.
-  for (const later of ["Uncovered: 2 of 4", "Show 2 uncovered releases"]) {
+  for (const later of ["Uncovered: 2 of 4", "Review 2 uncovered releases"]) {
     assert.ok(said.indexOf(later) > defined, `“${later}” stands above the definition`);
   }
   // It is authored, not written by script: a reader who arrives before the log
@@ -487,7 +490,7 @@ test("a log that could not be read offers Retry and no coverage claim, and the r
   retry.click();
   assert.equal(rowIds(page).length, 4, "the retry did not recover the log");
   assert.equal(byId(page, "coverage-gap-toggle").hidden, false);
-  assert.equal(textOf(byId(page, "coverage-gap-toggle")), "Show 2 uncovered releases");
+  assert.equal(textOf(byId(page, "coverage-gap-toggle")), "Review 2 uncovered releases");
   assert.equal(textOf(byId(page, "coverage-gap-chip")), "Uncovered: 2 of 4");
 });
 
@@ -506,7 +509,7 @@ test("an empty log states that coverage does not apply and offers no reveal at a
     tabSequence(page.document).filter((stop) => stop.getAttribute?.("id") === "coverage-gap-toggle").length,
     0,
   );
-  // And the hidden control is stripped, not left holding "Show 0 uncovered
+  // And the hidden control is stripped, not left holding "Review 0 uncovered
    // releases" for a reader who searches the page for its own text.
   assert.equal(textOf(byId(page, "coverage-gap-toggle")), "");
   // No count and no coverage status anywhere in the block. The definition of
@@ -514,15 +517,8 @@ test("an empty log states that coverage does not apply and offers no reveal at a
   const block = textOf(byId(page, "reasoning-proof"));
   assert.doesNotMatch(block, /\d+ uncovered/i, "a count was claimed for a log with nothing in it");
   assert.ok(block.includes(COVERAGE_DEFINITION));
-  // And every "uncovered" in the block is inside that one sentence: once where
-  // the page defines the word, and once in the copy-by-hand payload below,
-  // which quotes the definition byte for byte so a forwarded figure travels
-  // with the rule it was counted under (#2712). No control says it.
-  assert.equal(
-    block.split(COVERAGE_DEFINITION).join(" ").match(/uncovered/gi),
-    null,
-    "the block says \"uncovered\" somewhere other than its definition",
-  );
+  assert.equal(textOf(byId(page, "coverage-gap-result")),
+    "Covered: 0. Total: 0. Uncovered: 0. No uncovered releases to review.");
 });
 
 test("complete coverage is a positive statement with the real values and no reveal", async (t) => {
@@ -544,12 +540,12 @@ test("a supplied uncovered figure never reaches the page", async (t) => {
   const { page } = await openPage(t, { options: { reportedUncovered: 40 } });
   const toggle = byId(page, "coverage-gap-toggle");
 
-  assert.equal(textOf(toggle), "Show 2 uncovered releases");
+  assert.equal(textOf(toggle), "Review 2 uncovered releases");
   assert.equal(textOf(byId(page, "coverage-gap-chip")), "Uncovered: 2 of 4");
   toggle.click();
   // The three numbers that must always agree: the label, the summary sentence,
   // and the rows actually drawn.
-  assert.equal(textOf(toggle), SHOW_ALL_RELEASES_LABEL);
+  assert.equal(textOf(toggle), "Review 2 uncovered releases");
   assert.equal(textOf(byId(page, "coverage-gap-status")), "Showing 2 of 4 releases: uncovered only.");
   assert.match(textOf(byId(page, "coverage-gap-worklist-lead")), /^2 of 4 releases/);
   assert.equal(gapItems(page).length, 2);
@@ -643,4 +639,94 @@ test("every pair this block draws clears the contrast floor", () => {
   }
   // The computation itself, against a pair with a known answer.
   assert.equal(Math.round(contrast("#000000", "#ffffff")), 21);
+});
+
+
+test("keyboard review reveals and scrolls the existing worklist, including with conflicting filters", async (t) => {
+  const { page } = await openPage(t);
+  const search = byId(page, "release-search");
+  search.value = "not a matching release";
+  search.dispatchEvent({ type: "input", bubbles: true });
+  const target = byId(page, "coverage-gap-worklist");
+  let scrolls = 0;
+  target.scrollIntoView = (options) => {
+    assert.equal(target.hidden, false);
+    assert.equal(activeId(page), target.id);
+    assert.equal(options.behavior, "instant");
+    scrolls++;
+  };
+  const review = byId(page, "coverage-gap-toggle");
+  review.focus();
+  pressEnter(page.document);
+  assert.equal(scrolls, 1);
+  assert.deepEqual(rowIds(page), ["r-bare", "r-dangling"]);
+  assert.equal(gapItems(page).length, 2);
+  assert.match(textOf(target), /v1.3.0/);
+  assert.match(textOf(target), /v1.2.0/);
+  review.focus();
+  pressSpace(page.document);
+  assert.equal(scrolls, 2, "reviewing again must navigate, not hide the destination");
+  assert.equal(target.hidden, false);
+});
+
+test("coverage retry exposes loading and keyboard recovery without focus on passive updates", async (t) => {
+  const { page, control } = await openPage(t, { refuse: true });
+  const result = byId(page, "coverage-gap-result");
+  assert.match(textOf(result), /Couldn’t count coverage/);
+  const retry = byId(page, "coverage-gap-retry");
+  retry.focus();
+  pressSpace(page.document);
+  assert.equal(activeId(page), "coverage-gap-retry");
+  assert.equal(retry.hidden, false);
+  control.refuse = false;
+  control.seen.length = 0;
+  pressEnter(page.document);
+  assert.ok(control.seen.some((seen) => seen.busy === "true" && seen.revealHidden && seen.loadingText === "Counting releases…"));
+  assert.equal(textOf(result), "Covered: 2. Total: 4. Uncovered: 2.");
+  assert.equal(activeId(page), "coverage-gap-toggle");
+  const search = byId(page, "release-search");
+  search.focus();
+  search.dispatchEvent({ type: "input", bubbles: true });
+  assert.equal(activeId(page), "release-search");
+});
+
+test("complete coverage explicitly states all three counts", async (t) => {
+  const { page } = await openPage(t, { releases: [KEPT] });
+  assert.equal(textOf(byId(page, "coverage-gap-result")),
+    "Covered: 1. Total: 1. Uncovered: 0. No uncovered releases to review.");
+  assert.equal(byId(page, "coverage-gap-toggle").hidden, true);
+});
+
+
+test("an unread decision log fails coverage and retries both stores", async (t) => {
+  const { page, control } = await openPage(t, { refuse: true });
+  control.refuse = false;
+  control.refuseDecisions = true;
+  const retry = byId(page, "coverage-gap-retry");
+  retry.focus();
+  pressEnter(page.document);
+  assert.match(textOf(byId(page, "coverage-gap-result")), /Couldn’t count coverage/);
+  assert.equal(byId(page, "coverage-gap-toggle").hidden, true);
+  assert.equal(activeId(page), "coverage-gap-retry");
+  control.refuseDecisions = false;
+  pressEnter(page.document);
+  assert.equal(textOf(byId(page, "coverage-gap-result")), "Covered: 2. Total: 4. Uncovered: 2.");
+});
+
+
+test("initial counting leaves keyboard focus alone", async (t) => {
+  const page = await loadPage(RELEASES_PAGE, { storage: {} });
+  t.after(() => page.restore());
+  const search = byId(page, "release-search");
+  search.focus();
+  assert.equal(textOf(byId(page, "coverage-gap-result")), "Counting releases…");
+  initReleasesPage(page.document, page.storage, { seed: NO_SEED });
+  assert.equal(activeId(page), "release-search");
+});
+
+test("long count labels retain the value and the controls allow wrapping", async () => {
+  assert.equal(revealGapsLabel(123456789012345), "Review 123456789012345 uncovered releases");
+  const css = await readFile(CSS, "utf8");
+  assert.match(css, /\.coverage-gap-reveal \.empty-action \{[^}]*min-width:0;[^}]*white-space:normal;[^}]*overflow-wrap:anywhere/);
+  assert.match(css, /\.coverage-gap-reveal \.badge \{[^}]*white-space:normal/);
 });

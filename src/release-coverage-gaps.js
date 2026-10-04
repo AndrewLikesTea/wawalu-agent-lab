@@ -147,9 +147,9 @@ export function coverageGapCount(gaps = [], releases = [], reported) {
   return Math.min(gaps.length, (releases ?? []).length);
 }
 
-/** "Show 4 uncovered releases" — the count is in the accessible name. */
+/** "Review 4 uncovered releases" — the count is in the accessible name. */
 export function revealGapsLabel(count) {
-  return `Show ${count} uncovered ${count === 1 ? "release" : "releases"}`;
+  return `Review ${count} uncovered ${count === 1 ? "release" : "releases"}`;
 }
 
 export const SHOW_ALL_RELEASES_LABEL = "Show all releases";
@@ -278,10 +278,17 @@ export function renderCoverageGaps(root, view, uncoveredOnly = false) {
     // own state action is: a page with nothing to reveal that still held "Show 0
     // uncovered releases" in its markup would answer a search for that text, and
     // "0 uncovered" is a figure posing as a finding.
-    toggle.textContent = !view.actionable ? ""
-      : uncoveredOnly ? SHOW_ALL_RELEASES_LABEL : revealGapsLabel(view.count);
-    toggle.setAttribute("aria-pressed", String(uncoveredOnly));
+    toggle.textContent = view.actionable ? revealGapsLabel(view.count) : "";
+    toggle.setAttribute("aria-expanded", String(uncoveredOnly));
   }
+  const reset = root.querySelector("#coverage-gap-reset");
+  if (reset) reset.hidden = !(uncoveredOnly && view.actionable);
+  const result = root.querySelector("#coverage-gap-result");
+  const summary = `Covered: ${view.linked}. Total: ${view.total}. Uncovered: ${view.count}.`
+    + (view.count === 0 ? " No uncovered releases to review." : "");
+  if (result && result.textContent !== summary) result.textContent = summary;
+  const retry = root.querySelector("#coverage-gap-retry");
+  if (retry) { retry.hidden = true; retry.disabled = false; }
   // Announced only while the reveal is in play. A page that never narrowed has
   // nothing to announce, and saying so on every render would read out the whole
   // sentence for every keypress in the search box above.
@@ -300,8 +307,8 @@ export function renderCoverageGaps(root, view, uncoveredOnly = false) {
  * Mount the reveal.
  *
  * The control is a real <button type="button"> in the markup, so activation,
- * role and the pressed state come from the platform; this only flips the page's
- * filter and moves focus. Focus lands on the worklist, which carries
+ * role come from the platform; this reveals the page's
+ * uncovered view and moves focus. Focus lands on the worklist, which carries
  * `tabindex="-1"`: it is the head of the uncovered view, inside the release-log
  * panel and directly above the rows the press just narrowed. The panel's own h2
  * was the other candidate and is the wrong one — it stands above the count, the
@@ -317,19 +324,34 @@ export function initReleaseCoverageGaps(root, options = {}) {
   let view = coverageGapView([], []);
   if (toggle) {
     toggle.addEventListener("click", () => {
-      uncoveredOnly = !uncoveredOnly;
+      if (!view.actionable) return;
+      uncoveredOnly = true;
       // The page re-renders the log and calls back through update(), which is
       // what writes this block; the focus move happens after that so the region
       // being focused is holding the rows the press produced.
       options.onFilter?.(uncoveredOnly);
-      root.querySelector("#coverage-gap-worklist")?.focus?.({ preventScroll: true });
+      const target = root.querySelector("#coverage-gap-worklist");
+      target?.focus?.({ preventScroll: true });
+      target?.scrollIntoView?.({ block: "start", behavior: "instant" });
     });
   }
+  root.querySelector("#coverage-gap-reset")?.addEventListener("click", () => {
+    uncoveredOnly = false;
+    options.onFilter?.(false);
+    toggle?.focus?.();
+  });
   return {
+    setState(state) { renderCoverageCountState(root, state); },
     uncoveredOnly: () => uncoveredOnly,
     // Ids the log is narrowed to while the reveal is pressed.
     uncoveredIds: () => view.gaps.map((gap) => gap.id),
     update(releases, decisions, updateOptions = {}) {
+      if (updateOptions.failed) {
+        view = coverageGapView([], []);
+        uncoveredOnly = false;
+        renderCoverageCountState(root, "error");
+        return view;
+      }
       view = coverageGapView(releases, decisions, updateOptions);
       // A log that lost its last gap — a release recorded with a decision linked,
       // or a retry that restored the decision log — cannot stay narrowed to a
@@ -339,4 +361,23 @@ export function initReleaseCoverageGaps(root, options = {}) {
       return view;
     },
   };
+}
+
+// Counts require both stores. Never turn a failed read into zero uncovered.
+export function renderCoverageCountState(root, state) {
+  root.querySelector("#reasoning-proof")?.setAttribute("aria-busy", String(state === "loading"));
+  for (const id of ["coverage-gap-chip", "coverage-gap-toggle", "coverage-gap-worklist"]) {
+    const node = root.querySelector(`#${id}`);
+    if (node) node.hidden = true;
+  }
+  const status = root.querySelector("#coverage-gap-status");
+  if (status) status.textContent = "";
+  const result = root.querySelector("#coverage-gap-result");
+  if (result) result.textContent = state === "loading" ? "Counting releases…"
+    : "Couldn’t count coverage. The release or decision log could not be read.";
+  const retry = root.querySelector("#coverage-gap-retry");
+  if (retry) {
+    retry.hidden = state !== "error";
+    retry.disabled = state === "loading";
+  }
 }
