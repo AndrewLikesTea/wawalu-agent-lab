@@ -25,6 +25,7 @@
 // Cmd+Enter route sets `metaKey` on the event after constructing it.
 
 import test from "node:test";
+import { readFile } from "node:fs/promises";
 import assert from "node:assert/strict";
 import {
   PUBLISH_FAILED_NOTE,
@@ -97,7 +98,10 @@ test("a publish in flight is stated in words, in the region the submit button na
   harness.type("post-body", "On its way to Social.");
   harness.type("post-author", "Mina");
 
+  assert.equal(id("post-form").dataset.publishState, "idle");
   await harness.publish();
+  assert.equal(id("post-form").dataset.publishState, "pending");
+  assert.equal(id("post-submit").getAttribute("aria-disabled"), "true");
   assert.equal(harness.requests.length, 1, "the request never left, so there is no in-flight state to read");
 
   const region = notice(document);
@@ -132,6 +136,8 @@ test("a publish in flight is stated in words, in the region the submit button na
 
   // The outcome replaces the state; it never lands underneath it.
   await harness.resolve();
+  assert.equal(id("post-form").dataset.publishState, "success");
+  assert.equal(id("post-submit").getAttribute("aria-disabled"), "false");
   assert.equal(notice(document).classList.contains("is-success"), true);
   assert.doesNotMatch(textOf(notice(document)), new RegExp(PUBLISH_STATE_WORDS.pending));
   assert.equal(textOf(notice(document)).includes(PUBLISH_IN_PROGRESS_NOTE), false,
@@ -326,9 +332,18 @@ for (const [path, open] of Object.entries(IMAGE_PATHS)) {
     assert.ok(tabSequence(document).includes(retry), "the retry is not keyboard reachable");
     assert.equal(id("post-submit").disabled, false, "the original control is usable too");
 
+    assert.equal(document.activeElement?.id, "social-notice");
+    assert.equal(id("post-form").dataset.publishState, "failure");
     transport.allow();
-    retry.click();
+    retry.focus();
+    await pressEnter(document);
     await waitFor(() => notice(document).classList.contains("is-success"), "the retry landed");
+
+    assert.equal(document.activeElement?.id, "social-notice");
+    assert.equal(id("post-form").dataset.publishState, "success");
+    const openPost = notice(document).querySelector("a");
+    assert.ok(tabSequence(document).includes(openPost));
+    assert.match(openPost.href, /post.html/);
 
     // The evidence the image survived: the second request carried it, byte for
     // byte, and the description with it. Nothing was reselected or retyped.
@@ -345,3 +360,38 @@ for (const [path, open] of Object.entries(IMAGE_PATHS)) {
     assert.equal(id("compose-media").hidden, true);
   });
 }
+
+for (const outcome of ["resolve", "reject"]) {
+  test(`keyboard retry keeps focus through pending and ${outcome}`, async (t) => {
+    const harness = await composer(t);
+    const { document, id } = harness;
+    harness.type("post-body", "  Keep my exact draft.\n");
+    await harness.publish();
+    await harness.reject("Temporarily unavailable.");
+    const retry = notice(document).querySelector("button");
+    retry.focus();
+    await pressEnter(document);
+    assert.equal(document.activeElement?.id, "post-submit");
+    assert.equal(id("post-form").dataset.publishState, "pending");
+    await pressEnter(document);
+    assert.equal(harness.requests.length, 2, "pending retry must not duplicate the request");
+    await harness[outcome]("Still unavailable.");
+    assert.equal(document.activeElement?.id, "social-notice");
+    assert.equal(notice(document).getAttribute("tabindex"), "-1");
+    assert.equal(id("post-form").dataset.publishState, outcome === "resolve" ? "success" : "failure");
+    if (outcome === "reject") assert.equal(id("post-body").value, "  Keep my exact draft.\n");
+  });
+}
+
+test("Social's navigation snapshot identifies the current page without color", async (t) => {
+  const { document } = await composer(t);
+  const nav = document.querySelector(".site-nav");
+  const current = nav.querySelectorAll('[aria-current="page"]');
+  assert.equal(current.length, 1);
+  assert.equal(current[0].href, "/social.html");
+  assert.equal(textOf(current[0]), "Social");
+  assert.equal(nav.querySelector("details").hasAttribute("open"), true);
+  const css = await readFile(new URL("../src/social-composer.css", import.meta.url), "utf8");
+  assert.match(css, /\.nav-social\[aria-current="page"\]\s*\{[^}]*text-decoration:underline/);
+  assert.match(css, /#social-notice:focus-visible\s*\{[^}]*outline:3px solid var\(--focus-ring\)/);
+});

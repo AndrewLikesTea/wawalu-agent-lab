@@ -1415,7 +1415,13 @@ export function mountSocialFeed(root, options = {}) {
     },
   };
   form?.addEventListener("input", () => { draftRevision += 1; });
-  let publishing = false;
+  // One state owns the request guard and the rendered composer contract.
+  let publishState = "idle";
+  const setPublishState = (state) => {
+    publishState = state;
+    if (form) form.dataset.publishState = state;
+  };
+  setPublishState("idle");
   const composer = mountComposerDisclosure(root);
   const report = mountPostReport(root, { send: options.sendReport });
 
@@ -1844,6 +1850,7 @@ export function mountSocialFeed(root, options = {}) {
       }));
     }
 
+    setPublishState("success");
     notice.classList.add("is-success");
     notice.hidden = false;
     // Focusable only by script: the announcement is where a screen-reader user
@@ -1859,6 +1866,7 @@ export function mountSocialFeed(root, options = {}) {
   // Retry it just grew. A reader who closed the panel or moved on keeps their
   // place (#2370).
   const showFailure = (message, { retry = false, focus = false } = {}) => {
+    setPublishState("failure");
     if (!notice) return;
     notice.classList.remove("is-success");
     notice.replaceChildren(
@@ -1868,7 +1876,12 @@ export function mountSocialFeed(root, options = {}) {
     if (retry) {
       const retryButton = el("button", "feed-status-action", PUBLISH_RETRY_LABEL);
       retryButton.type = "button";
-      retryButton.addEventListener("click", () => submit?.click());
+      retryButton.addEventListener("click", () => {
+        // Pending replaces this button. Keep focus on a persistent control so
+        // completion can return it to the receipt without losing it to body.
+        submit?.focus();
+        submit?.click();
+      });
       notice.append(document.createTextNode(" "), retryButton);
     }
     notice.hidden = false;
@@ -1902,19 +1915,20 @@ export function mountSocialFeed(root, options = {}) {
     notice.setAttribute("tabindex", "-1");
   };
 
-  // True from the moment a request leaves until it comes back, and the whole
+  // Pending from the moment a request leaves until it comes back; the whole
   // guard against a second request: the button, Enter in a single-line field and
   // the post field's Cmd/Ctrl+Enter shortcut all reach the handler that reads it.
-  // Nothing is disabled (#2370): the button keeps the focus it was pressed with,
-  // Close stays usable, and the "Publishing…" label is the status a reader finds
+  // No native disabling (#2370): aria-disabled communicates the guard while
+  // the button keeps focus. Close stays usable, and the "Publishing…" label is the status a reader finds
   // on the button, including after closing and reopening the composer. The
-  // attribute is not the guard — `publishing` is — so a disabled button would buy
+  // attribute is not the guard — `publishState` is — so a disabled button would buy
   // nothing and cost the reader their place. The words for the same state live in
   // the status region above (showPending); this is the label half of one state.
   const setSubmitting = (submitting) => {
-    publishing = submitting;
+    if (submitting) setPublishState("pending");
     if (!submit) return;
     submit.setAttribute("aria-busy", String(submitting));
+    submit.setAttribute("aria-disabled", String(submitting));
     if (submitLabel) submitLabel.textContent = submitting ? "Publishing…" : "Publish post";
   };
 
@@ -1937,7 +1951,7 @@ export function mountSocialFeed(root, options = {}) {
       // One press, one post. A submit that arrives while one is already in
       // flight is dropped here rather than queued: the composer still holds the
       // same draft, so queuing it would publish the same post twice.
-      if (publishing) return;
+      if (publishState === "pending") return;
 
       let media = null;
       let mediaProblem = "";
@@ -1968,6 +1982,7 @@ export function mountSocialFeed(root, options = {}) {
       if (descriptionProblem) problems.push({ label: "Image description", message: descriptionProblem });
       renderErrorSummary(problems);
       if (problems.length > 0) {
+        setPublishState("failure");
         // The missing description is still said in the composer's status region
         // too, where every other outcome of the press is announced, when it is
         // the one thing wrong.
@@ -1991,7 +2006,7 @@ export function mountSocialFeed(root, options = {}) {
         // pressed — are both the wrong answer to a display name over its limit.
         // This one names the field and the number instead.
         showFailure(error?.message
-          || `That post could not be published. Enter a post of ${MAX_POST_LENGTH} characters or fewer.`);
+          || `That post could not be published. Enter a post of ${MAX_POST_LENGTH} characters or fewer.`, { focus: true });
         return;
       }
 
