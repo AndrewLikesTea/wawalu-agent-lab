@@ -43,14 +43,14 @@ export const EXAMPLE_RECORDS_NOTICE =
   "Includes example records to demonstrate Shiplog. They use no customer or production data.";
 
 /** The visible words on the control, which say what pressing it produces. */
-export const RELEASE_EXPORT_BUTTON_LABEL = "Export releases as JSON";
+export const RELEASE_EXPORT_BUTTON_LABEL = "Export shown releases as JSON";
 
 // Static text beside the control. It is true on every render — including the
 // unfiltered one, where "the releases shown" is the whole log — so it never has
 // to be repainted and can never disagree with the file that was just written.
 export const RELEASE_EXPORT_SCOPE_SENTENCE =
-  "The JSON download includes only the releases currently shown by the active search and filters, "
-  + "not the full release log. Each exported release includes its linked decisions.";
+  "The JSON download includes only the releases currently shown by the active search and filters. "
+  + "Each exported release includes its linked decisions.";
 
 /**
  * The status line after a press, in the visitor's own number.

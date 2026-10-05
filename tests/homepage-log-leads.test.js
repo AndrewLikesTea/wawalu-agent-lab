@@ -224,7 +224,7 @@ test("the log's eyebrow no longer places the section further down the page", asy
 
 // The second half of #2394. The scorecard named both controls correctly and
 // named no page, so a reviewer ran the step on Releases, met a button reading
-// "Export releases as JSON" and no import control, and read the step as naming
+// "Export shown releases as JSON" and no import control, and read the step as naming
 // controls that do not exist. The controls are not renamed; the step is.
 test("the pilot scorecard's Team handoff names the real controls and the page each is on", async (t) => {
   const { document } = await openFrontDoor(t);

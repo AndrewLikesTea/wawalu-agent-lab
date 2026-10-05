@@ -114,7 +114,7 @@ test("the forwarded file tells a teammate which page each handoff control is on"
   assert.equal(row, `3. Team handoff\n${PILOT_TEAM_HANDOFF}\nBuyer target: ________\nObserved result: ________\nOwner: ________`);
   assert.ok(row.includes(`“${EXPORT_BUTTON_LABEL}” on the ${HOME_PAGE_NAME} page`));
   assert.ok(row.includes(`“Choose JSON file” on the ${HOME_PAGE_NAME} page`));
-  assert.ok(row.includes("the Releases page has a separate “Export releases as JSON” button and no import control."));
+  assert.ok(row.includes("the Releases page has a separate “Export shown releases as JSON” button and no import control."));
   assert.doesNotMatch(row, /\bthis page\b|\bhere\b/);
   // The blanks stay blank and the step still claims no outcome.
   assert.deepEqual(row.split("\n").slice(-3), ["Buyer target: ________", "Observed result: ________", "Owner: ________"]);
