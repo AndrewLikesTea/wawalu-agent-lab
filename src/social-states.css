@@ -40,3 +40,6 @@
    size budget that styles.css is measured against. */
 .post-report-disclosure > summary { cursor:pointer; font-size:13px; font-weight:700; }
 .post-report-disclosure > summary:focus-visible { outline:3px solid var(--focus-ring); outline-offset:2px; }
+
+/* The shared post region holds keyboard focus while Retry is pending. */
+#post-detail:focus-visible { outline:3px solid var(--focus-ring); outline-offset:6px; border-radius:8px; }

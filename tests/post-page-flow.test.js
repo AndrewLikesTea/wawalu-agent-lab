@@ -1309,3 +1309,102 @@ test("single post: shared report preselection, validation, retained draft, retry
     assert.equal(get("email").value, "visitor@example.org");
   } finally { page.restore(); }
 });
+
+// Shared-link classification must not depend on a second, unrelated source.
+const SHARED_UUID = "a4e749d7-40a3-4cc0-96dd-920e378eedc3";
+for (const status of [400, 404, 410]) {
+  test(`shared API ${status} is unavailable without a demo fallback or Retry`, async (t) => {
+    const page = await openPostPage(`?id=${SHARED_UUID}`, async () => ({ ok: false, status }));
+    t.after(() => page.restore());
+    assert.deepEqual(page.requests, [`/api/social-posts/${SHARED_UUID}`]);
+    assert.equal(page.panel.dataset.postState, "not-found");
+    assert.match(textOf(page.panel), /Post unavailable/);
+    assert.equal(page.panel.querySelector(".detail-retry"), null);
+    const feed = page.panel.querySelector(".detail-state-feed");
+    assert.equal(feed.getAttribute("href"), "/social.html");
+    assert.equal(textOf(feed), "Go to the Social feed");
+  });
+}
+
+for (const id of ["", "broken/id", "<post>", " space ", "x".repeat(101)]) {
+  test(`malformed shared identifier ${JSON.stringify(id)} never requests or offers Retry`, async (t) => {
+    const page = await openPostPage(`?id=${encodeURIComponent(id)}`, () => { throw new Error("offline"); });
+    t.after(() => page.restore());
+    assert.deepEqual(page.requests, []);
+    assert.equal(page.panel.dataset.postState, "not-found");
+    assert.equal(page.panel.querySelector(".detail-retry"), null);
+  });
+}
+
+for (const outcome of ["loaded", "error", "not-found"]) {
+  test(`shared retry announces pending then ${outcome} without stealing departed focus`, async (t) => {
+    let release;
+    let attempts = 0;
+    const page = await openPostPage(`?id=${SHARED_UUID}`, () => {
+      if (++attempts === 1) return { ok: false, status: 503 };
+      return new Promise((resolve) => { release = resolve; });
+    });
+    t.after(() => page.restore());
+    assert.equal(page.panel.dataset.postState, "error");
+    const retry = page.panel.querySelector(".detail-retry");
+    assert.equal(textOf(retry), "Retry the shared post");
+    retry.focus();
+    pressKey(page.document, "Enter");
+    assert.equal(page.document.activeElement, page.panel, "focus stays at the persistent post region while waiting");
+    assert.equal(page.panel.dataset.postState, "loading");
+    assert.match(textOf(page.panel), /The post is loading\./);
+    assert.equal(page.panel.querySelector(".detail-retry"), null);
+    assert.equal(page.panel.querySelector(".detail-state-feed"), null);
+    assert.equal(page.panel.getAttribute("aria-live"), "polite");
+    assert.equal(page.panel.getAttribute("aria-atomic"), "true");
+    const exit = page.document.querySelector("#post-back");
+    exit.focus();
+    release(outcome === "loaded"
+      ? { ok: true, status: 200, json: async () => ({ post: { id: SHARED_UUID, author: SEED_POST.author, content: SEED_POST.body, timestamp: SEED_POST.createdAt } }) }
+      : { ok: false, status: outcome === "error" ? 500 : 404 });
+    await waitFor(page.settled, "retry settled");
+    assert.equal(attempts, 2);
+    assert.equal(page.panel.dataset.postState, outcome);
+    assert.equal(page.panel.getAttribute("aria-busy"), "false");
+    assert.equal(page.document.activeElement, exit);
+  });
+}
+
+test("an older retry cannot overwrite the most recent request", async (t) => {
+  const pending = [];
+  let attempts = 0;
+  const page = await openPostPage("?id=p-image", () => {
+    if (++attempts === 1) throw new Error("offline");
+    return new Promise((resolve) => pending.push(resolve));
+  });
+  t.after(() => page.restore());
+  const oldRetry = page.panel.querySelector(".detail-retry");
+  oldRetry.click();
+  oldRetry.click();
+  assert.equal(pending.length, 2);
+  pending[1](seedResponse([SEED_POST]));
+  await waitFor(page.settled, "newest request settled");
+  pending[0]({ ok: false, status: 500 });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(page.panel.dataset.postState, "loaded");
+  assert.match(textOf(page.panel), /Focus rings landed everywhere/);
+});
+
+test("a response for an earlier identifier cannot replace the navigated post", async (t) => {
+  const page = await loadPage(new URL("../src/post.html", import.meta.url), { location: { search: "?id=p-old" } });
+  t.after(() => page.restore());
+  let navigate;
+  window.addEventListener = (type, handler) => { if (type === "popstate") navigate = handler; };
+  const pending = [];
+  globalThis.fetch = () => new Promise((resolve) => pending.push(resolve));
+  await importPageModule("/post-page.js");
+  window.location.search = "?id=p-image";
+  navigate();
+  pending[1](seedResponse([SEED_POST]));
+  const panel = page.document.querySelector("#post-detail");
+  await waitFor(() => panel.dataset.postState === "loaded", "new identifier loaded");
+  pending[0](seedResponse([]));
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(panel.dataset.postState, "loaded");
+  assert.match(textOf(panel), /Focus rings landed everywhere/);
+});

@@ -1,9 +1,5 @@
-// Page wiring for the single-post view. Resolution order mirrors the profile:
-// the durable API first, the static demo seed behind it.
-//
-// The seed's ids are not UUIDs, so asking the API for one would earn a 400 that
-// means nothing to the reader. The id shape therefore decides which source is
-// asked first, and the seed is still consulted when the API has no answer.
+// Shared links resolve from their owning source: UUIDs from the API,
+// demo slugs from the seed. An authoritative absence needs no fallback.
 
 import { normalizeProfileApiPosts, normalizeSeedPosts } from "/profile.js";
 import {
@@ -44,7 +40,7 @@ const INVITATION_COPY = "Select Copy link to this post above, then paste the lin
 
 async function fetchLivePost(id) {
   const response = await fetch(`/api/social-posts/${encodeURIComponent(id)}`, { cache: "no-store", headers: { accept: "application/json" } });
-  if (response.status === 404) return null;
+  if ([400, 404, 410].includes(response.status)) return null;
   if (!response.ok) throw new Error(`Posts API returned ${response.status}`);
   return normalizeProfileApiPosts({ posts: [(await response.json()).post] })[0] ?? null;
 }
@@ -63,9 +59,6 @@ async function init() {
   // Keep the disclosure beside the post, outside its repainted live region.
   container.parentNode.append(document.querySelector("#post-report-panel"));
 
-  const params = new URLSearchParams(window.location.search);
-  const id = params.get("id") ?? "";
-  const requestedAuthor = (params.get("author") ?? "").trim();
   // Both routes out ship as words in src/post.html and nothing here rewrites
   // them, so a label never changes under a reader mid-visit: whatever a link
   // says when it is on the page is what it said a moment ago. The Social link
@@ -179,7 +172,19 @@ async function init() {
     if (provenance) provenance.textContent = postProvenanceSentence(post) || bothProvenances;
   };
 
+  let requestVersion = 0;
   const load = async ({ fromRetry = false } = {}) => {
+    const version = ++requestVersion;
+    const search = window.location.search;
+    const params = new URLSearchParams(search);
+    const id = params.get("id") ?? "";
+    const requestedAuthor = (params.get("author") ?? "").trim();
+    const retryFocused = fromRetry && document.activeElement === container.querySelector(".detail-retry");
+    // The persistent region holds focus while its button is replaced.
+    if (retryFocused) {
+      container.setAttribute("tabindex", "-1");
+      container.focus();
+    }
     // The heading only names a post once there is one. Until then it names the
     // page, and the panel below carries the state. The marker goes back to
     // "loading" on every attempt, including a retry, so anything watching the
@@ -193,29 +198,18 @@ async function init() {
     renderPostDetail(container, null, { state: "loading", id, author: requestedAuthor, returnHref: POST_EXITS.social.href });
     let post = null;
     let failed = false;
-    if (id) {
+    // Demo identifiers are bounded slugs. Reject broken links before networking;
+    // otherwise an offline browser would misclassify them as retryable failures.
+    const valid = UUID.test(id) || (id.length <= 100 && /^[a-z0-9]+(?:-[a-z0-9]+)*$/i.test(id));
+    if (valid) {
       try {
-        post = UUID.test(id) ? await fetchLivePost(id) : null;
+        post = UUID.test(id) ? await fetchLivePost(id) : await fetchSeedPost(id);
       } catch {
         failed = true;
       }
-      if (!post) {
-        try {
-          post = await fetchSeedPost(id);
-        } catch {
-          failed = true;
-        }
-      }
     }
-    // The two unresolved answers are different facts and get different states.
-    // A source that threw or answered not-ok means the feed could not be
-    // reached — that is `error`, and it is retryable. A source that answered
-    // and simply had no post with this id is `not-found`, and retrying it would
-    // only produce the same answer more slowly.
-    //
-    // A lookup that failed is only reported as a failure when nothing was found
-    // anywhere: if the seed answered, the reader has the post and does not need
-    // to hear about the network.
+    // A previous attempt must not repaint a newer retry or navigation.
+    if (version !== requestVersion || search !== window.location.search) return;
     const state = post ? "loaded" : failed ? "error" : "not-found";
     renderPostDetail(container, post, {
       state,
@@ -238,16 +232,14 @@ async function init() {
     document.title = postDetailTitle(post, state);
     document.documentElement.dataset.shiplogPostDetail = "ready";
 
-    // Pressing "Try again" destroys the button the reader was standing on, so
-    // this render has to say where focus goes next. It goes to the post when the
-    // retry worked and back onto the new retry button when it did not — never to
-    // the top of the document, which would cost the reader their place. Nothing
-    // moves focus on a first load: an arriving page must not grab it.
-    if (fromRetry) {
+    // Only hand focus to the result if the reader stayed in the waiting region.
+    if (retryFocused && document.activeElement === container) {
       const landing = container.querySelector(".detail-post") ?? container.querySelector(".detail-retry");
       landing?.focus?.();
     }
   };
+
+  window.addEventListener?.("popstate", () => load());
 
   await load();
 }
