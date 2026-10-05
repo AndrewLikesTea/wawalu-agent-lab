@@ -248,13 +248,13 @@ const exportButton = (page) => page.document.querySelector("#release-export");
 const exportStatus = (page) => textOf(page.document.querySelector("#release-export-status"));
 const rowIds = (page) => page.document.querySelectorAll(".release-toggle").map((node) => node.dataset.releaseId);
 
-test("the control is a button whose own label says it writes JSON", async (t) => {
+test("the control is a button whose own label names the shown releases and JSON format", async (t) => {
   const page = await bootedReleases(t);
   const button = exportButton(page);
   assert.equal(button.tagName, "BUTTON", "an anchor would need its keyboard behaviour rebuilt by hand");
   assert.equal(button.type, "button", "a bare button inside a form region would submit it");
   assert.equal(textOf(button), RELEASE_EXPORT_BUTTON_LABEL);
-  assert.match(textOf(button), /JSON/, "the label itself states the format the press produces");
+  assert.equal(textOf(button), "Export shown releases as JSON");
   assert.equal(button.disabled, false, "the control is operable before anything has been filtered");
 });
 
@@ -263,7 +263,6 @@ test("the scope of the export is stated in visible text beside the control", asy
   const scope = page.document.querySelector("#release-export-scope");
   assert.equal(textOf(scope), RELEASE_EXPORT_SCOPE_SENTENCE);
   assert.match(textOf(scope), /only the releases currently shown by the active search and filters/);
-  assert.match(textOf(scope), /not the full release log/);
   assert.match(textOf(scope), /Each exported release includes its linked decisions/);
   // Named by the control, so a screen reader hears the scope with the button.
   assert.equal(exportButton(page).getAttribute("aria-describedby"), "release-export-scope");
@@ -305,6 +304,8 @@ test("a narrowed view exports only what it is showing, and counts it the same", 
   typeText(page.document, "caching");
   assert.deepEqual(rowIds(page), ["r-read"], "the search really did narrow the list");
   assert.equal(textOf(page.document.querySelector("#release-count")), "Showing 1 of 4 releases, newest first.");
+  assert.equal(textOf(exportButton(page)), "Export shown releases as JSON");
+  assert.equal(textOf(page.document.querySelector("#release-export-scope")), RELEASE_EXPORT_SCOPE_SENTENCE);
 
   exportButton(page).click();
   const payload = JSON.parse(page.downloads.at(-1).text);
@@ -324,6 +325,8 @@ test("the export follows a filter changed after the page loaded", async (t) => {
   // visitor would use rather than by calling the filter directly.
   page.document.querySelector("#release-decision-status-pending").click();
   assert.deepEqual(rowIds(page), ["r-read"]);
+  assert.equal(textOf(exportButton(page)), "Export shown releases as JSON");
+  assert.equal(textOf(page.document.querySelector("#release-export-scope")), RELEASE_EXPORT_SCOPE_SENTENCE);
 
   exportButton(page).click();
   assert.deepEqual(idsOf(JSON.parse(page.downloads.at(-1).text)), ["r-read"]);
@@ -335,6 +338,8 @@ test("filters matching nothing write the empty envelope and say zero, not the lo
   page.document.querySelector("#release-search").focus();
   typeText(page.document, "zzz no release says this");
   assert.deepEqual(rowIds(page), []);
+  assert.equal(textOf(exportButton(page)), "Export shown releases as JSON");
+  assert.equal(textOf(page.document.querySelector("#release-export-scope")), RELEASE_EXPORT_SCOPE_SENTENCE);
   assert.equal(textOf(page.document.querySelector("#release-count")), "");
 
   // Enabled, and the press is not silent: it writes the empty record set with

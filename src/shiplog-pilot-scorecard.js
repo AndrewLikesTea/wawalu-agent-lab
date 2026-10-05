@@ -6,7 +6,7 @@ import { BRIEF_FOLLOW_UP_SENTENCE, BRIEF_FOLLOW_UP_URL } from "./shiplog-evaluat
 //
 // #2394: the two labels were right and the address was missing. A reviewer sent
 // to "export a record" opened the Releases page, found a button reading
-// "Export releases as JSON", and read the step as naming a control that does not
+// "Export shown releases as JSON", and read the step as naming a control that does not
 // exist. Both halves of the round trip live on the Home page — the export button
 // and the file picker in the two Portable history panels — and the Releases page
 // carries a releases-only export under a different label and no import control
@@ -19,7 +19,7 @@ import { BRIEF_FOLLOW_UP_SENTENCE, BRIEF_FOLLOW_UP_URL } from "./shiplog-evaluat
 // only for the one reader who never needed it. Worse, the same sentence names
 // the Releases page, so "here" invited the reading it was added to prevent. Each
 // control is now named with the destination its nav link carries: "Home".
-export const PILOT_TEAM_HANDOFF = "Your evaluating team must hand a record to a teammate as a file: press “Download JSON” on the Home page to export it, send the file to your teammate, and have them open it with “Choose JSON file” on the Home page in their own browser and confirm the summary. Both controls are on the Home page only: the Releases page has a separate “Export releases as JSON” button and no import control. Count their unanswered questions about why the work shipped and who owns it.";
+export const PILOT_TEAM_HANDOFF = "Your evaluating team must hand a record to a teammate as a file: press “Download JSON” on the Home page to export it, send the file to your teammate, and have them open it with “Choose JSON file” on the Home page in their own browser and confirm the summary. Both controls are on the Home page only: the Releases page has a separate “Export shown releases as JSON” button and no import control. Count their unanswered questions about why the work shipped and who owns it.";
 
 export const PILOT_SCORECARD_CRITERIA = Object.freeze([
   ["Release reasoning retrieval", "Your evaluating team must time how long it takes to find a selected release’s linked decision and identify its context and alternatives."],

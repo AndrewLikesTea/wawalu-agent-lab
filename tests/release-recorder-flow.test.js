@@ -231,7 +231,7 @@ test("the success state says the record is browser-only and names the way out", 
   assert.equal(
     textOf(kept),
     "This release is stored in this browser only — a demo record, not a customer result."
-      + " “Export releases as JSON” above writes only the releases your search and filters are showing;"
+      + " “Export shown releases as JSON” above writes only the releases your search and filters are showing;"
       + " press “Clear filters” first to be sure this one is in the file."
       + " For the full record, use “Export history” on the Home page and choose “Everything stored in this browser”.",
   );
@@ -376,7 +376,7 @@ test("a failed save leaves no success state to open a record that was not writte
 // else, which the harness enforces by throwing on any undeclared request.
 const RECORD_SCOPE = "A release you record here is kept in this browser, on this device:"
   + " it is not sent to the Wawalu team, and a teammate on another browser or device"
-  + " will not see it. Use “Export releases as JSON” above to take your releases elsewhere.";
+  + " will not see it. Use “Export shown releases as JSON” above to take your releases elsewhere.";
 
 test("the recorder says where a recorded release is kept, above the button that records it", async (t) => {
   const page = await openReleases(t, { decisions: [QUEUE_DECISION] });
