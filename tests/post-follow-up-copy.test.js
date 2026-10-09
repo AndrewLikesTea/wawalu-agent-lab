@@ -27,7 +27,7 @@ import { POST_COPY_LABEL } from "../src/post-share.js";
 // report and a link to copy. The two are held apart here rather than in the
 // markup tables, because only a driven page can show the switch happening.
 const waiting = "Questions about Shiplog? Send the Wawalu team that operates it a follow-up request. The topics below are about Shiplog — whether it is available for your team, a demonstration, a pilot, and security and data handling — not about this post. Nothing about the post is attached to the request automatically.";
-const invitation = "Questions about Shiplog? Send the Wawalu team that operates it a follow-up request. The topics below are about Shiplog — whether it is available for your team, a demonstration, a pilot, and security and data handling — not about this post. If your question is about this post itself, select Report post instead. Nothing about the post is attached to the request automatically. Select Copy link to this post above, then paste the link into the Anything else we should know? field so the team knows which post you mean.";
+const invitation = "Questions about Shiplog? Send the Wawalu team that operates it a follow-up request. The topics below are about Shiplog — whether it is available for your team, a demonstration, a pilot, and security and data handling — not about this post. To ask the Wawalu team to review this post, select Report post. Nothing about the post is attached to the request automatically. Select Copy link to this post above, then paste the link into the Anything else we should know? field so the team knows which post you mean.";
 const post = { id: "p-copy", author: "Mina Okafor", body: "Focus rings landed everywhere.", createdAt: "2026-07-14T09:00:00.000Z", likes: 0, comments: 0 };
 
 for (const state of ["loading", "loaded"]) {
@@ -217,6 +217,13 @@ test("every control the follow-up sentence names is rendered on the page, in bot
 
       const sentence = textOf(document.querySelector(".site-footer-invitation"));
       assert.equal(sentence, invitation, `${name}: the follow-up block's words changed`);
+
+      // The review guidance names the visible action on this loaded post.
+      const reportButton = document.getElementById("post-detail").querySelector(".post-report-button");
+      assert.ok(reportButton, `${name}: the loaded post has no reporting control`);
+      assert.equal(textOf(reportButton), "Report post");
+      assert.ok(sentence.includes(`To ask the Wawalu team to review this post, select ${textOf(reportButton)}.`),
+        `${name}: the review guidance does not match the visible reporting control`);
 
       // The copying control: named by the words on it, and there is exactly one.
       assert.ok(sentence.includes(`Select ${POST_COPY_LABEL} above,`),
