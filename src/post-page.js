@@ -34,7 +34,7 @@ const REPORT_DISCLOSURE_BODY = "Report post opens a short form about that one po
 // src/post.html and holds in every state; it is matched here to put the
 // reporting one before it and the copy one after it, which is the order the
 // paragraph has always read in.
-const INVITATION_REPORT = "If your question is about this post itself, select Report post instead.";
+const INVITATION_REPORT = "To ask the Wawalu team to review this post, select Report post.";
 const INVITATION_ATTACHMENT = "Nothing about the post is attached to the request automatically.";
 const INVITATION_COPY = "Select Copy link to this post above, then paste the link into the Anything else we should know? field so the team knows which post you mean.";
 

@@ -377,7 +377,7 @@ const REPORT_CONSEQUENCE = "The report goes only to the Wawalu team, who review 
 // The two sentences the follow-up invitation gains with the post, each naming a
 // control the loaded state draws. Held byte for byte in
 // tests/post-follow-up-copy.test.js, which drives the form they sit above.
-const INVITATION_REPORT = "If your question is about this post itself, select Report post instead.";
+const INVITATION_REPORT = "To ask the Wawalu team to review this post, select Report post.";
 const INVITATION_COPY = "Select Copy link to this post above, then paste the link into the Anything else we should know? field so the team knows which post you mean.";
 
 test("the permalink's reporting explanation is Social's, and none of it ships in the markup", async () => {
