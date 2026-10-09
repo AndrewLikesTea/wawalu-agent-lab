@@ -6,9 +6,9 @@
 // reports with reason `no_build_stamp`.
 export const BUILD_STAMP = Object.freeze({
   schemaVersion: 1,
-  commitSha: "bb3cf39f5a9b38fd5f7c4349921f81e1752bd8c2",
-  commitSubject: "Agent: Mina — Make Social publishing states explicit and recoverable (#2779)",
-  builtAt: "2026-10-05T11:49:22.786Z",
+  commitSha: "d870c538320c8d31c3fff3b329a82bd2e151cbc1",
+  commitSubject: "Agent: Name the Releases export by what it actually downloads (#2780)",
+  builtAt: "2026-10-09T02:03:23.308Z",
 });
 
 export default BUILD_STAMP;
