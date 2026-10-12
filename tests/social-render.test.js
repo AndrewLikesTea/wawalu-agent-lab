@@ -74,7 +74,7 @@ const imagePost = {
 
 const textPost = { id: "p-text", author: "Kai", body: "No picture on this one.", createdAt: "2026-07-13T09:00:00.000Z" };
 
-test("an image post renders as a figure with the caption as its figcaption", () => {
+test("an image post renders as a figure with the description as its figcaption", () => {
   const container = createElement("div");
   renderPosts(container, [imagePost]);
 
@@ -85,8 +85,8 @@ test("an image post renders as a figure with the caption as its figcaption", () 
 
   const figure = tags(card, "FIGURE")[0];
   assert.ok(figure, "an image post is wrapped in a <figure>");
-  const caption = tags(figure, "FIGCAPTION")[0];
-  assert.equal(caption.textContent, "Focus rings landed everywhere.");
+  assert.equal(first(card, "post-caption").textContent, "Focus rings landed everywhere.");
+  assert.equal(tags(figure, "FIGCAPTION")[0].className, "post-image-description");
 
   const img = tags(figure, "IMG")[0];
   assert.equal(img.src, "/media/focus-ring.svg");
@@ -111,7 +111,9 @@ test("an image post renders as a figure with the caption as its figcaption", () 
   assert.equal(first(card, "post-image-description-label").textContent.trim(), "Image description:");
   assert.equal(first(card, "post-image-description-text").textContent, "A card wrapped in a blue focus ring");
   assert.equal(first(card, "post-image-description-text").textContent, img.alt);
-  assert.equal(img.getAttribute("aria-describedby"), first(card, "post-image-description").id);
+  // Announced once, through alt: the visible caption is aria-hidden.
+  assert.equal(img.getAttribute("aria-describedby"), null);
+  assert.equal(first(card, "post-image-description").getAttribute("aria-hidden"), "true");
 });
 
 test("a post without an image keeps the plain body paragraph", () => {

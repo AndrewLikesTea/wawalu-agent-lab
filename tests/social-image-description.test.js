@@ -545,8 +545,15 @@ for (const surface of SURFACES) {
     assert.equal(visible.textContent, IMAGE.alt);
     assert.equal(visible.textContent, img.alt);
 
+    // The figure's visible caption (#2814), announced once: alt carries the
+    // sentence, so the caption is aria-hidden and nothing points at it with
+    // aria-describedby — either would read it a second time.
+    const note = byClass(container, surface.note)[0];
+    assert.equal(note.tagName, "FIGCAPTION");
+    assert.equal(byClass(tags(container, "FIGURE")[0], surface.note).length, 1, "the caption is the figure's");
+    assert.equal(note.getAttribute("aria-hidden"), "true");
+    assert.equal(img.getAttribute("aria-describedby"), null, "the description would be read twice");
     // The captions role, reused. No surface grew a type of its own for this.
-    assert.equal(byClass(container, surface.note)[0].tagName, "P");
     assert.equal(byClass(container, surface.note)[0].classes.includes("description-note"),
       surface.note !== "post-image-description",
       "the feed keeps .post-image-description's own rule; the other two reuse .description-note");
@@ -582,26 +589,19 @@ for (const surface of SURFACES) {
   });
 }
 
-// DOM order, not a CSS reordering: a People tile reads as the picture, then what
-// the poster said the picture shows, then the post's own words. The feed and the
-// permalink each lead with the post's text instead — the feed puts its caption
-// above the media (src/social.js) and the permalink puts the description above
-// the image (pinned in tests/post-permalink-states.test.js) — so this pins the
-// order of the one surface that was missing the description entirely.
-test("a People tile reads image, then description, then the post's caption", () => {
+// The figure holds the image and then its description, nothing else; the full
+// card order is pinned in tests/image-post-limits.test.js.
+test("a People tile's figure is the image, then its description", () => {
   const container = createElement("div");
   renderProfileGrid(container, [described], { author: "Mina" });
 
   const figure = byClass(container, "profile-figure")[0];
   assert.deepEqual(figure.children.map((child) => child.className),
-    ["profile-media", "description-note profile-tile-description", "profile-tile-caption"],
+    ["profile-media", "description-note profile-tile-description"],
     "the tile's figure was reordered, or grew a node between the image and its description");
 
-  // Hidden from assistive tech: the identical string is the alt of the image in
-  // the same tile, and the tile is named by its action and its post, so
-  // announcing this paragraph would read one sentence twice inside one link. The
-  // alt is not blanked to pay for it.
-  assert.equal(byClass(container, "profile-tile-description")[0].getAttribute("aria-hidden"), "true");
+  // The alt is not blanked to pay for the hidden caption, and the description
+  // does not rename the tile.
   assert.equal(byClass(container, "profile-image")[0].alt, IMAGE.alt);
   const tile = byClass(container, "profile-tile")[0];
   assert.equal(tile.getAttribute("aria-label"),
@@ -609,16 +609,11 @@ test("a People tile reads image, then description, then the post's caption", () 
     "the description must not rename the tile");
 });
 
-// The feed's description still follows the image it describes, directly, with
-// nothing between them.
 test("the feed's description follows the image frame it describes", () => {
   const container = createElement("div");
   renderPosts(container, [described]);
   const figure = tags(container, "FIGURE")[0];
-  const classNames = figure.children.map((child) => child.className);
-  assert.equal(classNames.indexOf("post-image-description"), classNames.indexOf("post-media") + 1);
-  assert.equal(byClass(container, "post-image-description")[0].id,
-    byClass(container, "post-image")[0].getAttribute("aria-describedby"));
+  assert.deepEqual(figure.children.map((child) => child.className), ["post-media", "post-image-description"]);
 });
 
 // The escaping, pinned where it happens. A description is publisher-supplied

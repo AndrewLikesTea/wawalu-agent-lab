@@ -30,6 +30,20 @@
    styles.css is measured against. */
 .profile-figure .description-note { padding:0 14px; }
 
+/* One reading order on all three surfaces (#2814): posting metadata, the post's
+   words, the image, its description as the figure's caption, then the actions.
+   A People tile therefore opens on its date row and caption above the image, so
+   the inset paddings swap ends, and the row wraps rather than clipping a stat.
+   Every image is bounded by its frame and shown whole: the tile frames have a
+   fixed aspect ratio, the permalink caps the height, and contain keeps a
+   40x1200 or 1200x40 image legible instead of cropping it to a strip. */
+.profile-tile-meta { flex-wrap:wrap; padding:14px 14px 0; }
+.profile-tile-caption { padding:8px 14px 14px; }
+.profile-tile-link-label { margin-top:10px; }
+.post-image,.profile-image,.detail-image { max-width:100%; object-fit:contain; }
+.detail-post > .detail-figure { margin-top:16px; }
+.post-figure,.profile-figure,.detail-figure,.post-card,.profile-tile { min-width:0; }
+
 /* The shared disclosure must accommodate long display names and keyboard focus. */
 #post-report-panel { position:static; min-width:0; overflow-wrap:anywhere; }
 #post-report-title:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }

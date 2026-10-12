@@ -653,7 +653,7 @@ function initials(author) {
 // wait for, and a shimmer promising an arrival would be a lie told on every
 // render. It is the same node and the same words as a source that died — the
 // block below is built once, before the branch, so the two states cannot differ.
-function renderMedia(image, description, descriptionId) {
+function renderMedia(image, description) {
   const frame = el("div", "post-media");
 
   // When the image dies, its description is the only thing left that says what
@@ -687,10 +687,6 @@ function renderMedia(image, description, descriptionId) {
   // shared read-path fallback (src/image-description.js) — never alt="", which
   // would quietly file the image as decoration.
   img.alt = description.alt;
-  // Only when there is a visible description to point at. An undescribed legacy
-  // row draws no labelled description, so there is no id here to name, and an
-  // aria-describedby naming nothing is a dangling IDREF.
-  if (descriptionId) img.setAttribute("aria-describedby", descriptionId);
   img.loading = "lazy";
   img.decoding = "async";
   if (image.width && image.height) {
@@ -712,6 +708,31 @@ function renderMedia(image, description, descriptionId) {
 
   frame.append(img, fallback);
   return frame;
+}
+
+// The image and the description the poster wrote, as figure and figcaption.
+// The description is announced once, through alt: the visible figcaption is the
+// identical string, so it is aria-hidden rather than tied to the image with
+// aria-describedby, which read the sentence twice. Only where the poster wrote
+// one — imageDescription() synthesizes an alt for a legacy row, and that row
+// keeps the missing-description note instead of a caption claiming otherwise.
+function renderPostFigure(image, description, index) {
+  const figure = el("figure", "post-figure");
+  figure.append(renderMedia(image, description));
+  if (description.missing) {
+    figure.append(renderDescriptionNote());
+    return figure;
+  }
+  const caption = renderImageDescriptionText(description.alt, {
+    tagName: "figcaption",
+    className: "post-image-description",
+    labelClassName: "post-image-description-label",
+    textClassName: "post-image-description-text",
+  });
+  caption.id = `post-${index}-image-description`;
+  caption.setAttribute("aria-hidden", "true");
+  figure.append(caption);
+  return figure;
 }
 
 function renderPostCard(post, { index, onReport = null }) {
@@ -765,48 +786,18 @@ function renderPostCard(post, { index, onReport = null }) {
   }
 
   header.append(avatar, byline);
+  // One reading order on every surface (#2814): who posted and when, what they
+  // wrote, the image, its description, then the card's actions. DOM order, so a
+  // keyboard or screen-reader reader meets the hierarchy a sighted one sees.
+  article.append(header);
   if (post.title) article.append(el("h3", "post-title", post.title));
-
   const textId = `post-${index}-text`;
+  const body = el("p", image ? "post-caption" : "post-body", post.body);
+  body.id = textId;
+  article.append(body);
   if (image) {
     article.classList.add("post-card-media");
-    // <figure>/<figcaption> is the semantic tie between an image and the text
-    // that explains it, and it survives the caption being the only content left
-    // when the image fails to load.
-    const figure = el("figure", "post-figure");
-    const description = imageDescription({ ...post, image });
-    const caption = el("figcaption", "post-caption", post.body);
-    caption.id = textId;
-    figure.append(caption);
-    // The description the poster wrote, on screen, directly under the image it
-    // describes — drawn by the one helper all three surfaces share
-    // (src/image-description.js), in a span of its own, so the sentence a reader
-    // sees is the identical string the alt attribute above it holds.
-    //
-    // Only when the poster actually wrote one. imageDescription() always returns
-    // a real alt, synthesizing "Image posted by Mina. No description provided."
-    // for a row written before descriptions were required — right for alt, and
-    // wrong under a label that says the poster described the image, because it
-    // would claim they did and print the missing-description note's own words a
-    // second time. An undescribed row keeps the note below instead.
-    const descriptionText = description.missing ? null : renderImageDescriptionText(description.alt, {
-      className: "post-image-description",
-      labelClassName: "post-image-description-label",
-      textClassName: "post-image-description-text",
-    });
-    if (descriptionText) descriptionText.id = `post-${index}-image-description`;
-    figure.append(renderMedia(image, description, descriptionText?.id));
-    if (descriptionText) figure.append(descriptionText);
-    // The note sits beside the caption rather than inside it, so an undescribed
-    // legacy post is visibly flagged without the flag joining the card's
-    // accessible name.
-    if (description.missing) figure.append(renderDescriptionNote());
-    article.append(figure, header);
-  } else {
-    article.append(header);
-    const body = el("p", "post-body", post.body);
-    body.id = textId;
-    article.append(body);
+    article.append(renderPostFigure(image, imageDescription({ ...post, image }), index));
   }
   // The card's own way into the post, last in the card so the action follows the
   // picture and the words it acts on. A plain anchor in the link shape the
@@ -880,7 +871,7 @@ function renderSkeleton(container, count = 3) {
       media.dataset.loadingRegion = "image";
       head.dataset.loadingRegion = "metadata";
       action.dataset.loadingRegion = "action";
-      card.append(copy, media, head, action);
+      card.append(head, copy, media, action);
     } else {
       head.dataset.loadingRegion = "metadata";
       action.dataset.loadingRegion = "action";

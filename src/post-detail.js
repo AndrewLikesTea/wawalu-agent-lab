@@ -255,11 +255,14 @@ export const POST_IMAGE_FAILED_UNDESCRIBED_LINE = "We couldn’t show the image 
 // the two spans are unchanged; what moved is the one copy of the rule that the
 // description is a text node of its own and is written with textContent.
 function renderImageDescription(description) {
-  return renderImageDescriptionText(description, {
+  const caption = renderImageDescriptionText(description, {
+    tagName: "figcaption",
     className: "description-note detail-image-description",
     labelClassName: "detail-image-description-label",
     textClassName: "detail-image-description-text",
   });
+  caption.setAttribute("aria-hidden", "true");
+  return caption;
 }
 
 // `description` is resolved by the caller — one value, used twice, so the alt
@@ -564,60 +567,14 @@ export function renderPostDetail(container, post, options = {}) {
   // stays: back link, post content, then retry when there is one.
   article.setAttribute("tabindex", "-1");
 
-  // Reading order follows the content a shared image post was opened to read:
-  // image description, image, caption, display name, then posting time. This is
-  // DOM order rather than a visual CSS reorder, so keyboard and screen-reader
-  // users receive the same hierarchy as sighted readers.
+  // Reading order is the one Social and People use (#2814): display name and
+  // posting time, the post's words, the image, its description, then the
+  // post's actions. This is DOM order rather than a visual CSS reorder, so
+  // keyboard and screen-reader users receive the same hierarchy as sighted
+  // readers.
   const caption = captionFor(post);
-  // The page normally receives posts through profile.js's normalizers, but
-  // this renderer is also an exported boundary. Recheck the URL at the final
-  // browser sink so a future caller cannot turn an attacker-controlled image
-  // field into a cross-origin request or an active data/javascript URL.
-  const image = normalizeImage(post.image);
-  if (image) {
-    // figure/figcaption, so the caption is the image's caption to a screen
-    // reader and not merely the paragraph that happens to sit under it.
-    const figure = el("figure", "detail-figure");
-    // Resolved once, here, and handed to both the image and the caption under
-    // it. That is the whole of the alt-parity guarantee: there is one value, so
-    // there is nothing for a second value to drift from. An empty result means
-    // the post has neither a stored description nor a caption to fall back on —
-    // a decorative image, which gets alt="" and no caption promising text that
-    // does not exist.
-    const description = postImageAlt(image, caption);
-    // Whether there is a description to *label*, which is a narrower question
-    // than what to put in alt. postImageAlt falls back to the visible caption
-    // when a legacy post stored none, and that fallback is right for alt — the
-    // caption is the truest sentence the page has about the image — but it is
-    // not a description the poster wrote about the image, and printing it under
-    // "Image description" would both claim that it is and say the same sentence
-    // twice under one figure. So the labelled caption appears when, and only
-    // when, the poster actually wrote one; where it appears it is `description`
-    // itself, so it is still the identical string the alt attribute holds.
-    const stored = typeof image.alt === "string" && image.alt.trim() !== "";
-    // The visible description leads the image. Keep it outside the figure so
-    // the figcaption can immediately follow the image it captions while the
-    // overall article retains description → image → caption source order.
-    if (stored) article.append(renderImageDescription(description));
-    figure.append(renderMedia(image, description));
-    // An empty figcaption would announce a caption that is not there. A post
-    // with neither caption nor body cannot come out of the normalizers, but the
-    // renderer is handed plain objects and must not invent text either way.
-    if (caption) {
-      const figcaption = el("figcaption", "detail-caption", caption);
-      figcaption.id = "detail-caption";
-      figure.append(figcaption);
-    }
-    article.append(figure);
-  } else if (caption) {
-    const body = el("p", "detail-body", caption);
-    body.id = "detail-caption";
-    article.append(body);
-  }
-
   // The name is a link to that person's People view, and its text is the name
-  // itself — not a generic "profile" label. It follows the post content so the
-  // permalink leads with the material the reader opened.
+  // itself — not a generic "profile" label.
   const author = postDisplayName(post);
   if (author) {
     const byline = el("p", "detail-byline");
@@ -647,9 +604,48 @@ export function renderPostDetail(container, post, options = {}) {
     article.append(provenance);
   }
 
+  // The page normally receives posts through profile.js's normalizers, but
+  // this renderer is also an exported boundary. Recheck the URL at the final
+  // browser sink so a future caller cannot turn an attacker-controlled image
+  // field into a cross-origin request or an active data/javascript URL.
+  const image = normalizeImage(post.image);
+  if (caption) {
+    const words = el("p", image ? "detail-caption" : "detail-body", caption);
+    words.id = "detail-caption";
+    article.append(words);
+  }
   // A dedicated caption does not replace the post body, so show the body too
   // when they differ — otherwise the detail view would hide text the feed shows.
   if (image && post.caption && post.body && post.body !== post.caption) article.append(el("p", "detail-body", post.body));
+  if (image) {
+    // figure/figcaption, so the description is the image's caption to a screen
+    // reader and not merely the paragraph that happens to sit under it.
+    const figure = el("figure", "detail-figure");
+    // Resolved once, here, and handed to both the image and the caption under
+    // it. That is the whole of the alt-parity guarantee: there is one value, so
+    // there is nothing for a second value to drift from. An empty result means
+    // the post has neither a stored description nor a caption to fall back on —
+    // a decorative image, which gets alt="" and no caption promising text that
+    // does not exist.
+    const description = postImageAlt(image, caption);
+    // Whether there is a description to *label*, which is a narrower question
+    // than what to put in alt. postImageAlt falls back to the visible caption
+    // when a legacy post stored none, and that fallback is right for alt — the
+    // caption is the truest sentence the page has about the image — but it is
+    // not a description the poster wrote about the image, and printing it under
+    // "Image description" would both claim that it is and say the same sentence
+    // twice under one figure. So the labelled caption appears when, and only
+    // when, the poster actually wrote one; where it appears it is `description`
+    // itself, so it is still the identical string the alt attribute holds.
+    const stored = typeof image.alt === "string" && image.alt.trim() !== "";
+    figure.append(renderMedia(image, description));
+    // The description is the figure's visible caption, directly under the
+    // image. It is announced once, through alt, which holds the identical
+    // string, so the caption is aria-hidden and nothing points at it with
+    // aria-describedby — either way round it would be read twice.
+    if (stored) figure.append(renderImageDescription(description));
+    article.append(figure);
+  }
 
   const stats = el("p", "detail-stats");
   stats.append(el("span", "detail-stat", countLabel(post.likes ?? 0, "like")));

@@ -347,7 +347,7 @@ test("a tile visibly links to the full Social post", () => {
   assert.equal(tile.dataset.postId, "p-image");
 
   const caption = first(tile, "profile-tile-caption");
-  assert.equal(caption.tagName, "FIGCAPTION");
+  assert.equal(caption.tagName, "P");
   assert.equal(caption.textContent, "Focus rings landed everywhere.");
   // Named by what it does and which post it does it to, with the caption handed
   // to the same reader as the tile's description rather than as its name.
