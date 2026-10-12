@@ -22,7 +22,8 @@ import { initAskAboutShiplog } from "./ask-about-shiplog.js";
 import { bindReleaseFilterUrl } from "./release-filter-url.js";
 import { loadReleaseData } from "./releases-data.js";
 import { loadDecisions, readDecisions } from "./app.js";
-import { initDemoProgress } from "./demo-progress.js";
+import { initDemoProgress, trackedRecords } from "./demo-progress.js";
+import { initWalkthroughSummary } from "./demo-walkthrough-summary.js";
 import { recordsChanged } from "./shiplog-records.js";
 import { BUILD_STAMP } from "./build-stamp.js";
 import { deployedReleaseRecord } from "./deployed-release.js";
@@ -297,6 +298,11 @@ export function initReleasesPage(root = document, storage = localStorage, option
     decisions: () => loadDecisions(storage),
     releases: () => loadReleases(storage),
     surface: "releases",
+  });
+  // The finished demo's summary, from the same two reads and the same pair.
+  initWalkthroughSummary(root, {
+    read: () => trackedRecords(loadDecisions(storage), loadReleases(storage)),
+    clipboard: options.clipboard,
   });
 
   let data = readLog();

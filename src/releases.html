@@ -312,6 +312,18 @@
              a disclosure element, so the change is readable as well as audible;
              and it repeats nothing on a repaint that moved no step. -->
         <p class="hint evaluation-path-announce" id="evaluation-path-announce" role="status" aria-live="polite"></p>
+        <!-- The finished demo (#2793). Hidden until this browser holds a
+             decision and a release that links it; demo-walkthrough-summary.js
+             writes the lines from those records. -->
+        <section id="demo-summary" aria-labelledby="demo-summary-title" hidden>
+          <h3 id="demo-summary-title">Your walkthrough summary</h3>
+          <div class="evaluation-path-next" id="demo-summary-lines"></div>
+          <div class="hero-actions">
+            <button class="share-button" id="demo-summary-copy" type="button" aria-describedby="demo-summary-status">Copy walkthrough summary</button>
+            <button class="share-button" id="demo-summary-pilot" type="button" data-release-discussion data-target="#site-footer-intent-pilot">Discuss a pilot evaluation</button>
+          </div>
+          <p class="hint" id="demo-summary-status" role="status" aria-live="polite"></p>
+        </section>
       </section>
 
       <!-- HOW CONSISTENTLY THIS LOG KEEPS ITS REASONING (#2579), directly above

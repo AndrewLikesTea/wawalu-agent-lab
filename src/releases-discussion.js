@@ -23,7 +23,8 @@ export function initReleaseDiscussion(root = document, view = window) {
       if (event.button > 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
       // Also handles repeated activation of the current fragment. Let the
       // browser perform navigation so Back and modified clicks stay native.
-      select(link.getAttribute('href'));
+      // A button names its topic in data-target: the page links each place once.
+      select(link.getAttribute('href') ?? link.dataset.target);
     });
   }
   for (const radio of radios) {
