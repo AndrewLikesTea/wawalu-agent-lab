@@ -386,10 +386,12 @@ test("the guide's action is one tab stop, reached in reading order, and it navig
   const sequence = tabSequence(page.document);
   const at = (node) => sequence.indexOf(node);
   assert.equal(sequence.filter((node) => node.getAttribute?.("id") === "evaluation-path-action").length, 1);
-  // Reading order is tab order: the guide stands above the log, so its action
-  // comes before the log's search and after the example record's own controls.
+  // Reading order is tab order: the guide is supporting material under the log
+  // (#2796), so its action comes after the log's search and the example record's
+  // own controls, and before the recorder's first field.
+  assert.ok(at(action(page)) > at(byId(page, "release-search")), "the action precedes the log it stands under");
   assert.ok(at(action(page)) > at(byId(page, "shiplog-proof-copy")), "the action precedes the example record it follows");
-  assert.ok(at(action(page)) < at(byId(page, "release-search")), "the action comes after the log it stands above");
+  assert.ok(at(action(page)) < at(byId(page, "release-version")), "the action comes after the recorder");
 
   let reached = null;
   for (let press = 0; press < sequence.length && reached !== action(page); press += 1) {

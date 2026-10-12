@@ -167,19 +167,15 @@ const isWithin = (node, ancestor) => {
 // A prospect follows "Explore the decision and release log" from the home page.
 // What they used to reach, in this order, was the pitch, the example record,
 // the deployment check and then nine fields to fill in, with the log itself at
-// the bottom of the page. The record of this deployment and the check against
-// it still lead, together, ahead of the example (#2487) — they are what the
-// observatory's link lands on — and the log now stands between them and the
-// recorder.
+// the bottom of the page. The log now leads (#2796); the record of this
+// deployment and the check against it follow it, together and still ahead of
+// the example (#2487), and the recorder closes the page.
 test("the log's heading, count, search, filters, records and export all come before the first form field", async (t) => {
   const page = await open(t);
   const order = page.document
     .querySelectorAll("#shipped-build,#shiplog-proof,#deployment-status,#releases-title,#release-count,#release-search,#release-status,#release-decision,#release-decision-status-all,#release-export,#release-list,#record-release,#release-form-title,#release-version")
     .map((node) => node.id);
   assert.deepEqual(order, [
-    "shipped-build",
-    "deployment-status",
-    "shiplog-proof",
     "releases-title",
     "release-count",
     "release-search",
@@ -188,6 +184,9 @@ test("the log's heading, count, search, filters, records and export all come bef
     "release-decision-status-all",
     "release-export",
     "release-list",
+    "shipped-build",
+    "deployment-status",
+    "shiplog-proof",
     "record-release",
     "release-form-title",
     "release-version",

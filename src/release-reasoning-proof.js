@@ -67,9 +67,11 @@ export const COVERAGE_DEFINITION =
   + "every other release is uncovered.";
 
 // What the two numbers are over. Static, because it is true on every render.
+// No "below": Releases puts its filters above this block (#2796), the home
+// page below it, and the one sentence serves both.
 export const REASONING_PROOF_SCOPE =
   "Both numbers are over every release loaded on this page, not the filtered view: "
-  + "the search and the filters below do not change them.";
+  + "the search and the filters do not change them.";
 
 // The same fact, for a reader who has the sentence and not the page.
 //

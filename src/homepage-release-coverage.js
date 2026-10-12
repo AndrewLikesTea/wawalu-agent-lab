@@ -18,8 +18,8 @@
 // view. app.js calls update() from refresh() — the one place the data changes —
 // and not from render(), which is where the filters reach, so the scope
 // sentence beside the figures is structural rather than a promise. It is
-// REASONING_PROOF_SCOPE verbatim: it says "the search and the filters below",
-// and on this page as on that one the filters are below this block.
+// REASONING_PROOF_SCOPE verbatim, which names no direction because the two
+// pages place their filters on opposite sides of this block.
 //
 // THREE STATES, AND NONE OF THEM IS A BARE ZERO:
 //
