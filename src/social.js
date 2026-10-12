@@ -253,7 +253,7 @@ export const PUBLISHED_POST_REACH = "Anyone can read a published post, on any de
 // clause stayed on the two pages where it holds unconditionally, as its own
 // sentence, and this one says the part that is true of a published post
 // everywhere.
-export const PUBLISHED_POST_TERMS = "A published post is public and cannot be edited or deleted.";
+export const PUBLISHED_POST_TERMS = "A published post is public and cannot be edited or deleted by the person who published it.";
 
 export function isExamplePost(post) {
   return post?.source !== VISITOR_POST_SOURCE;

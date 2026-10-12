@@ -1202,7 +1202,7 @@ test("the display name field explains where the name appears and that it cannot 
   // display name a second time (#2648) — a published post is public, and what
   // the name rides along with is this sentence's to say.
   assert.match(textOf(page.document.querySelector("#post-consequence")),
-    /^A published post is public and cannot be edited or deleted\. Anyone can select Report post on it\./);
+    /^A published post is public and cannot be edited or deleted by the person who published it\. Anyone can select Report post on it\./);
   assert.doesNotMatch(textOf(page.document.querySelector("#post-consequence")), /display name/,
     "the consequence names the display name again, in a second wording of this field's hint");
   assert.equal(page.document.querySelectorAll(".publish-consequence").length, 1);

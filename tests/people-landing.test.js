@@ -1539,7 +1539,7 @@ const RETIRED_CONTRACT = [
 // What a report leads to is still explained once, below Social's feed (#2471).
 const PUBLISH_CONDITIONS = [
   "A published post is public",
-  "cannot be edited or deleted",
+  "cannot be edited or deleted by the person who published it",
   "Anyone can select Report post on it",
   PUBLISH_INSTRUCTION,
 ];
@@ -1549,7 +1549,7 @@ const PUBLISH_CONDITIONS = [
 // page renders too — that page draws a Report post button on a loaded post and
 // on none of its three other states, so a clause promising one could not travel
 // with them.
-const COMPOSER_CONSEQUENCE = "A published post is public and cannot be edited or deleted. "
+const COMPOSER_CONSEQUENCE = "A published post is public and cannot be edited or deleted by the person who published it. "
   + "Anyone can select Report post on it. "
   + PUBLISH_INSTRUCTION;
 // Social says who can read a published post in the storage block above its
