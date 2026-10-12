@@ -2610,16 +2610,20 @@ test("People empty recovery links follow its message in keyboard order on the sh
   const links = region.querySelectorAll("a");
   // One recovery, and it stays on this page. The publishing routes this panel
   // used to stack beside it were the Paint-to-Social path told a second time,
-  // beside the sequence under the grid that tells it in full (#2497).
+  // beside the sequence under the grid that tells it in full (#2497). With no
+  // posts at all another name is no way out, so the one link goes to that
+  // sequence instead of the picker (#2804).
   assert.equal(links.length, 1);
-  assert.deepEqual(links.map(link => link.href), ["#profile-name-picker"]);
-  assert.match(textOf(region.querySelector("h3")), /<Mina> & friends/);
+  assert.deepEqual(links.map(link => link.href), ["#profile-create-steps"]);
+  assert.equal(textOf(region.querySelector("h3")), "No one has published an image post on Social yet.");
   assert.equal(region.querySelectorAll("img").length, 0);
   assert.deepEqual(tabSequence(page.document).filter(node => links.includes(node)), links);
-  const picker = page.document.querySelector("#profile-name-picker");
-  assert.equal(picker.getAttribute("tabindex"), "-1");
-  picker.focus();
-  assert.equal(page.document.activeElement, picker);
+  const steps = page.document.querySelector("#profile-create-steps");
+  assert.equal(steps.getAttribute("tabindex"), "-1");
+  assert.equal(tabSequence(page.document).filter(node => node === steps).length, 0,
+    "the fragment target adds no tab stop");
+  steps.focus();
+  assert.equal(page.document.activeElement, steps);
 });
 
 // The filter count and the filtered dead end, over the wire (#2427).

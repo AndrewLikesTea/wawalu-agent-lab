@@ -139,8 +139,9 @@ test("a display name with zero image posts is answered under that name, with a s
 
 test("a feed with no pictures under any name states the path once, under the grid", async () => {
   // Nobody has an image post, so nothing was filtered out: this is the empty
-  // state rather than the filtered dead end. The panel offers the picker; the
-  // path that fills the grid is the sequence under it, told once (#2497).
+  // state rather than the filtered dead end. Another name is no way out here, so
+  // the panel says so and sends the reader to the path that fills the grid — the
+  // sequence under it, told once (#2497, #2804).
   const page = await people({
     search: "?author=Ari",
     seed: { posts: [seedPost("p-11", "Ari", { withImage: false })] },
@@ -149,10 +150,22 @@ test("a feed with no pictures under any name states the path once, under the gri
     const { document } = page;
     assertStatedZero(document, "Ari");
     const panel = document.querySelector("#profile-feed-status").querySelector(".empty-state");
-    assert.equal(textOf(panel), "The display name “Ari” has no image posts yet.Choose another display name");
+    assert.ok(panel.classList.contains("empty-state-none"));
+    assert.equal(textOf(panel.querySelector("h3")), "No one has published an image post on Social yet.");
+    assert.equal(textOf(panel), "No one has published an image post on Social yet."
+      + "Image posts appear here, under the display name they were published under, once someone publishes one."
+      + "Go to the steps for adding the first image post");
+    assert.doesNotMatch(textOf(panel), /published as|Showing \d+ image post/);
+    assert.equal(textOf(document.querySelector("#profile-announcer")), "No one has published an image post on Social yet.");
     const routes = panel.querySelectorAll("a");
-    assert.deepEqual(routes.map((route) => textOf(route)), ["Choose another display name"]);
-    assert.equal(routes[0].getAttribute("href"), "#profile-name-picker");
+    assert.deepEqual(routes.map((route) => textOf(route)), ["Go to the steps for adding the first image post"]);
+    assert.equal(routes[0].getAttribute("href"), "#profile-create-steps");
+    // The fragment lands on the sequence that carries the Paint and Social links.
+    const steps = document.querySelector("#profile-create-steps");
+    assert.ok(steps.classList.contains("feed-create"));
+    assert.equal(steps.getAttribute("tabindex"), "-1");
+    assert.equal(steps.querySelectorAll("#profile-paint-route").length, 1);
+    assert.equal(steps.querySelectorAll("#profile-publish-route").length, 1);
     // A real link, so it is a tab stop and needs no handler to be reachable from
     // the keyboard.
     for (const route of routes) {

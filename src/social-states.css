@@ -5,6 +5,8 @@
 .profile-cell { flex-direction:column; align-items:flex-start; }
 .profile-cell > .profile-tile { align-self:stretch; }
 #profile-name-picker:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+/* Where the no-image-posts-anywhere panel sends a reader: the Paint-then-Social steps. */
+#profile-create-steps:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
 #feed-state .feed-status-summary h3 { margin:0; font:650 14px/1.4 system-ui,sans-serif; }
 /* Visitor-written text wraps inside its card at any width (#2486): a 280-char
    unbroken body, a URL, a 60-char display name. `anywhere` rather than

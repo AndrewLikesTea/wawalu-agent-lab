@@ -306,6 +306,14 @@ test("Social separates an empty feed from a feed its filters emptied", async (t)
   assert.equal(textOf(document.querySelector("#post-count")), "0 posts");
   assert.equal(document.querySelector("#post-time-filter").disabled, true,
     "an empty feed offers filters that cannot change anything");
+  // Its action is a real button that runs the composer's own open path (#2804).
+  const write = empty.querySelector(".feed-status-action");
+  assert.equal(write.tagName, "BUTTON");
+  assert.equal(textOf(write), "Write a post");
+  assert.equal(document.querySelector("#post-compose-panel").hidden, true);
+  write.click();
+  assert.equal(document.querySelector("#post-compose-panel").hidden, false);
+  assert.equal(document.querySelector("#post-compose-open").getAttribute("aria-expanded"), "true");
 
   // Filtered to nothing: different words, its own recovery, and the empty
   // feed's invitation must not be on the page beside it.
@@ -322,11 +330,16 @@ test("Social separates an empty feed from a feed its filters emptied", async (t)
   assert.match(textOf(filtered), /No posts/);
   assert.doesNotMatch(textOf(document.body), /No posts on Social yet\./);
   assert.equal(document.querySelectorAll(".post-card").length, 0);
+  assert.equal(textOf(document.querySelector("#post-count")), "0 of 3 posts");
+  // The panel names each active filter in the menus' own option words.
+  assert.match(textOf(filtered), /No posts by Ari from the past hour\./);
 
-  // Clear filters restores the full feed and the loaded state.
+  // Clear filters resets both menus and restores the full feed and the loaded state.
   const clear = filtered.querySelector(".feed-status-action");
   assert.equal(textOf(clear), "Clear filters");
   clear.click();
+  assert.equal(document.querySelector("#post-name-filter").value, "all");
+  assert.equal(document.querySelector("#post-time-filter").value, "all");
   assert.equal(document.querySelectorAll(".empty-state").length, 0);
   assert.equal(document.querySelectorAll(".post-card").length, 3);
   assert.equal(textOf(document.querySelector("#post-count")), "3 posts");
@@ -959,25 +972,31 @@ test("People names its failure, retries it by keyboard, and comes back", async (
   assert.equal(document.querySelectorAll(".empty-state").length, 0);
 });
 
-test("People gives every completed selected-name zero the same one recovery", async (t) => {
+test("People tells no image posts anywhere apart from none under the selected name", async (t) => {
   const page = await loadPage(PEOPLE_PAGE, {});
   t.after(() => page.restore());
   const { document } = page;
-  // Nobody in this feed has attached a picture, so nothing was filtered out. The
-  // way to fill the grid is the .feed-create sequence under it, which is on the
-  // page in this state; the panel itself offers only the picker (#2497).
+  // Nobody in this feed has attached a picture, so nothing was filtered out and
+  // another name is no way out. The panel says so and points at the .feed-create
+  // sequence under the grid, the one place the path is told (#2497, #2804).
   const profile = mountProfile(document, { posts: [post("p-11", "Ari", "11")], author: "Ari", state: "ready" });
 
   assert.equal(document.querySelectorAll(".empty-state").length, 1);
-  assert.equal(textOf(document.querySelector(".empty-state")), "The display name “Ari” has no image posts yet.Choose another display name");
+  assert.equal(document.querySelectorAll(".empty-state-none").length, 1);
+  const none = document.querySelector(".empty-state");
+  assert.equal(textOf(none.querySelector("h3")), "No one has published an image post on Social yet.");
+  assert.equal(none.querySelectorAll("a").length, 1);
+  assert.equal(none.querySelector("a").getAttribute("href"), "#profile-create-steps");
   assert.equal(document.querySelectorAll(".empty-state-filtered").length, 0);
   assert.doesNotMatch(textOf(document.body), /No image posts match the selected display name/);
 
   // Now Zed's pictures exist and Ari is still selected: the same empty grid, a
-  // different reason, and the same one recovery.
+  // different reason, and its own recovery: another name.
   profile.seed(MIXED);
   const filtered = document.querySelector(".empty-state");
   assert.equal(document.querySelectorAll(".empty-state").length, 1);
+  // One panel at a time: the nobody-has-pictures panel is gone, not stacked.
+  assert.equal(document.querySelectorAll(".empty-state-none").length, 0);
   assert.equal(textOf(filtered), "The display name “Ari” has no image posts yet.Choose another display name");
   // And the promise about image posts arriving on their own is not standing over
   // a grid the picker emptied: it would answer "why is this empty?" with the
