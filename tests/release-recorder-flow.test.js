@@ -424,6 +424,44 @@ test("the recorder says where a recorded release is kept, above the button that 
   assert.equal(page.storage.getItem(RELEASE_STORAGE_KEY) === null, false);
 });
 
+// Issue #2795 asked for an "Open release form" / "Close release form" toggle.
+// The recorder has none: it is always open, and the one control that takes a
+// visitor to it is the hero's link, which already names its destination. This
+// pins that, so a bare "Open" or "Close" cannot creep onto the form unnoticed.
+test("the recorder is always open and no control on it is a bare Open or Close", async (t) => {
+  const page = await openReleases(t, { decisions: [QUEUE_DECISION] });
+  const panel = page.document.querySelector("#record-release");
+
+  assert.equal(textOf(page.document.querySelector("#release-form-title")), "Record a release");
+  assert.equal(
+    page.document.querySelector("#release-form").querySelectorAll("button")
+      .filter((button) => textOf(button) === "Record release").length,
+    1,
+  );
+  assert.equal(textOf(page.document.querySelector("#record-release-link")), "Open the form to record a release");
+
+  // Nothing folds the form away: no disclosure wraps the panel...
+  const enclosing = [];
+  for (let node = panel.parentNode; node && node.tagName; node = node.parentNode) enclosing.push(node.tagName);
+  assert.equal(enclosing.filter((name) => name === "DETAILS" || name === "SUMMARY").length, 0);
+
+  // ...and no element inside it, toggle or not, is labelled only Open or Close.
+  const bare = [];
+  const walk = (node) => {
+    for (const child of node.children ?? []) {
+      if (typeof child.getAttribute !== "function") continue;
+      if (child.tagName === "DETAILS" || child.tagName === "SUMMARY") bare.push(child.tagName);
+      if (child.getAttribute("aria-expanded") !== null) bare.push(`aria-expanded on #${child.getAttribute("id")}`);
+      for (const label of [textOf(child), child.getAttribute("aria-label"), child.getAttribute("title")]) {
+        if (/^(Open|Close)$/.test((label ?? "").trim())) bare.push(label);
+      }
+      walk(child);
+    }
+  };
+  walk(panel);
+  assert.deepEqual(bare, []);
+});
+
 test("more than one decision can be linked, in the order they were picked", async (t) => {
   const page = await openReleases(t, { decisions: [QUEUE_DECISION, CACHE_DECISION] });
 
