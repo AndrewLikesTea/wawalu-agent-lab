@@ -111,7 +111,7 @@ const PEOPLE = { label: "Open People to see Mina Okafor’s other image posts", 
 const PUBLISH = { label: "Publish a post on Social", href: "/social.html#post-form" };
 const MINA = "/profile.html?author=Mina%20Okafor";
 
-test("a post that loads is headed by its display name and reads description, image, caption, name, time", async () => {
+test("a post that loads is headed by its display name and reads name, time, caption, image, description", async () => {
   const page = await openPostPage("?id=p-image", seedOnly([SEED_POST]));
   try {
     const { document } = page;
@@ -125,10 +125,10 @@ test("a post that loads is headed by its display name and reads description, ima
 
     const figure = article.querySelector("figure");
     assert.equal(figure.querySelectorAll("img").length, 1);
-    assert.equal(textOf(figure.querySelector("figcaption")), "The middle card, ringed.");
+    assert.equal(textOf(article.querySelector(".detail-caption")), "The middle card, ringed.");
     assert.deepEqual(
-      article.children.slice(0, 4).map((node) => node.className),
-      ["description-note detail-image-description", "detail-figure", "detail-byline", "post-date detail-date"],
+      article.children.map((node) => node.className).filter((name) => !name.includes("detail-post-example")).slice(0, 4),
+      ["detail-byline", "post-date detail-date", "detail-caption", "detail-body"],
       "the routed page preserves the valid-post reading order",
     );
     assert.equal(page.panel.getAttribute("aria-busy"), "false");
@@ -713,7 +713,7 @@ test("a failed lookup names the feed it could not reach, and retry can recover",
 
     assert.ok(page.requests.length > before, "the retry must actually re-run the fetch");
     assert.equal(textOf(page.document.querySelector("#page-title")), "Mina Okafor's Social post");
-    assert.equal(textOf(page.panel.querySelector("figcaption")), "The middle card, ringed.");
+    assert.equal(textOf(page.panel.querySelector(".detail-caption")), "The middle card, ringed.");
     assert.doesNotMatch(textOf(page.panel), /could not be reached/);
     assert.equal(page.panel.dataset.postState, "loaded");
     assertExits(page, MINA, "recovered");
@@ -780,7 +780,7 @@ test("a retry re-enters the wait in the post's shape, then lands the post in it"
     assert.equal(panel.dataset.postState, "loaded");
     assert.deepEqual(skeletonSlots(panel), []);
     assert.equal(panel.querySelectorAll(".detail-post").length, 1);
-    assert.equal(textOf(panel.querySelector("figcaption")), "The middle card, ringed.");
+    assert.equal(textOf(panel.querySelector(".detail-caption")), "The middle card, ringed.");
   } finally {
     page.restore();
   }

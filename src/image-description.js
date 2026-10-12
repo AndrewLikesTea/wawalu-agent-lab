@@ -71,8 +71,8 @@ export function renderDescriptionNote() {
 // to spend on a fourth spelling of the captions role.
 export const IMAGE_DESCRIPTION_LABEL = "Image description";
 
-export function renderImageDescriptionText(description, { className, labelClassName, textClassName } = {}) {
-  const note = document.createElement("p");
+export function renderImageDescriptionText(description, { tagName = "p", className, labelClassName, textClassName } = {}) {
+  const note = document.createElement(tagName);
   if (className) note.className = className;
   const label = document.createElement("span");
   if (labelClassName) label.className = labelClassName;

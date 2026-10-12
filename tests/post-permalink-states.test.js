@@ -484,7 +484,7 @@ test("a post with an image is announced by the description the poster stored", a
     assert.equal(images[0].alt, "A card wrapped in a blue focus ring");
     assert.equal(images[0].alt, IMAGE_POST.image.alt, "the alt is the stored description verbatim");
     // The caption belongs to the image rather than merely sitting under it.
-    assert.equal(textOf(page.panel.querySelector("figcaption")), "The middle card, ringed.");
+    assert.equal(textOf(page.panel.querySelector(".detail-caption")), "The middle card, ringed.");
     assertOneState(page, "loaded", "a post with an image");
   } finally {
     page.restore();
@@ -510,19 +510,19 @@ test("a loaded post shows the poster's image description under a visible label",
     assert.equal(textOf(label), DESCRIPTION_LABEL, "the description is labelled in words, not by position");
     assert.equal(textOf(text), IMAGE_POST.image.alt, "and the label is followed by what the poster wrote");
 
-    // The description leads the image in source order, followed by the image's
-    // caption. It remains adjacent to the figure and inside the post region.
-    const parts = page.panel.querySelectorAll(".detail-image-description-text,.detail-image,figcaption");
+    // The post's words, then the image, then its description as the figure's
+    // caption (#2814), all inside the post region.
+    const parts = page.panel.querySelectorAll(".detail-caption,.detail-image,.detail-image-description-text");
     assert.deepEqual(parts.map((node) => node.className),
-      ["detail-image-description-text", "detail-image", "detail-caption"],
-      "description, then image, then the post's caption");
+      ["detail-caption", "detail-image", "detail-image-description-text"],
+      "the post's caption, then the image, then its description");
 
-    // No new type role and no new hue: the paragraph carries the class the feed
+    // No new type role and no new hue: the caption carries the class the feed
     // and a People tile already draw this text with. styles.css has no headroom
     // for a fourth spelling of one rule, and a fourth spelling is how three
     // surfaces start disagreeing about what a caption looks like.
     const note = page.panel.querySelector(".detail-image-description");
-    assert.equal(note.tagName, "P");
+    assert.equal(note.tagName, "FIGCAPTION");
     assert.ok(note.classList.contains("description-note"), "the existing caption role, reused");
     const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
     assert.doesNotMatch(css, /\.detail-image-description[\s,{]/, "the reused class must not grow a rule of its own");
@@ -580,7 +580,7 @@ test("an image that cannot be shown is replaced by its description and a sentenc
     // The post is still a post: the display name, the timestamp and the caption
     // all survive the image, and so does the labelled description under it.
     assert.equal(textOf(page.panel.querySelector(".detail-author-link")), IMAGE_POST.author);
-    assert.equal(textOf(page.panel.querySelector("figcaption")), IMAGE_POST.caption);
+    assert.equal(textOf(page.panel.querySelector(".detail-caption")), IMAGE_POST.caption);
     assert.equal(textOf(page.panel.querySelector(".detail-image-description-text")), IMAGE_POST.image.alt);
     assert.equal(page.panel.querySelectorAll("time").length, 1);
 
@@ -1271,9 +1271,9 @@ test("a loaded post's caption, name, time and image all read before the feed con
     const main = page.document.querySelector("#main-content");
     // One combined query, which comes back in document order. Everything the
     // post is made of, then the context sentence, then the two routes out.
-    const flow = main.querySelectorAll(".detail-author-link,.detail-date,.detail-image,figcaption,#post-back,#post-people");
+    const flow = main.querySelectorAll(".detail-author-link,.detail-date,.detail-image,.detail-caption,#post-back,#post-people");
     const names = flow.map((node) => node.id || node.className);
-    assert.deepEqual(names, ["detail-image", "detail-caption", "detail-author-link", "post-date detail-date", "post-back", "post-people"],
+    assert.deepEqual(names, ["detail-author-link", "post-date detail-date", "detail-caption", "detail-image", "post-back", "post-people"],
       "the post's parts must all precede the routes off the page");
 
     // The image is announced by the description the poster stored, in the post
@@ -1316,7 +1316,7 @@ test("a permalink built the old way still resolves to the same post", async () =
       assertOneState(page, "loaded", `a permalink at ${search}`);
       assert.equal(textOf(page.panel.querySelector(".detail-author-link")), IMAGE_POST.author);
       assert.equal(textOf(page.document.querySelector("#page-title")), `${IMAGE_POST.author}'s Social post`);
-      assert.equal(textOf(page.panel.querySelector("figcaption")), IMAGE_POST.caption);
+      assert.equal(textOf(page.panel.querySelector(".detail-caption")), IMAGE_POST.caption);
     } finally {
       page.restore();
     }

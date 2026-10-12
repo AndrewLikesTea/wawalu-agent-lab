@@ -113,7 +113,7 @@ test("Social feed: a post whose image dies still shows the label and the descrip
   assert.ok(visible.includes("Image unavailable"), "the label is rendered text, not a class name");
   assert.ok(visible.includes(DESCRIPTION), "the description is rendered text, not just an alt");
 
-  // Reading order: caption, display name and timestamp all still present, and
+  // Reading order: display name, timestamp and caption all still present, and
   // the placeholder sits where the image was rather than after the card.
   const caption = first(container, "post-caption");
   const author = first(container, "post-author");
@@ -121,9 +121,9 @@ test("Social feed: a post whose image dies still shows the label and the descrip
   assert.equal(caption.textContent, "Focus rings landed everywhere.");
   assert.equal(author.textContent, "Mina Okafor");
   assert.equal(time.dateTime, post.createdAt);
-  assert.ok(order(container, caption) < order(container, fallback), "caption remains the primary content");
-  assert.ok(order(container, fallback) < order(container, author));
   assert.ok(order(container, author) < order(container, time));
+  assert.ok(order(container, time) < order(container, caption));
+  assert.ok(order(container, caption) < order(container, fallback), "the placeholder took the image's place");
 
   // Same number of tab stops broken as unbroken: the placeholder adds no control.
   assert.equal(tabStops(container), loadedStops);
@@ -151,8 +151,8 @@ test("People tile: a post whose image dies still shows the label and the descrip
   const time = tags(container, "TIME")[0];
   assert.equal(caption.textContent, "Focus rings landed everywhere.");
   assert.equal(time.dateTime, post.createdAt);
-  assert.ok(order(container, fallback) < order(container, caption), "the placeholder took the image's place");
-  assert.ok(order(container, caption) < order(container, time));
+  assert.ok(order(container, time) < order(container, caption));
+  assert.ok(order(container, caption) < order(container, fallback), "the placeholder took the image's place");
 
   // The tile is one link before and one link after; the placeholder is text
   // inside it, so the grid's tab order is untouched.
@@ -181,12 +181,12 @@ test("permalink: a post whose image dies still shows the label and the descripti
     "the description is rendered text, not just an alt",
   );
 
-  const caption = tags(container, "FIGCAPTION")[0];
+  const caption = first(container, "detail-caption");
   const time = tags(container, "TIME")[0];
   assert.equal(caption.textContent, "Focus rings landed everywhere.");
   assert.equal(time.dateTime, post.createdAt);
-  assert.ok(order(container, fallback) < order(container, caption), "the placeholder took the image's place");
-  assert.ok(order(container, caption) < order(container, time), "media and caption lead the posting time");
+  assert.ok(order(container, time) < order(container, caption), "the posting time leads the caption");
+  assert.ok(order(container, caption) < order(container, fallback), "the placeholder took the image's place");
 
   assert.equal(tabStops(container), loadedStops);
 });
@@ -307,7 +307,7 @@ test("Social feed: a described image with no source draws the placeholder and re
     assert.ok(visible.includes(DESCRIPTION), `${name}: the description is rendered text, not just an alt`);
     // The post itself is untouched: a degraded image, not a degraded post.
     assert.equal(first(container, "post-caption").textContent, "Focus rings landed everywhere.");
-    assert.ok(order(container, fallback) < order(container, first(container, "post-author")));
+    assert.ok(order(container, first(container, "post-caption")) < order(container, fallback));
   }
 });
 
@@ -486,6 +486,6 @@ test("permalink: a described image with no source draws the placeholder in the i
   assert.equal(visible.includes(IMAGE_UNDISPLAYABLE_LINE), false, "the permalink states the failure twice");
 
   // The caption still carries the post, and the placeholder took the image's place.
-  assert.equal(tags(container, "FIGCAPTION")[0].textContent, "Focus rings landed everywhere.");
-  assert.ok(order(container, fallback) < order(container, tags(container, "FIGCAPTION")[0]));
+  assert.equal(first(container, "detail-caption").textContent, "Focus rings landed everywhere.");
+  assert.ok(order(container, first(container, "detail-caption")) < order(container, fallback));
 });

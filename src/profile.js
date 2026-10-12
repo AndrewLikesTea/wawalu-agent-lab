@@ -650,11 +650,9 @@ function renderTile(post, index, onReport = null) {
   const description = imageDescription(post);
   if (post.image) figure.append(renderTileMedia(post.image, description));
 
-  // The description the poster wrote, between the image and the tile's caption —
-  // the order it is read in, in the DOM, not a visual reordering. Until now a
-  // People tile held it in an alt attribute only, so the one grid on this site
-  // that is nothing but pictures was the one place the description could not be
-  // read; the feed and the permalink both already print it.
+  // The description the poster wrote, as the figure's visible caption, directly
+  // under the image — the same order the feed and the permalink use (#2814):
+  // posting metadata, the post's words, the image, its description, the action.
   //
   // Guarded on `post.image`, never on the description being empty:
   // imageDescription() never returns a falsy alt — for a post with no image it
@@ -670,6 +668,7 @@ function renderTile(post, index, onReport = null) {
   // skimmable by ear. The alt stays as it is; this is its visible half.
   if (post.image && !description.missing) {
     const descriptionText = renderImageDescriptionText(description.alt, {
+      tagName: "figcaption",
       className: "description-note profile-tile-description",
       labelClassName: "profile-tile-description-label",
       textClassName: "profile-tile-description-text",
@@ -678,12 +677,11 @@ function renderTile(post, index, onReport = null) {
     figure.append(descriptionText);
   }
 
-  const caption = el("figcaption", "profile-tile-caption", captionFor(post));
+  const caption = el("p", "profile-tile-caption", captionFor(post));
   // Ids are minted from the render index, never from post.id: a post id is
   // arbitrary text and must not be spliced into an id/IDREF list.
   caption.id = `profile-tile-${index}-caption`;
-  figure.append(caption);
-  // Beside the caption, not inside it: the tile is named by its caption alone,
+  // Beside the description, not in it: the tile is named by its caption alone,
   // and flagging a missing description must not rename the link.
   if (post.image && description.missing) figure.append(renderDescriptionNote());
   // The tile is the control, and this is the word printed on it — the same two
@@ -693,7 +691,6 @@ function renderTile(post, index, onReport = null) {
   // and named a different one from the feed's, so the two pages offered the same
   // step under two labels and neither matched the sentence above the grid.
   const destination = el("span", "profile-tile-link-label", OPEN_POST_LABEL);
-  link.append(figure);
 
   const meta = el("p", "profile-tile-meta");
   // Formatted once and read three times: by the time element below and by the
@@ -709,7 +706,7 @@ function renderTile(post, index, onReport = null) {
   // carries nothing here. The tile is named by its caption alone (aria-label
   // below), so this marks the post without renaming the link.
   if (isExamplePost(post)) meta.append(el("span", "badge badge-example", EXAMPLE_POST_LABEL));
-  link.append(meta, destination);
+  link.append(meta, caption, figure, destination);
 
   // What the tile does first, then which post it does it to — the two words
   // printed on it, so a reader who hears the name can find the control by sight,
@@ -766,7 +763,7 @@ function renderSkeleton(container, count = 6) {
     caption.dataset.loadingRegion = "caption";
     const action = el("div", "skeleton-line skeleton-line-short skeleton-line-action");
     action.dataset.loadingRegion = "action";
-    tile.append(media, caption, el("div", "skeleton-line skeleton-line-short"), meta, action);
+    tile.append(meta, caption, el("div", "skeleton-line skeleton-line-short"), media, action);
     item.append(tile);
     list.append(item);
   }

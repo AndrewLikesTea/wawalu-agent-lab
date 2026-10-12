@@ -66,8 +66,7 @@ test("the detail view shows the image whole, with its caption and counts", () =>
   // No lazy loading here: this image is the reason the page was opened.
   assert.equal(img.loading, undefined);
 
-  const figure = tags(article, "FIGURE")[0];
-  assert.equal(tags(figure, "FIGCAPTION")[0].textContent, "The middle card, ringed.");
+  assert.equal(first(article, "detail-caption").textContent, "The middle card, ringed.");
   // A dedicated caption does not replace the body, so both are shown.
   assert.equal(first(article, "detail-body").textContent, "Focus rings landed everywhere.");
 
@@ -82,7 +81,7 @@ test("the detail view shows the image whole, with its caption and counts", () =>
   assert.ok(ids(article).includes(label), `${label} must resolve inside the article`);
 });
 
-test("the post reads in one order: description, image, caption, name, then time", () => {
+test("the post reads in one order: name, time, words, image, then its description", () => {
   const container = createElement("div");
   renderPostDetail(container, post);
   const article = first(container, "detail-post");
@@ -98,23 +97,24 @@ test("the post reads in one order: description, image, caption, name, then time"
 
   const sequence = article.children.map((child) => child.className);
   assert.deepEqual(
-    sequence.slice(0, 4),
-    ["description-note detail-image-description", "detail-figure", "detail-byline", "post-date detail-date"],
-    "the description and media lead, followed by the display name and timestamp",
+    sequence.filter((name) => !name.includes("detail-post-example")).slice(0, 5),
+    ["detail-byline", "post-date detail-date", "detail-caption", "detail-body", "detail-figure"],
+    "the display name and time lead, then the post's words, then the image",
   );
 
   const figure = tags(article, "FIGURE")[0];
   assert.deepEqual(
     figure.children.map((child) => child.tagName),
     ["DIV", "FIGCAPTION"],
-    "the caption is the image's figcaption and immediately follows it",
+    "the description is the image's figcaption and immediately follows it",
   );
+  assert.equal(figure.children[1].className, "description-note detail-image-description");
   assert.ok(tags(figure, "IMG").length === 1, "the image sits inside the figure");
 
   // The byline is the name itself, linked — never "profile" or "view profile",
   // which would leave a screen reader's link list unable to say whose.
   const byline = first(article, "detail-byline");
-  assert.equal(article.children[2], byline, "the byline follows the image caption");
+  assert.equal(article.children[0].className, "detail-byline", "the byline opens the post");
   const link = first(byline, "detail-author-link");
   assert.equal(link.tagName, "A");
   assert.equal(link.textContent, "Mina Okafor");
@@ -162,7 +162,7 @@ test("a dead image with no description says so rather than reading an empty one"
 test("a post with no separate caption shows its body once", () => {
   const container = createElement("div");
   renderPostDetail(container, { ...post, caption: null });
-  assert.equal(tags(container, "FIGCAPTION")[0].textContent, "Focus rings landed everywhere.");
+  assert.equal(first(container, "detail-caption").textContent, "Focus rings landed everywhere.");
   assert.equal(byClass(container, "detail-body").length, 0, "the body is not repeated under its own caption");
 });
 
