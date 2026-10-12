@@ -57,6 +57,9 @@ const RETIRED = [
   // and permanent as two facts a reader had to add up.
   "Anyone who visits Shiplog can read your post, its image, and the display name you publish it with.",
   "You cannot edit or delete your own post after you publish it",
+  // And the absolute claim the terms made until #2817, which contradicted
+  // Social's own explanation that the team may remove a reported post.
+  "public and cannot be edited or deleted.",
 ];
 
 const read = (file) => readFile(new URL(`../src/${file}`, import.meta.url), "utf8");
@@ -72,7 +75,9 @@ test("each sentence is one short, active sentence that answers one question", ()
     assert.equal(sentence.split(/[.!?]/).filter((part) => part.trim()).length, 1,
       `"${sentence}" is more than one sentence`);
     assert.ok(sentence.endsWith("."), `"${sentence}" does not end in a full stop`);
-    assert.ok(sentence.split(/\s+/).length <= 15, `"${sentence}" is longer than 15 words`);
+    // 17, not 15, since #2817: "by the person who published it" is what keeps
+    // the terms from contradicting the team's removal after a report.
+    assert.ok(sentence.split(/\s+/).length <= 17, `"${sentence}" is longer than 17 words`);
     // The subject is the published post, not the page the sentence is on. This
     // is the whole reason one wording can serve three surfaces: "anyone who
     // opens Social" and "an image post you publish" could not.
@@ -88,7 +93,9 @@ test("each sentence is one short, active sentence that answers one question", ()
   assert.match(PUBLISHED_POST_REACH, /on any device or browser/,
     "the reach sentence no longer says a published post is readable anywhere");
   assert.match(PUBLISHED_POST_TERMS, /public/);
-  assert.match(PUBLISHED_POST_TERMS, /cannot be edited or deleted/);
+  // Whose control it is, not whether the post can ever come down: the Wawalu
+  // team may remove a reported post after review (#2817).
+  assert.match(PUBLISHED_POST_TERMS, /cannot be edited or deleted by the person who published it\.$/);
   // Neither borrows the other's claim, so neither can be dropped as a
   // restatement of its neighbour.
   assert.doesNotMatch(PUBLISHED_POST_REACH, /edited or deleted|public/);
@@ -163,6 +170,17 @@ test("the reporting clause stays on the two pages that always draw the control",
   const post = await read("post.html");
   assert.equal(post.includes(CLAUSE), false,
     "the shared post page promises a Report post control it draws in one of its four states");
+});
+
+// The terms say whose control a post is out of; Social's reporting explanation
+// still says the team may take it down, and that a report alone does not (#2817).
+test("Social still says the team may remove a reported post after review", async (t) => {
+  const page = await loadPage(new URL("../src/social.html", import.meta.url), {});
+  t.after(() => page.restore());
+  const painted = textOf(page.document.querySelector("#main-content"));
+  assert.equal(times(painted, PUBLISHED_POST_TERMS), 1);
+  assert.equal(times(painted, "The post stays up unless the team decides after review to remove it."), 1,
+    "Social no longer says that removal follows review, not the report itself");
 });
 
 /* ----------------------- what the edit may not disturb -------------------- */

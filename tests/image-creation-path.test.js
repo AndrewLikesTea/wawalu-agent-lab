@@ -52,7 +52,7 @@ const NEARBY_INVITATION = { People: documents.People };
 // off them so the shared post page could render the terms in these same bytes,
 // then the instruction.
 const PEOPLE_CONSEQUENCE =
-  "A published post is public and cannot be edited or deleted. "
+  "A published post is public and cannot be edited or deleted by the person who published it. "
   + "Anyone can select Report post on it. "
   + "Do not include customer or production data.";
 // The longer second-person sentences this replaced, retired from every page.

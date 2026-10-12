@@ -1000,7 +1000,7 @@ test("the onward row offers the feed, the display name and a post of your own", 
 // a clause promising one could not travel with them. What stays Social's alone is
 // this whole paragraph — its id, its class, the reporting clause and the
 // instruction to a publisher.
-const CONSEQUENCE = "A published post is public and cannot be edited or deleted. Anyone can select Report post on it. Do not include customer or production data.";
+const CONSEQUENCE = "A published post is public and cannot be edited or deleted by the person who published it. Anyone can select Report post on it. Do not include customer or production data.";
 const consequencesIn = (html) => [...html.matchAll(/<p class="[^"]*publish-consequence[^"]*"[^>]*>([^<]*)<\/p>/g)].map((match) => match[1]);
 
 test("the publication consequence is said once, at the button that publishes", async () => {

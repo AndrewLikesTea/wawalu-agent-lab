@@ -297,7 +297,7 @@ test("People: the helper points at the terms instead of restating them, once the
   const helper = textOf(document.querySelector(".feed-create"));
   statesTheDistinction(helper, "People's helper");
   assert.ok(helper.trim().endsWith(
-    "A published post is public and cannot be edited or deleted. "
+    "A published post is public and cannot be edited or deleted by the person who published it. "
     + "Anyone can select Report post on it. "
     + "Do not include customer or production data."),
   `People's helper no longer states both halves of the distinction: ${helper}`);
