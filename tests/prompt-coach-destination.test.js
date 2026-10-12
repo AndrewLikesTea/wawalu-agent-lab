@@ -26,8 +26,10 @@ import { FIRST_RUN_GRADED_TITLE, applyCoachingFirstRun } from "../src/prompt-coa
 import { COPY_LABEL } from "../src/coaching-summary-view.js";
 import { SPECIMEN_CASES } from "../src/coaching-specimen.js";
 import {
-  ASK_ABOUT_SHIPLOG_DESCRIPTION, ASK_ABOUT_SHIPLOG_DESCRIPTION_ID,
+  ASK_ABOUT_COACH_DESCRIPTION, ASK_ABOUT_COACH_LABEL, ASK_ABOUT_SHIPLOG_DESCRIPTION_ID,
 } from "../src/ask-about-shiplog.js";
+import { IDENTITY, initSiteFooter } from "../src/site-footer.js";
+import { FOLLOW_UP_TOPICS } from "../src/leads.js";
 
 const PAGE = fileURLToPath(new URL("../src/coach.html", import.meta.url));
 const read = (file) => readFile(new URL(`../src/${file}`, import.meta.url), "utf8");
@@ -469,7 +471,9 @@ test("the page names itself, says what it does, and offers a follow-up", async (
   const navLabel = SITE_NAV.find((entry) => entry.href === "/coach.html").label;
   assert.equal(textOf(byId(document, "page-title")), "Prompt coach");
   assert.equal(textOf(byId(document, "page-title")), navLabel);
-  assert.match(await read("coach.html"), /<title>Prompt coach · Shiplog<\/title>/);
+  // The tab says the page is a lab tool and not Shiplog itself (#2802), the way
+  // the footer's About band does.
+  assert.match(await read("coach.html"), /<title>Prompt coach · lab tool beside Shiplog<\/title>/);
 
   // Reading order inside the introduction, asserted on the elements rather than
   // on the markup: the page's name, then one sentence saying what it does and
@@ -493,7 +497,7 @@ test("the page names itself, says what it does, and offers a follow-up", async (
   const described = document.querySelectorAll("p")
     .filter((node) => node.getAttribute("id") === ASK_ABOUT_SHIPLOG_DESCRIPTION_ID);
   assert.equal(described.length, 1, `the route's description is painted ${described.length} times`);
-  assert.equal(textOf(described[0]), ASK_ABOUT_SHIPLOG_DESCRIPTION);
+  assert.equal(textOf(described[0]), ASK_ABOUT_COACH_DESCRIPTION);
   assert.equal(described[0].querySelectorAll("a").length, 0, "the description drew a link");
   assert.equal(byId(document, "ask-about-shiplog").getAttribute("aria-describedby"),
     ASK_ABOUT_SHIPLOG_DESCRIPTION_ID);
@@ -507,6 +511,61 @@ test("the page names itself, says what it does, and offers a follow-up", async (
   const above = copyAboveTheField(document);
   assert.equal((above.match(PROMISE) ?? []).length, 1);
   assert.equal((above.match(PRIVACY_CLAIM) ?? []).length, 1);
+});
+
+// #2802. The page says it is a separate tool in the lab, yet its follow-up asked
+// "Questions about Shiplog?" and offered to say whether Shiplog was available,
+// one line above "This request is sent about the Prompt coach page". Read on
+// the painted page, from the tab to the receipt. The About Shiplog band above
+// the form may still describe Shiplog, and still renders.
+test("the follow-up names Prompt coach as its subject, from the tab to the receipt", async () => {
+  const { document } = await openCoach();
+  // The page's own request transport, not the harness fetch: this file declares
+  // no network, and that stays true.
+  const sent = [];
+  initSiteFooter(document, async (_url, options) => {
+    sent.push(JSON.parse(options.body));
+    return new Response(JSON.stringify({ captured: true, created: true, purpose: "follow_up_coach", intent: "pilot" }),
+      { status: 201, headers: { "content-type": "application/json" } });
+  });
+
+  // The harness has no document.title; the element is what a browser reads it from.
+  assert.equal(document.querySelectorAll("title").length, 1);
+  assert.match(textOf(document.querySelector("title")), /^Prompt coach · lab tool beside Shiplog$/);
+  assert.equal(textOf(byId(document, "ask-about-shiplog")), ASK_ABOUT_COACH_LABEL);
+
+  // The line that introduces the form, and the offer that opens it.
+  const intro = textOf(document.querySelector(".site-footer-invitation"));
+  assert.match(intro, /^Questions about Prompt coach, not Shiplog\?/);
+  assert.match(textOf(byId(document, "site-footer-offer")), /Whether Prompt coach is available for your team/);
+  assert.equal(textOf(byId(document, "site-footer-topic-note")),
+    `This request is sent about the ${FOLLOW_UP_TOPICS.follow_up_coach}.`);
+
+  // No sentence from the intro to the button makes Shiplog the subject. The
+  // privacy note still says the address goes to "the Wawalu team that operates
+  // Shiplog": that names who receives it, and is one byte-exact sentence on
+  // every follow-up form (tests/follow-up-privacy.test.js).
+  const SHIPLOG_AS_SUBJECT = /about Shiplog|Shiplog is available|Shiplog would cost|Ask about Shiplog/;
+  const panel = byId(document, "site-footer-panel");
+  for (const text of [intro, textOf(panel), textOf(byId(document, "ask-about-shiplog-actions"))]) {
+    assert.doesNotMatch(text, SHIPLOG_AS_SUBJECT);
+  }
+
+  // And the receipt a visitor gets back says nothing different.
+  byId(document, "site-footer-intent-pilot").click();
+  byId(document, "site-footer-email").value = "reader@example.com";
+  panel.querySelector('button[type="submit"]').click();
+  await waitFor(() => byId(document, "site-footer-form").dataset.state === "success", "the request to land");
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].topic, FOLLOW_UP_TOPICS.follow_up_coach);
+  const receipt = textOf(panel);
+  assert.ok(receipt.includes(`Fixed page topic: ${FOLLOW_UP_TOPICS.follow_up_coach}.`), receipt);
+  assert.doesNotMatch(receipt, SHIPLOG_AS_SUBJECT);
+
+  // The band still describes Shiplog, once, under its own heading.
+  assert.equal(textOf(byId(document, "site-footer-title")), "About Shiplog");
+  assert.equal(document.querySelectorAll(".site-footer-identity")
+    .filter((node) => textOf(node) === IDENTITY).length, 1);
 });
 
 /** How many times a phrase is written in a block of rendered copy. */

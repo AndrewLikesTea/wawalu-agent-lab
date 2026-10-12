@@ -64,6 +64,8 @@ const EXPECTED_INVITATION = {
   "post.html": `${INVITATION} The topics below are about Shiplog — whether it is available for your team, a demonstration, a pilot, and security and data handling — not about this post. Nothing about the post is attached to the request automatically.`,
   "social.html": FEED_INVITATION,
   "profile.html": FEED_INVITATION,
+  // #2802: the request here is about Prompt coach, not the Shiplog band above it.
+  "coach.html": "Questions about Prompt coach, not Shiplog? Send the Wawalu team a follow-up request.",
 };
 
 const read = (file) => readFile(new URL(file, SRC), "utf8");

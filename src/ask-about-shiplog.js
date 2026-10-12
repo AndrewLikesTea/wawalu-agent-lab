@@ -73,6 +73,17 @@ export const ASK_ABOUT_SHIPLOG_DESCRIPTION =
   + " optional note.";
 
 /**
+ * Prompt coach's wording of the same route (#2802). The form it lands on is a
+ * request about Prompt coach, which the footer says is not part of Shiplog, so
+ * the label names the tool the visitor is on. Same sentence, other subject.
+ */
+export const ASK_ABOUT_COACH_LABEL = "Ask about Prompt coach";
+export const ASK_ABOUT_COACH_DESCRIPTION =
+  "Ask about Prompt coach moves you to the follow-up form at the foot of this page,"
+  + " which asks for a work email address, what you want to discuss and an"
+  + " optional note.";
+
+/**
  * Wire the route on a page that ships it. Returns a teardown, or null when this
  * page carries no route or no form — so a surface with neither is unaffected.
  */

@@ -223,8 +223,8 @@ export const FOLLOW_UP_REDIRECT = Object.freeze({
  * and switches the privacy sentence with it: a form carrying a message box
  * cannot claim nothing else on the page is sent.
  *
- * `offer` opens the block with OFFER — what asking gets a visitor who never read
- * the home page's answer to the same question.
+ * `offer` opens the block with OFFER, or the string given — what asking gets a
+ * visitor who never read the home page's answer.
  *
  * `assets` adds the one route to the home page's evaluation brief and blank
  * pilot scorecard, and the sentence saying what the two documents hold. The
@@ -345,7 +345,7 @@ function contactFormLines(followUpType, followUpTopic, askMessage = false, offer
     `      <form id="site-footer-form" class="site-footer-form"${followUpType ? ` data-follow-up-type="${followUpType}"` : ""}${followUpTopic ? ` data-follow-up-topic="${followUpTopic}"` : ""} novalidate>`,
     // Why to ask, then what this request is about, then the fields: a visitor
     // reads the offer before the topic, and both before an address.
-    ...(offer ? [`        <p class="site-footer-note" id="site-footer-offer">${OFFER}</p>`] : []),
+    ...(offer ? [`        <p class="site-footer-note" id="site-footer-offer">${offer === true ? OFFER : offer}</p>`] : []),
     ...(followUpTopic ? [
       `        <p class="site-footer-note" id="site-footer-topic-note">This request is sent about the ${followUpTopic}.</p>`,
     ] : []),

@@ -50,6 +50,10 @@ const CARRIERS = ["coach.html", "releases.html", "social.html", "profile.html", 
 // fragment written here would keep passing after the sentence changed under it.
 const [PRICE_CLAIM, AVAILABILITY_CLAIM] = OFFER.split(". ");
 
+// #2802: Prompt coach's request is about Prompt coach, so its copy of the
+// sentence names the tool instead. The same claims; only the subject moves.
+const offerOn = (file) => (file === "coach.html" ? OFFER.replace("Whether Shiplog", "Whether Prompt coach") : OFFER);
+
 test("the offer sentence carries the home page's claims and adds none of its own", async () => {
   // One sentence per claim, and nothing after the second.
   assert.equal(OFFER.at(-1), ".");
@@ -85,7 +89,7 @@ test("exactly the pages in the table above open their follow-up block with it", 
     assert.equal(Boolean(offer), CARRIERS.includes(file),
       `${file}: the offer sentence disagrees with the table of pages that carry it`);
     if (!offer) continue;
-    assert.equal(textOf(offer), OFFER, `${file}: the offer sentence has drifted from src/site-footer.js`);
+    assert.equal(textOf(offer), offerOn(file), `${file}: the offer sentence has drifted from src/site-footer.js`);
   }
 
   // Named rather than merely implied by the loop above: the home page says this
@@ -123,7 +127,7 @@ test("it is prose above the work-email field, in the hint style, and costs no co
       `${file}: the offer is stated below the field it is the reason for`);
 
     // Once. The claim reads as an answer, not as insistence.
-    const stated = form.querySelectorAll("p").filter((node) => textOf(node) === OFFER);
+    const stated = form.querySelectorAll("p").filter((node) => textOf(node) === offerOn(file));
     assert.equal(stated.length, 1, `${file}: the offer is stated ${stated.length} times`);
 
     // The page-specific line it stands above is still there and still names this
@@ -142,7 +146,7 @@ for (const file of CARRIERS) {
       // Rendered, after the footer's own module has wired the form up: this is
       // the sentence a visitor reads, not the one the source file holds.
       const offer = byId(document, "site-footer-offer");
-      assert.equal(textOf(offer), OFFER, `${file}: the painted sentence has drifted`);
+      assert.equal(textOf(offer), offerOn(file), `${file}: the painted sentence has drifted`);
       assert.ok(!offer.hidden, `${file}: the sentence ships hidden`);
       assert.ok(!tabSequence(document).some((node) => node.id === "site-footer-offer"),
         `${file}: the sentence must not be a tab stop`);

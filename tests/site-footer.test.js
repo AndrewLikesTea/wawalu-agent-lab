@@ -22,7 +22,7 @@ import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
 import {
   ASSETS_DESCRIPTION, ASSETS_HREF, ASSETS_LINK_LABEL,
-  DEMOS, DIRECTORY_SUMMARY, FOLLOW_UP_REDIRECT, IDENTITY, INVITATION, PITCH, PITCH_HREF, PITCH_LINK,
+  DEMOS, DIRECTORY_SUMMARY, FOLLOW_UP_REDIRECT, IDENTITY, INVITATION, OFFER, PITCH, PITCH_HREF, PITCH_LINK,
   REPOSITORY_LINK_LABEL, SEPARATE_TOOL, siteFooterMarkup, SOURCE_LINK_LABEL,
 } from "../src/site-footer.js";
 import { REPOSITORY_URL } from "../src/repository-url.js";
@@ -127,7 +127,11 @@ const FOOTER_VARIANT = new Map([
   ["executive-briefing.html", { redirect: FOLLOW_UP_REDIRECT.briefing }],
   ["coach.html", {
     followUpType: "follow_up_coach", followUpTopic: FOLLOW_UP_TOPICS.follow_up_coach,
-    collapsedDemos: true, askMessage: true, offer: true, assets: true,
+    collapsedDemos: true, askMessage: true, assets: true,
+    // #2802: the request is about Prompt coach, which IDENTITY says is not part
+    // of Shiplog, so the line above the form and the offer name the tool.
+    invitation: "Questions about Prompt coach, not Shiplog? Send the Wawalu team a follow-up request.",
+    offer: OFFER.replace("Whether Shiplog", "Whether Prompt coach"),
   }],
   // `collapsedDemos` is the third shape, and issue #2250 gave it to the five
   // pages a visitor is on to do one thing — read a post, read the feed, pick a

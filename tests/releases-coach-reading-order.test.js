@@ -31,6 +31,7 @@ import assert from "node:assert/strict";
 
 import { STORAGE_KEY } from "../src/app.js";
 import {
+  ASK_ABOUT_COACH_DESCRIPTION, ASK_ABOUT_COACH_LABEL,
   ASK_ABOUT_SHIPLOG_DESCRIPTION, ASK_ABOUT_SHIPLOG_DESCRIPTION_ID,
   ASK_ABOUT_SHIPLOG_HREF, ASK_ABOUT_SHIPLOG_ID, ASK_ABOUT_SHIPLOG_LABEL,
 } from "../src/ask-about-shiplog.js";
@@ -166,7 +167,9 @@ for (const surface of surfaces) {
       .filter((link) => link.getAttribute("id") === ASK_ABOUT_SHIPLOG_ID);
     assert.equal(routes.length, 1, `${surface.name}: the page paints ${routes.length} routes, not one`);
     const [route] = routes;
-    assert.equal(textOf(route), ASK_ABOUT_SHIPLOG_LABEL);
+    // #2802: the coach's form is a request about Prompt coach, so its route says so.
+    const coach = surface.name === "coach";
+    assert.equal(textOf(route), coach ? ASK_ABOUT_COACH_LABEL : ASK_ABOUT_SHIPLOG_LABEL);
     assert.equal(route.getAttribute("href"), ASK_ABOUT_SHIPLOG_HREF);
     assert.equal(route.getAttribute("aria-label"), null);
     const sequence = tabSequence(document);
@@ -183,7 +186,7 @@ for (const surface of surfaces) {
     const described = document.querySelectorAll("p")
       .filter((node) => node.getAttribute("id") === ASK_ABOUT_SHIPLOG_DESCRIPTION_ID);
     assert.equal(described.length, 1, `${surface.name}: the description is painted ${described.length} times`);
-    assert.equal(textOf(described[0]), ASK_ABOUT_SHIPLOG_DESCRIPTION);
+    assert.equal(textOf(described[0]), coach ? ASK_ABOUT_COACH_DESCRIPTION : ASK_ABOUT_SHIPLOG_DESCRIPTION);
     assert.equal(route.getAttribute("aria-describedby"), ASK_ABOUT_SHIPLOG_DESCRIPTION_ID);
     const row = document.getElementById(ROW_ID);
     assert.equal(row.querySelectorAll(`#${ASK_ABOUT_SHIPLOG_ID}`).length, 1,
