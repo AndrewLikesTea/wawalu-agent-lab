@@ -6,15 +6,19 @@ import { importPageModule, waitFor } from "./support/page-module.js";
 const reply = (body, status = 201) => new Response(JSON.stringify(body), { status });
 const success = () => reply({ captured: true, created: true, purpose: "follow_up" });
 
+for (const surface of ["social", "profile", "post", "index", "releases", "coach"]) {
 for (const [name, failure, diagnostic] of [
   ["refused", () => reply({ error: { code: "storage_error" } }, 500), /No request was sent/],
   ["offline", () => Promise.reject(new TypeError("offline")), /couldn’t send/],
+  ["malformed failure", () => reply({ error: { code: {}, message: "secret person@example.com" } }, 500), /couldn’t send/],
+  // An inherited key is not owned copy; it must not render "function Object()…".
+  ["prototype-key failure", () => reply({ error: { code: "constructor", message: "<img src=x onerror=alert(1)>" } }, 500), /couldn’t send/],
   ["invalid JSON", () => new Response("<html>proxy</html>"), /couldn’t send/],
   ...[null, {}, [], { captured: false }, { captured: true, created: "yes", purpose: "follow_up" }]
     .map((body) => [JSON.stringify(body), () => reply(body), /couldn’t send/]),
 ]) {
-  test(`shared footer lifecycle and keyboard retry after ${name}`, async () => {
-    const page = await loadPage(new URL("../src/social.html", import.meta.url));
+  test(`${surface}: shared footer lifecycle and keyboard retry after ${name}`, async () => {
+    const page = await loadPage(new URL(`../src/${surface}.html`, import.meta.url));
     const originalFetch = globalThis.fetch;
     const calls = [];
     let finish;
@@ -40,13 +44,17 @@ for (const [name, failure, diagnostic] of [
       assert.equal(status.getAttribute("role"), "status");
       assert.equal(status.getAttribute("aria-live"), "polite");
       assert.equal(status.getAttribute("aria-atomic"), "true");
-      get("intent-pilot").click();
+      get("intent-pilot")?.click();
+      const note = form.elements.message;
+      if (note) note.value = "Please discuss a pilot.";
       email.focus();
       typeText(document, "person@example.com");
       submit.focus();
       pressEnter(document);
       const pending = (control) => {
         assert.equal(form.dataset.requestState, "submitting");
+        assert.equal(retry.hidden, true);
+        assert.ok(!tabSequence(document).includes(retry));
         assert.equal(document.activeElement, control);
         assert.equal(control.hidden, false);
         assert.equal(control.disabled, false);
@@ -62,6 +70,7 @@ for (const [name, failure, diagnostic] of [
       finish();
       await waitFor(() => form.dataset.requestState === "failure", "failure");
       assert.match(textOf(status), diagnostic);
+      assert.doesNotMatch(textOf(status), /secret|person@example.com|onerror|function/);
       assert.equal(get("confirmation"), null);
       assert.equal(retry.hidden, false);
       // Iris's defect: the retry may not stand beside the action it replaces.
@@ -69,11 +78,13 @@ for (const [name, failure, diagnostic] of [
       assert.equal(retry.getAttribute("aria-disabled"), null);
       assert.match(textOf(retry), /Retry your follow-up request/);
       assert.equal(email.value, "person@example.com");
+      if (note) assert.equal(note.value, "Please discuss a pilot.");
+      assert.equal(status.parentNode, form);
       assert.equal(document.activeElement, email, "hidden request control hands focus to the retained field");
       assert.ok(tabSequence(document).indexOf(email) < tabSequence(document).indexOf(retry));
       retry.focus();
       pressEnter(document);
-      pending(retry);
+      pending(submit);
       assert.equal(calls.length, 2);
       assert.deepEqual(calls[1], calls[0]);
       finish();
@@ -99,4 +110,6 @@ for (const [name, failure, diagnostic] of [
       page.restore();
     }
   });
+}
+
 }

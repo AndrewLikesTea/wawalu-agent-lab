@@ -364,12 +364,12 @@ function contactFormLines(followUpType, followUpTopic, askMessage = false, offer
     `        <p class="site-footer-note" id="site-footer-use">${FOLLOW_UP_USE}</p>`,
     `        <p class="site-footer-note" id="site-footer-reply">${FOLLOW_UP_REPLY}</p>`,
     '        <p class="site-footer-recovery" id="site-footer-recovery" hidden></p>',
+    '        <p class="site-footer-status" id="site-footer-status" role="status" aria-live="polite" aria-atomic="true"></p>',
     '        <div class="site-footer-actions">',
     '          <button type="submit">Request a follow-up</button>',
     `          <button id="${RETRY_ID}" type="submit" hidden>Retry your follow-up request</button>`,
     "        </div>",
     "      </form>",
-    '      <p class="site-footer-status" id="site-footer-status" role="status" aria-live="polite"></p>',
     "    </div>",
   ];
 }
@@ -425,7 +425,7 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
       repositoryLink.href = REPOSITORY_URL;
       repositoryLink.textContent = REPOSITORY_LINK_LABEL;
     }
-    if (!repositoryLink.parentNode && actions) form.insertBefore(repositoryLink, actions);
+    if (!repositoryLink.parentNode && actions) form.insertBefore(repositoryLink, status);
   }
 
   function setFieldError(message) {
@@ -462,19 +462,19 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
   }
 
   // Failure swaps request for retry and hands a hidden button's focus to the
-  // retained field. During retry, preserve the active button until settlement.
+  // retained field. A retry hands focus to the guarded progress control.
   // Recovery copy distinguishes a confirmed refusal from unknown delivery.
-  function setRecoveryVisible(visible, notSent = false, preserveAction = false) {
+  function setRecoveryVisible(visible, notSent = false) {
     if (visible) {
       recovery.textContent = `${notSent ? RECOVERY_NOT_SENT : RECOVERY_UNCONFIRMED} ${RECOVERY_GUIDANCE}`;
     }
     recovery.hidden = !visible;
     setRepositoryLinkVisible(visible);
-    if (retry && !preserveAction) {
+    if (retry) {
       const stranded = form.ownerDocument.activeElement === (visible ? submit : retry);
       retry.hidden = !visible;
       submit.hidden = visible;
-      if (stranded) email.focus();
+      if (stranded) (form.dataset.requestState === "submitting" ? submit : email).focus();
     }
     describeWith(email, RECOVERY_ID, visible);
   }
@@ -579,10 +579,10 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
 
     form.dataset.requestState = "submitting";
     form.dataset.state = "submitting";
-    pendingControl = retry && !retry.hidden ? retry : submit;
+    pendingControl = submit;
     const idleLabel = pendingControl.textContent;
     setFieldError(null);
-    setRecoveryVisible(false, false, true);
+    setRecoveryVisible(false);
     // The last outcome stops describing the field once a new one is in flight.
     setOutcomeDescribed(false);
     // aria-disabled keeps the active control in the tab order. The lifecycle

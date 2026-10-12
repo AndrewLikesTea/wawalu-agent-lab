@@ -859,14 +859,7 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
    holding no height while there is nothing to say. */
 .decision-record-status { min-height:1.45em; margin:14px 0 0; font-weight:700; }
 .decision-record-status:empty { min-height:0; }
-/* Site footer ---------------------------------------------------------------
-   A quiet band after the content region, on every page. It is body-level and
-   full-bleed with its own inner measure, so it reads identically on a page that
-   wraps its frame in .page and on one that does not. Nothing here competes with
-   the page's own hierarchy: the heading is eyebrow-sized on purpose, and the
-   panel only exists once a visitor has asked for it. Markup: src/site-footer.js.
-   The mirror of this block lives in src/agents.css, which is the other
-   stylesheet the site's pages load. */
+/* Shared footer styles; keep the corresponding agents.css rules in sync. */
 .site-footer { border-top:1px solid #cfcdc5; background:rgba(255,255,255,.5); }
 .site-footer-inner { display:grid; justify-items:start; gap:13px; width:min(1180px,calc(100% - 40px)); margin:auto; padding:30px 0 44px; }
 .site-footer-title { margin:0; color:#65717d; font:700 11px/1.4 ui-monospace,monospace; letter-spacing:.11em; text-transform:uppercase; }
@@ -891,10 +884,10 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .site-footer-actions { display:flex; flex-wrap:wrap; gap:10px; }
 .site-footer-actions button { min-height:44px; border:1px solid #171713; border-radius:9px; padding:0 16px; background:#171713; color:#fff; font:650 13px/1.4 inherit; cursor:pointer; }
 .site-footer-actions button[type="button"] { border-color:#a9bccd; background:#fff; color:#2c2c28; }
-.site-footer-actions button[aria-disabled="true"] { border-color:#777771; background:#777771; cursor:wait; }
+.site-footer-actions button[aria-disabled="true"] { border-color:#555550; background:#555550; cursor:wait; }
 .site-footer-status { margin:0; min-height:1.5em; color:#2c2c28; font:700 13px/1.5 inherit; }
-.site-footer-form[data-state="success"]+.site-footer-status { color:#205d2b; }
-.site-footer-form[data-state="error"]+.site-footer-status { color:#8a2b2b; }
+.site-footer-form[data-state="success"] .site-footer-status { color:#205d2b; }
+.site-footer-form[data-state="error"] .site-footer-status { border-left:5px solid #8a2b2b; border-radius:9px; padding:11px 13px; background:#fbeded; color:#6d2020; }
 .site-footer-recovery { margin:0; border-left:2px solid #8a2b2b; padding-left:11px; color:#4f4f4a; font-size:12px; line-height:1.5; }
 .site-footer-recovery[hidden] { display:none; }
 /* The receipt that stands where the form was. Nothing about it repeats the
@@ -992,3 +985,7 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 #record-history-title:focus { outline:3px solid var(--focus-ring); outline-offset:4px; }
 
 #site-footer-panel { scroll-margin-top:24px; }
+
+/* Author display rules must never expose hidden retry controls or receipts. */
+.site-footer [hidden] { display:none !important; }
+.site-footer-form[data-state="submitting"] .site-footer-status { border-radius:9px; padding:11px 13px; background:#eef5fc; color:#2c2c28; }

@@ -1918,13 +1918,12 @@ test("a failed request adds one route out, not a second copy of the provenance l
   }
 });
 
-test("the send/retry swap never hides the control a reader is standing on", async () => {
+test("the send/retry swap always hands focus to a visible control", async () => {
   // The swap is the one moment this form removes a focused element from the
   // page, and a browser answers that by dropping focus to the top of the
   // document — out of the footer, silently. This harness models no layout, so it
-  // would go on reporting the hidden control as focused and show nothing; both
-  // directions are pinned here as an explicit move onto the field, which is the
-  // one control present on both sides of the swap.
+  // would go on reporting the hidden control as focused and show nothing. A
+  // failure hands focus to the field; retry hands it to the progress button.
   //
   // The test presses the buttons rather than submitting from the field, because
   // submitting from the field is the path where focus is already safe.
@@ -1949,12 +1948,12 @@ test("the send/retry swap never hides the control a reader is standing on", asyn
     assert.equal(document.activeElement?.id, "site-footer-email",
       "hiding the pressed control must hand focus to the field, not to the document");
 
-    // Sending again preserves the active retry control until the outcome.
+    // Sending again hides retry and hands focus to the progress control.
     failNext = false;
     retry.focus();
     pressEnter(document);
-    assert.equal(retry.hidden, false, "retry stays visible while in flight");
-    assert.equal(document.activeElement, retry);
+    assert.equal(retry.hidden, true, "retry is hidden while in flight");
+    assert.equal(document.activeElement, submit);
 
     await waitFor(() => byId(document, "site-footer-form").dataset.state === "success", "the retry to land");
     // Success moves focus on purpose, and it is the receipt that takes it.
@@ -2050,6 +2049,9 @@ test("both stylesheets that the site's pages load style the footer, and agree ab
     // covered buttons and inputs alone in agents.css, which was survivable while
     // nothing in the band was a link on those two pages.
     assert.match(css, /\.site-footer a:focus-visible \{/, `${file}: the footer's link has no focus ring`);
+
+    // Global button display:flex must not override the hidden retry attribute.
+    assert.match(css, /\.site-footer \[hidden\] \{ display:none !important; \}/);
 
     // A collapsed panel is collapsed, not merely transparent.
     assert.match(css, /\.site-footer-panel\[hidden\] \{ display:none; \}/, `${file}: the hidden panel must not occupy the band`);
