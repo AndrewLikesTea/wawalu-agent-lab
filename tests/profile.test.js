@@ -16,7 +16,7 @@ installDocument();
 const { FEED_LOADING_LINE } = await import("../src/social.js");
 
 const {
-  EMPTY_SUMMARY_LINE, PENDING_RESULTS_HEADING, PUBLISH_ON_SOCIAL, authorChipLabel, authorInitials, captionFor, countLabel, defaultProfileAuthor,
+  CREATE_STEPS_LABEL, EMPTY_SUMMARY_LINE, NO_IMAGE_POSTS_ANYWHERE, PENDING_RESULTS_HEADING, profileLoadAnnouncement, PUBLISH_ON_SOCIAL, authorChipLabel, authorInitials, captionFor, countLabel, defaultProfileAuthor,
   distinctAuthors, hasExplicitAuthor, imagePostCounts, loadingSummaryText,
   mergePostsById, normalizeProfileApiPosts, normalizeSeedPosts, pickerEntries, pickerNoteText, postDetailHref,
   singleNameNotice, profileActiveFilterLine,
@@ -1012,6 +1012,35 @@ test("empty People recovery follows safely interpolated names and replaces pendi
 });
 
 
+test("an empty People grid with no image posts anywhere has its own words, structure and way out", () => {
+  const container = createElement("div");
+  const panels = {};
+  for (const [key, options] of Object.entries({
+    loading: { state: "loading" },
+    error: { state: "error", onRetry() {} },
+    selected: { state: "ready" },
+    none: { state: "ready", anyImages: false },
+  })) {
+    renderProfileGrid(container, [], { author: "Guest", ...options });
+    // One state at a time: never two panels, never a panel over placeholders.
+    assert.ok(byClass(container, "empty-state").length <= 1);
+    if (key !== "loading") assert.equal(byClass(container, "profile-tile-skeleton").length, 0);
+    panels[key] = textOf(container);
+  }
+  assert.equal(new Set(Object.values(panels)).size, 4, "two People states share their words");
+  renderProfileGrid(container, [], { author: "Guest", anyImages: false });
+  const panel = first(container, "empty-state");
+  assert.ok(panel.classList.contains("empty-state-none"));
+  assert.equal(panel.children[0].tagName, "H3");
+  assert.equal(panel.children[0].textContent, NO_IMAGE_POSTS_ANYWHERE);
+  assert.equal(panel.children[1].tagName, "P");
+  assert.doesNotMatch(textOf(panel), /published as|Guest/);
+  assert.deepEqual(tags(panel, "A").map((link) => link.href), ["#profile-create-steps"]);
+  assert.equal(first(panel, "empty-action").textContent, CREATE_STEPS_LABEL);
+  assert.equal(profileLoadAnnouncement({ state: "ready", author: "Guest", anyImages: false }), NO_IMAGE_POSTS_ANYWHERE);
+  assert.equal(profileLoadAnnouncement({ state: "ready", author: "Guest" }), "The display name “Guest” has no image posts yet.");
+});
+
 test("People recovery has a focusable picker destination and wrapping narrow-layout rules", async () => {
   // The repository DOM harness does not calculate layout; pin the CSS safeguards
   // rather than claiming a measured browser viewport assertion.
@@ -1020,6 +1049,8 @@ test("People recovery has a focusable picker destination and wrapping narrow-lay
     + await readFile(new URL("../src/social-states.css", import.meta.url), "utf8");
   assert.match(html, /id="profile-name-picker" tabindex="-1"/);
   assert.match(css, /#profile-name-picker:focus-visible\s*\{[^}]*outline:3px solid var\(--focus-ring\)/);
+  assert.match(html, /id="profile-create-steps" tabindex="-1"/);
+  assert.match(css, /#profile-create-steps:focus-visible\s*\{[^}]*outline:3px solid var\(--focus-ring\)/);
   assert.match(css, /#profile-feed-status \.empty-state\s*\{[^}]*overflow-wrap:anywhere/);
   assert.match(css, /\.empty-actions\s*\{[^}]*flex-wrap:wrap/);
   assert.match(css, /#profile-feed-status \.empty-actions \.empty-action\s*\{[^}]*max-width:100%;[^}]*box-sizing:border-box/);

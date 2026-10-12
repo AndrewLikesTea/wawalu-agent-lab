@@ -344,7 +344,13 @@ export function formatDate(iso) {
 
 /* --------------------------- first-run copy ------------------------------- */
 
-export function profileEmptyText(author) {
+// `anyImages: false` is the other empty grid: no display name in the feed has an
+// image post, so the selected one — "Guest" included — is not the reason the
+// grid is empty, and naming it would send a reader to the picker for nothing.
+export const NO_IMAGE_POSTS_ANYWHERE = "No one has published an image post on Social yet.";
+
+export function profileEmptyText(author, { anyImages = true } = {}) {
+  if (!anyImages) return NO_IMAGE_POSTS_ANYWHERE;
   const name = String(author ?? "").trim() || DEFAULT_AUTHOR;
   return `The display name “${name}” has no image posts yet.`;
 }
@@ -530,9 +536,9 @@ export function profileActiveFilterLine(author, count = null, { counting = false
 // feed can read the other without learning a second sentence, and the ordering
 // travels with the count instead of being a fact only the sighted eyebrow above
 // the grid carries.
-export function profileAnnouncement(author, visibleCount) {
+export function profileAnnouncement(author, visibleCount, { anyImages = true } = {}) {
   if (visibleCount > 0) return `Showing ${countLabel(visibleCount, "image post")} by ${author}, newest first.`;
-  return profileEmptyText(author);
+  return profileEmptyText(author, { anyImages });
 }
 
 // A failed load, announced (#2499). The panel that draws the failure is
@@ -556,10 +562,10 @@ export function profileFailureAnnouncement(shownCount = 0) {
 // One function so the four states cannot drift into four call sites, and so a
 // state added later has to answer here rather than fall through to silence —
 // which is what the failed load did before this existed.
-export function profileLoadAnnouncement({ state = "ready", author = DEFAULT_AUTHOR, shown = 0 } = {}) {
+export function profileLoadAnnouncement({ state = "ready", author = DEFAULT_AUTHOR, shown = 0, anyImages = true } = {}) {
   if (state === "loading") return PROFILE_LOADING_ANNOUNCEMENT;
   if (state === "error") return profileFailureAnnouncement(shown);
-  return profileAnnouncement(author, shown);
+  return profileAnnouncement(author, shown, { anyImages });
 }
 
 /* ------------------------------ rendering layer --------------------------- */
@@ -784,12 +790,23 @@ function renderSkeleton(container, count = 6) {
 //
 // The deleted Paint route also never said it opened a new tab, which it did, and
 // which every route into Paint in authored markup discloses in its own text.
-function renderEmpty(container, author) {
-  const empty = el("div", "empty-state");
-  empty.append(el("h3", "empty-title", profileEmptyText(author)));
+//
+// With no image post under any name (#2804) another name is no way out, so that
+// panel says why the grid is empty and sends the reader to the same sequence
+// instead — still one link, still on this page.
+export const CREATE_STEPS_LABEL = "Go to the steps for adding the first image post";
+
+function renderEmpty(container, author, anyImages = true) {
+  const empty = el("div", anyImages ? "empty-state" : "empty-state empty-state-none");
+  empty.append(el("h3", "empty-title", profileEmptyText(author, { anyImages })));
+  if (!anyImages) {
+    empty.append(el("p", "empty-copy",
+      "Image posts appear here, under the display name they were published under, once someone publishes one."));
+  }
   const actions = el("div", "empty-actions");
-  const choose = el("a", "empty-action empty-action-secondary", "Choose another display name");
-  choose.href = "#profile-name-picker";
+  const choose = el("a", "empty-action empty-action-secondary",
+    anyImages ? "Choose another display name" : CREATE_STEPS_LABEL);
+  choose.href = anyImages ? "#profile-name-picker" : "#profile-create-steps";
   actions.append(choose);
   empty.append(actions);
   container.append(empty);
@@ -817,6 +834,7 @@ function renderError(container, onRetry) {
 export function renderProfileGrid(container, posts, options = {}) {
   const {
     state = "ready", onRetry = null, author = DEFAULT_AUTHOR, statusRegion = container, onReport = null,
+    anyImages = true,
   } = options;
   const ordered = sortNewestFirst(posts ?? []);
   container.replaceChildren();
@@ -856,7 +874,7 @@ export function renderProfileGrid(container, posts, options = {}) {
       });
       renderSkeleton(container);
     } else if (phase === "failed") renderError(statusRegion, onRetry);
-    else renderEmpty(statusRegion, author);
+    else renderEmpty(statusRegion, author, anyImages);
     return;
   }
 
@@ -1192,15 +1210,17 @@ export function mountProfile(root, options = {}) {
     // The one case where an empty grid is a filtered feed rather than an empty
     // one: some other display name in this feed does have image posts, so the
     // reader has narrowed a full feed to nothing rather than reached a site with
-    // nothing on it. The panel below says the same thing either way — the
-    // selected name has no image posts, and the way out is another name — but the
-    // promise beside it does not, so the distinction is still worth computing.
+    // nothing on it. The panel below says which (#2804): another name is the way
+    // out of the first, and the Paint-then-Social steps are the way out of the
+    // second, where no name has an image post to switch to.
     const elsewhere = defaultProfileAuthor(posts);
     const filtered = Boolean(elsewhere) && elsewhere !== author;
+    const anyImages = Boolean(elsewhere);
     renderProfileGrid(grid, mine, {
       state,
       onRetry: retryLoad,
       author,
+      anyImages,
       statusRegion: elements.feedStatus ?? grid,
       onReport: report ? (post, button) => report.open(post, button) : null,
     });
@@ -1223,7 +1243,7 @@ export function mountProfile(root, options = {}) {
     // reader who could not see the panel was told the image posts were coming
     // and then never told they were not. One node says all four.
     if (elements.announcer) {
-      elements.announcer.textContent = profileLoadAnnouncement({ state, author, shown: mine.length });
+      elements.announcer.textContent = profileLoadAnnouncement({ state, author, shown: mine.length, anyImages });
     }
     // Last, with the announcement in place: a reader who pressed Retry is put
     // on the new Retry if this attempt failed too, and otherwise on the region
