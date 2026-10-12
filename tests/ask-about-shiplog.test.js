@@ -30,7 +30,7 @@ import { readFile } from "node:fs/promises";
 
 import { initDecisionLog, STORAGE_KEY } from "../src/app.js";
 import {
-  ASK_ABOUT_SHIPLOG_DESCRIPTION, ASK_ABOUT_SHIPLOG_DESCRIPTION_ID,
+  ASK_ABOUT_COACH_DESCRIPTION, ASK_ABOUT_COACH_LABEL, ASK_ABOUT_SHIPLOG_DESCRIPTION, ASK_ABOUT_SHIPLOG_DESCRIPTION_ID,
   ASK_ABOUT_SHIPLOG_HREF, ASK_ABOUT_SHIPLOG_ID, ASK_ABOUT_SHIPLOG_LABEL,
 } from "../src/ask-about-shiplog.js";
 import { FOLLOW_UP_INTENTS, FOLLOW_UP_REPLY } from "../src/lead-capture.js";
@@ -242,13 +242,25 @@ test("the sentence itself says where and what is asked — and promises nothing 
   }
 });
 
+// #2802: Prompt coach is a separate tool in the lab, so its route names Prompt
+// coach and its caption is the shared one with only the label swapped.
+test("Prompt coach's route names Prompt coach, in the shared caption", async () => {
+  assert.equal(ASK_ABOUT_COACH_DESCRIPTION,
+    ASK_ABOUT_SHIPLOG_DESCRIPTION.replace(ASK_ABOUT_SHIPLOG_LABEL, ASK_ABOUT_COACH_LABEL));
+  assert.ok(ASK_ABOUT_COACH_DESCRIPTION.startsWith(ASK_ABOUT_COACH_LABEL));
+  assert.doesNotMatch(ASK_ABOUT_COACH_DESCRIPTION, /Shiplog/);
+  const route = (await readPage("coach.html")).getElementById(ASK_ABOUT_SHIPLOG_ID);
+  assert.equal(textOf(route), ASK_ABOUT_COACH_LABEL);
+});
+
 test("all six pages carry their follow-up description once at the label", async () => {
   for (const file of CARRYING_PAGES) {
     const document = await readPage(file);
 
     const described = describedBy(document);
     assert.equal(described.length, 1, `${file}: the description ships ${described.length} times`);
-    assert.equal(textOf(described[0]), file === "index.html" ? HOME_DESCRIPTION : ASK_ABOUT_SHIPLOG_DESCRIPTION);
+    assert.equal(textOf(described[0]), file === "index.html" ? HOME_DESCRIPTION
+      : file === "coach.html" ? ASK_ABOUT_COACH_DESCRIPTION : ASK_ABOUT_SHIPLOG_DESCRIPTION);
 
     // At the entry point and nowhere else. Beside the form it would be a
     // caption for a destination the reader has already arrived at.

@@ -120,14 +120,22 @@ const describedBy = (document) => byId(document, "site-footer-email").getAttribu
 // page about one post, and these two are pages about many.
 const FEED_INVITATION = `${INVITATION} The topics below are about Shiplog — whether it is available for your team, a demonstration, a pilot, and security and data handling — not about an individual post; if your question is about one of the posts, select Report post on that post instead.`;
 
+const COACH_INVITATION = "Questions about Prompt coach rather than Shiplog? Send the Wawalu team that runs this lab a follow-up request.";
+const COACH_OFFER = "There is no published price for Prompt coach. Whether it is available for your team and what it would cost are both answered on request.";
+
 const FOOTER_VARIANT = new Map([
   ["index.html", {
     followUpType: "follow_up_homepage", followUpTopic: FOLLOW_UP_TOPICS.follow_up_homepage,
   }],
   ["executive-briefing.html", { redirect: FOLLOW_UP_REDIRECT.briefing }],
+  // #2802: Prompt coach is a separate tool in the lab, not part of Shiplog, and
+  // its request is sent about Prompt coach — so its invitation and offer name
+  // Prompt coach rather than Shiplog. A string `offer` replaces OFFER; the page's
+  // own copy lives here and in coach.html, not in the footer's byte budget.
   ["coach.html", {
     followUpType: "follow_up_coach", followUpTopic: FOLLOW_UP_TOPICS.follow_up_coach,
-    collapsedDemos: true, askMessage: true, offer: true, assets: true,
+    invitation: COACH_INVITATION, offer: COACH_OFFER,
+    collapsedDemos: true, askMessage: true, assets: true,
   }],
   // `collapsedDemos` is the third shape, and issue #2250 gave it to the five
   // pages a visitor is on to do one thing — read a post, read the feed, pick a

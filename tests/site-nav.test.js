@@ -32,7 +32,7 @@ const PAGES = [
   { file: "savings-commitment.html", current: "/evolution.html", title: "Savings Commitment · Shiplog" },
   { file: "executive-briefing.html", current: "/evolution.html", title: "Executive FinOps briefing · Shiplog" },
   { file: "departments.html", current: "/evolution.html", title: "Department answer · Shiplog" },
-  { file: "coach.html", current: "/coach.html", title: "Prompt coach · Shiplog" },
+  { file: "coach.html", current: "/coach.html", title: "Prompt coach · a lab tool, not part of Shiplog" },
   { file: "personal-history.html", current: "/coach.html", title: "Personal AI history · Shiplog" },
   { file: "agents.html", current: "/agents.html", title: "Agent observatory · Shiplog" },
   { file: "agent-trace.html", current: "/agents.html", title: "Sample prompt trace · Shiplog" },

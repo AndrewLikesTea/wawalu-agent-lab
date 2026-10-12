@@ -26,7 +26,7 @@ import { FIRST_RUN_GRADED_TITLE, applyCoachingFirstRun } from "../src/prompt-coa
 import { COPY_LABEL } from "../src/coaching-summary-view.js";
 import { SPECIMEN_CASES } from "../src/coaching-specimen.js";
 import {
-  ASK_ABOUT_SHIPLOG_DESCRIPTION, ASK_ABOUT_SHIPLOG_DESCRIPTION_ID,
+  ASK_ABOUT_COACH_DESCRIPTION, ASK_ABOUT_SHIPLOG_DESCRIPTION_ID,
 } from "../src/ask-about-shiplog.js";
 
 const PAGE = fileURLToPath(new URL("../src/coach.html", import.meta.url));
@@ -469,7 +469,9 @@ test("the page names itself, says what it does, and offers a follow-up", async (
   const navLabel = SITE_NAV.find((entry) => entry.href === "/coach.html").label;
   assert.equal(textOf(byId(document, "page-title")), "Prompt coach");
   assert.equal(textOf(byId(document, "page-title")), navLabel);
-  assert.match(await read("coach.html"), /<title>Prompt coach · Shiplog<\/title>/);
+  // The tab starts on the same name, then says the page is not Shiplog's
+  // (#2802): Prompt coach is a separate tool in the lab.
+  assert.match(await read("coach.html"), /<title>Prompt coach · a lab tool, not part of Shiplog<\/title>/);
 
   // Reading order inside the introduction, asserted on the elements rather than
   // on the markup: the page's name, then one sentence saying what it does and
@@ -493,7 +495,7 @@ test("the page names itself, says what it does, and offers a follow-up", async (
   const described = document.querySelectorAll("p")
     .filter((node) => node.getAttribute("id") === ASK_ABOUT_SHIPLOG_DESCRIPTION_ID);
   assert.equal(described.length, 1, `the route's description is painted ${described.length} times`);
-  assert.equal(textOf(described[0]), ASK_ABOUT_SHIPLOG_DESCRIPTION);
+  assert.equal(textOf(described[0]), ASK_ABOUT_COACH_DESCRIPTION);
   assert.equal(described[0].querySelectorAll("a").length, 0, "the description drew a link");
   assert.equal(byId(document, "ask-about-shiplog").getAttribute("aria-describedby"),
     ASK_ABOUT_SHIPLOG_DESCRIPTION_ID);

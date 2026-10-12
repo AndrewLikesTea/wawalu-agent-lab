@@ -73,6 +73,16 @@ export const ASK_ABOUT_SHIPLOG_DESCRIPTION =
   + " optional note.";
 
 /**
+ * The route on Prompt coach (#2802). That page is a separate tool in the lab,
+ * not part of Shiplog, and its follow-up request is sent about Prompt coach, so
+ * a label naming Shiplog sent a visitor to ask about the wrong product. Same
+ * caption, same claims, with the label it starts on swapped.
+ */
+export const ASK_ABOUT_COACH_LABEL = "Ask about Prompt coach";
+export const ASK_ABOUT_COACH_DESCRIPTION =
+  ASK_ABOUT_SHIPLOG_DESCRIPTION.replace(ASK_ABOUT_SHIPLOG_LABEL, ASK_ABOUT_COACH_LABEL);
+
+/**
  * Wire the route on a page that ships it. Returns a teardown, or null when this
  * page carries no route or no form — so a surface with neither is unaffected.
  */
