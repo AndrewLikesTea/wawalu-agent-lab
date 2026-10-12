@@ -34,7 +34,7 @@ test("homepage renders canonical repository evidence near the opening propositio
   assert.equal(links[1].getAttribute("href"), "/?source=repository#record-history");
   for (const link of links) assert.ok(tabSequence(page.document).includes(link));
   const html = await readFile(home, "utf8");
-  assert.ok(html.indexOf('id="repository-evidence"') > html.indexOf('id="shiplog-entry-title"'));
+  assert.ok(html.indexOf('id="repository-evidence"') > html.indexOf('id="home-log-title"'));
   assert.ok(html.indexOf('id="repository-evidence"') < html.indexOf('id="featured-decision"'));
 });
 

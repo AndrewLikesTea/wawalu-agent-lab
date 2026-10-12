@@ -51,7 +51,11 @@
       <main id="main-content" tabindex="-1">
       <section class="hero" id="top" aria-labelledby="page-title">
         <p class="eyebrow">Shiplog · decision and release log</p>
-        <h1 id="page-title">Decision log</h1>
+        <h1 id="page-title">Know why it shipped. Decide what’s next.</h1>
+        <p>Shiplog records decisions, tracks the releases they shape, and keeps the link between them. A teammate who arrives six months late opens the release and reads the reasoning behind it, instead of reconstructing it from chat history. Recording, searching, filtering, exporting, and importing the log are all further down this page.</p>
+        <!-- The promise leads (#2827); the log keeps its name as the heading of
+             what a visitor can do in it. Neither block above adds a tab stop. -->
+        <h2 id="home-log-title">Decision log</h2>
         <p>Browse existing decisions or record a new one with its context, alternatives, and owner. Link a decision to the release it shaped.</p>
         <div class="hero-actions" data-conversion-slot="hero">
           <a class="button-link" id="core-demo-link" href="#record-history-title">Explore the decision and release log demo <span aria-hidden="true">→</span></a>
@@ -80,10 +84,7 @@
            Keep raw tag markup and double hyphens out of this note. Either one
            ends the comment early and paints the rest of the paragraph, and its
            closing marker, as visitor copy. -->
-      <section class="shiplog-entry" id="shiplog-entry" aria-labelledby="shiplog-entry-title">
-        <p class="eyebrow">The decision and release log · the product this page carries</p>
-        <h2 id="shiplog-entry-title">Know why it shipped. Decide what’s next.</h2>
-        <p>Shiplog records decisions, tracks the releases they shape, and keeps the link between them. A teammate who arrives six months late opens the release and reads the reasoning behind it, instead of reconstructing it from chat history. Recording, searching, filtering, exporting, and importing the log are all further down this page.</p>
+      <section class="shiplog-entry" id="shiplog-entry" aria-labelledby="home-log-title">
         <article class="hero-proof" id="repository-evidence" aria-labelledby="repository-evidence-title">
           <h3 id="repository-evidence-title">Repository-backed product evidence</h3>
           <p class="release-followup-lead">These decisions document this repository’s own development. This is neither an invented example nor a customer result.</p>
