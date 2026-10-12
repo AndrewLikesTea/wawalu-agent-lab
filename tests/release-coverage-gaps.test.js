@@ -681,7 +681,7 @@ test("coverage retry exposes loading and keyboard recovery without focus on pass
   control.refuse = false;
   control.seen.length = 0;
   pressEnter(page.document);
-  assert.ok(control.seen.some((seen) => seen.busy === "true" && seen.revealHidden && seen.loadingText === "Counting releases…"));
+  assert.ok(control.seen.some((seen) => seen.busy === "true" && seen.revealHidden && seen.loadingText === "Coverage count still in progress."));
   assert.equal(textOf(result), "Covered: 2. Total: 4. Uncovered: 2.");
   assert.equal(activeId(page), "coverage-gap-toggle");
   const search = byId(page, "release-search");
@@ -719,7 +719,7 @@ test("initial counting leaves keyboard focus alone", async (t) => {
   t.after(() => page.restore());
   const search = byId(page, "release-search");
   search.focus();
-  assert.equal(textOf(byId(page, "coverage-gap-result")), "Counting releases…");
+  assert.equal(textOf(byId(page, "coverage-gap-result")), "Coverage count still in progress.");
   initReleasesPage(page.document, page.storage, { seed: NO_SEED });
   assert.equal(activeId(page), "release-search");
 });

@@ -468,8 +468,10 @@ export function initReleasesPage(root = document, storage = localStorage, option
 
   // Read the log again, announcing the wait. Returns whether it loaded; a failed
   // read re-announces the error and leaves the panel, and its Retry, in place.
+  // A log that is already on screen is not waiting, so a coverage retry that
+  // re-reads it says nothing in the log's region unless the read fails (#2806).
   const reload = () => {
-    announce("loading");
+    if (unread) announce("loading");
     coverageGaps.setState("loading");
     const next = readLog();
     if (!next) {
@@ -591,13 +593,36 @@ export function initReleasesPage(root = document, storage = localStorage, option
   // Not re-run when a release is recorded. The band answers a question about the
   // running deployment against the real record of it, and neither of those
   // changes because a visitor wrote a record of their own.
-  initDeploymentStatus(root, {
-    release: deployedRelease,
-    buildStamp,
-    readHealth: options.readHealth,
-    now: options.now,
-    clipboard: options.clipboard,
-  }).catch(() => {});
+  //
+  // A check that could not complete offers its own Retry, which runs this probe
+  // again and nothing else. The button stays put while the retry is in flight —
+  // it is under the reader's focus — and only a check that answered withdraws
+  // it, handing focus to the check's region rather than to the page's top.
+  const deploymentRetry = root.querySelector("#deployment-retry");
+  let deploymentChecking = false;
+  const checkDeployment = () => {
+    deploymentChecking = true;
+    return initDeploymentStatus(root, {
+      release: deployedRelease,
+      buildStamp,
+      readHealth: options.readHealth,
+      now: options.now,
+      clipboard: options.clipboard,
+    }).catch(() => null).then((verdict) => {
+      deploymentChecking = false;
+      if (!verdict || !deploymentRetry) return verdict;
+      const answered = verdict.state !== "unknown";
+      if (answered && (root.activeElement ?? root.ownerDocument?.activeElement) === deploymentRetry) {
+        root.querySelector("#deployment-status")?.focus?.();
+      }
+      deploymentRetry.hidden = answered;
+      return verdict;
+    });
+  };
+  deploymentRetry?.addEventListener("click", () => {
+    if (!deploymentChecking) checkDeployment();
+  });
+  checkDeployment();
 
   update();
   const focusId = new URLSearchParams(locationRef?.search ?? "").get("focus");

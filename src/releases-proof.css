@@ -111,8 +111,9 @@
 /* The wait ends when the log answers, whatever the answer was. */
 #reasoning-proof[aria-busy="false"] .coverage-gap-skeleton { display:none; }
 .coverage-gap-reveal { min-width:0; overflow-wrap:anywhere; display:flex; align-items:center; flex-wrap:wrap; gap:10px 14px; }
-/* .empty-action centres itself under a state panel; here it stands in a row. */
-.coverage-gap-reveal .empty-action { width:auto; max-width:100%; min-width:0; white-space:normal; overflow-wrap:anywhere; margin:0; }
+/* .empty-action centres itself under a state panel; here it stands in a row.
+ * The deployment check's retry (#2806) is the same kind of control. */
+#deployment-retry,.coverage-gap-reveal .empty-action { width:auto; max-width:100%; min-width:0; white-space:normal; overflow-wrap:anywhere; margin:0; }
 #coverage-gap-result { flex:1 1 100%; }
 #coverage-gap-result:focus { outline:3px solid var(--focus-ring); outline-offset:3px; }
 .coverage-gap-reveal .badge { white-space:normal; overflow-wrap:anywhere; max-width:100%; }

@@ -373,7 +373,7 @@ export function renderCoverageCountState(root, state) {
   const status = root.querySelector("#coverage-gap-status");
   if (status) status.textContent = "";
   const result = root.querySelector("#coverage-gap-result");
-  if (result) result.textContent = state === "loading" ? "Counting releases…"
+  if (result) result.textContent = state === "loading" ? "Coverage count still in progress."
     : "Couldn’t count coverage. The release or decision log could not be read.";
   const retry = root.querySelector("#coverage-gap-retry");
   if (retry) {
