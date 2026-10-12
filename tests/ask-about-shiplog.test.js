@@ -30,6 +30,7 @@ import { readFile } from "node:fs/promises";
 
 import { initDecisionLog, STORAGE_KEY } from "../src/app.js";
 import {
+  ASK_ABOUT_COACH_DESCRIPTION, ASK_ABOUT_COACH_LABEL,
   ASK_ABOUT_SHIPLOG_DESCRIPTION, ASK_ABOUT_SHIPLOG_DESCRIPTION_ID,
   ASK_ABOUT_SHIPLOG_HREF, ASK_ABOUT_SHIPLOG_ID, ASK_ABOUT_SHIPLOG_LABEL,
 } from "../src/ask-about-shiplog.js";
@@ -205,6 +206,20 @@ const CARRYING_PAGES = [
 const readPage = async (file) => parseHtml(
   await readFile(new URL(`../src/${file}`, import.meta.url), "utf8"));
 
+// #2802: Prompt coach is a separate tool and its request is sent about it, so
+// its route names it. Every other carrier asks about Shiplog.
+const DESCRIPTION_FOR = { "index.html": HOME_DESCRIPTION, "coach.html": ASK_ABOUT_COACH_DESCRIPTION };
+
+test("Prompt coach's route names Prompt coach, in the shared sentence's shape", async () => {
+  assert.equal(ASK_ABOUT_COACH_DESCRIPTION,
+    "Ask about Prompt coach moves you to the follow-up form at the foot of this page, which asks for a work email address, what you want to discuss and an optional note.");
+  const document = await readPage("coach.html");
+  const route = document.getElementById(ASK_ABOUT_SHIPLOG_ID);
+  assert.equal(textOf(route), ASK_ABOUT_COACH_LABEL);
+  assert.doesNotMatch(textOf(route.parentNode), /Shiplog/,
+    "the coach's route switches the subject back to Shiplog");
+});
+
 test("the sentence itself says where and what is asked — and promises nothing else", () => {
   // One sentence, no more: this is a caption under a link, not a section.
   assert.equal((ASK_ABOUT_SHIPLOG_DESCRIPTION.match(/[.!?]/g) ?? []).length, 1);
@@ -248,7 +263,7 @@ test("all six pages carry their follow-up description once at the label", async 
 
     const described = describedBy(document);
     assert.equal(described.length, 1, `${file}: the description ships ${described.length} times`);
-    assert.equal(textOf(described[0]), file === "index.html" ? HOME_DESCRIPTION : ASK_ABOUT_SHIPLOG_DESCRIPTION);
+    assert.equal(textOf(described[0]), DESCRIPTION_FOR[file] ?? ASK_ABOUT_SHIPLOG_DESCRIPTION);
 
     // At the entry point and nowhere else. Beside the form it would be a
     // caption for a destination the reader has already arrived at.

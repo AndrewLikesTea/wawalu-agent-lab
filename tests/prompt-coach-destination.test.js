@@ -26,7 +26,7 @@ import { FIRST_RUN_GRADED_TITLE, applyCoachingFirstRun } from "../src/prompt-coa
 import { COPY_LABEL } from "../src/coaching-summary-view.js";
 import { SPECIMEN_CASES } from "../src/coaching-specimen.js";
 import {
-  ASK_ABOUT_SHIPLOG_DESCRIPTION, ASK_ABOUT_SHIPLOG_DESCRIPTION_ID,
+  ASK_ABOUT_COACH_DESCRIPTION, ASK_ABOUT_COACH_LABEL, ASK_ABOUT_SHIPLOG_DESCRIPTION_ID,
 } from "../src/ask-about-shiplog.js";
 
 const PAGE = fileURLToPath(new URL("../src/coach.html", import.meta.url));
@@ -460,6 +460,32 @@ test("the promise is made once above the field, and then the page says how", asy
   assert.match(start, /first change to make/);
 });
 
+// #2802: Prompt coach is a separate tool, and its follow-up request is sent
+// about Prompt coach, so the painted ask, the line above the form and the
+// offer inside it name Prompt coach. The About Shiplog band above them still
+// describes Shiplog; the line that opens the request says it is about Prompt
+// coach rather than Shiplog, so the two read as separate.
+test("the follow-up names Prompt coach as what the request is about", async () => {
+  const page = await loadPage(PAGE);
+  try {
+    await importPageModule("/site-footer-page.js");
+    await importPageModule("/ask-about-shiplog-page.js");
+    const { document } = page;
+    assert.equal(textOf(byId(document, "ask-about-shiplog")), "Ask about Prompt coach");
+    assert.match(textOf(byId(document, "ask-about-shiplog-description")), /^Ask about Prompt coach /);
+    assert.equal(textOf(document.querySelector(".site-footer-invitation")),
+      "Questions about Prompt coach rather than Shiplog? Send the Wawalu team that runs this lab a follow-up request.");
+    assert.match(textOf(byId(document, "site-footer-topic-note")), /about the Prompt coach page/);
+    assert.match(textOf(byId(document, "site-footer-offer")), /Whether Prompt coach is available for your team/);
+    // Availability, demo, pilot, pricing and reply copy never switch the subject.
+    for (const id of ["site-footer-offer", "site-footer-topic-note", "site-footer-intent", "site-footer-reply"]) {
+      assert.doesNotMatch(textOf(byId(document, id)), /Shiplog/, `#${id} names Shiplog`);
+    }
+  } finally {
+    page.restore();
+  }
+});
+
 test("the page names itself, says what it does, and offers a follow-up", async () => {
   const { document } = await openCoach();
 
@@ -493,7 +519,10 @@ test("the page names itself, says what it does, and offers a follow-up", async (
   const described = document.querySelectorAll("p")
     .filter((node) => node.getAttribute("id") === ASK_ABOUT_SHIPLOG_DESCRIPTION_ID);
   assert.equal(described.length, 1, `the route's description is painted ${described.length} times`);
-  assert.equal(textOf(described[0]), ASK_ABOUT_SHIPLOG_DESCRIPTION);
+  // #2802: and it names this page's product, not Shiplog, because the request
+  // it leads to is sent about Prompt coach.
+  assert.equal(textOf(described[0]), ASK_ABOUT_COACH_DESCRIPTION);
+  assert.equal(textOf(byId(document, "ask-about-shiplog")), ASK_ABOUT_COACH_LABEL);
   assert.equal(described[0].querySelectorAll("a").length, 0, "the description drew a link");
   assert.equal(byId(document, "ask-about-shiplog").getAttribute("aria-describedby"),
     ASK_ABOUT_SHIPLOG_DESCRIPTION_ID);

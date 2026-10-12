@@ -34,6 +34,7 @@ import { readFile, readdir } from "node:fs/promises";
 import { loadPage, parseHtml, tabSequence, textOf } from "./support/browser.js";
 import { importPageModule } from "./support/page-module.js";
 import { OFFER } from "../src/site-footer.js";
+import { COACH_OFFER } from "./support/coach-follow-up-copy.js";
 
 const SRC = new URL("../src/", import.meta.url);
 const pageUrl = (file) => new URL(`../src/${file}`, import.meta.url);
@@ -45,6 +46,16 @@ const byId = (document, id) => document.getElementById(id);
 // one of these, and the follow-up block is the first thing on it that asks for
 // anything.
 const CARRIERS = ["coach.html", "releases.html", "social.html", "profile.html", "post.html", "agents.html"];
+
+// #2802: Prompt coach is a separate tool and its request is sent about it, so
+// its offer makes the same two claims about Prompt coach instead of Shiplog.
+const expectedOffer = (file) => (file === "coach.html" ? COACH_OFFER : OFFER);
+
+test("Prompt coach's offer is the shared sentence with only the product changed", () => {
+  assert.notEqual(COACH_OFFER, OFFER, "the coach's offer still names Shiplog");
+  assert.equal(COACH_OFFER.replace("Prompt coach", "Shiplog"), OFFER);
+  assert.doesNotMatch(COACH_OFFER, /Shiplog/);
+});
 
 // The two claims, sliced out of the shipped sentence rather than retyped: a
 // fragment written here would keep passing after the sentence changed under it.
@@ -85,7 +96,7 @@ test("exactly the pages in the table above open their follow-up block with it", 
     assert.equal(Boolean(offer), CARRIERS.includes(file),
       `${file}: the offer sentence disagrees with the table of pages that carry it`);
     if (!offer) continue;
-    assert.equal(textOf(offer), OFFER, `${file}: the offer sentence has drifted from src/site-footer.js`);
+    assert.equal(textOf(offer), expectedOffer(file), `${file}: the offer sentence has drifted from src/site-footer.js`);
   }
 
   // Named rather than merely implied by the loop above: the home page says this
@@ -123,7 +134,7 @@ test("it is prose above the work-email field, in the hint style, and costs no co
       `${file}: the offer is stated below the field it is the reason for`);
 
     // Once. The claim reads as an answer, not as insistence.
-    const stated = form.querySelectorAll("p").filter((node) => textOf(node) === OFFER);
+    const stated = form.querySelectorAll("p").filter((node) => textOf(node) === expectedOffer(file));
     assert.equal(stated.length, 1, `${file}: the offer is stated ${stated.length} times`);
 
     // The page-specific line it stands above is still there and still names this
@@ -142,7 +153,7 @@ for (const file of CARRIERS) {
       // Rendered, after the footer's own module has wired the form up: this is
       // the sentence a visitor reads, not the one the source file holds.
       const offer = byId(document, "site-footer-offer");
-      assert.equal(textOf(offer), OFFER, `${file}: the painted sentence has drifted`);
+      assert.equal(textOf(offer), expectedOffer(file), `${file}: the painted sentence has drifted`);
       assert.ok(!offer.hidden, `${file}: the sentence ships hidden`);
       assert.ok(!tabSequence(document).some((node) => node.id === "site-footer-offer"),
         `${file}: the sentence must not be a tab stop`);

@@ -29,6 +29,7 @@ import { REPOSITORY_URL } from "../src/repository-url.js";
 import { FOLLOW_UP_TOPICS, POST_FOLLOW_UP_TOPIC } from "../src/leads.js";
 import { FOLLOW_UP_PRIVACY, FOLLOW_UP_REPLY, FOLLOW_UP_USE } from "../src/lead-capture.js";
 import { SITE_NAV } from "../src/site-nav.js";
+import { COACH_INVITATION, COACH_OFFER } from "./support/coach-follow-up-copy.js";
 import { loadPage, parseHtml, pressEnter, tabSequence, textOf, typeText } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 
@@ -127,7 +128,11 @@ const FOOTER_VARIANT = new Map([
   ["executive-briefing.html", { redirect: FOLLOW_UP_REDIRECT.briefing }],
   ["coach.html", {
     followUpType: "follow_up_coach", followUpTopic: FOLLOW_UP_TOPICS.follow_up_coach,
-    collapsedDemos: true, askMessage: true, offer: true, assets: true,
+    // #2802: Prompt coach is a separate tool and this request is sent about it,
+    // so the invitation and the offer name it. The invitation says "rather than
+    // Shiplog" because it sits directly under the About Shiplog band's own copy.
+    invitation: COACH_INVITATION, offer: COACH_OFFER,
+    collapsedDemos: true, askMessage: true, assets: true,
   }],
   // `collapsedDemos` is the third shape, and issue #2250 gave it to the five
   // pages a visitor is on to do one thing — read a post, read the feed, pick a

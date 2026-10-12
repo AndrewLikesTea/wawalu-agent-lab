@@ -7,6 +7,7 @@ import { initSiteFooter } from "../src/site-footer.js";
 import { FOLLOW_UP_TOPICS } from "../src/leads.js";
 import { FOLLOW_UP_REPLY } from "../src/lead-capture.js";
 import {
+  ASK_ABOUT_COACH_DESCRIPTION, ASK_ABOUT_COACH_LABEL,
   ASK_ABOUT_SHIPLOG_DESCRIPTION, ASK_ABOUT_SHIPLOG_DESCRIPTION_ID,
 } from "../src/ask-about-shiplog.js";
 
@@ -35,7 +36,8 @@ for (const [name, purpose, heroSelector, containerClass] of pages) {
       const route = document.querySelector("#ask-about-shiplog");
       assert.equal(document.querySelectorAll("#ask-about-shiplog").length, 1);
       assert.ok(document.querySelector(heroSelector)?.querySelector("#ask-about-shiplog") === route, "the action left the region that carries it");
-      assert.equal(textOf(route), "Ask about Shiplog");
+      // #2802: Prompt coach is a separate tool, so its route names it.
+      assert.equal(textOf(route), name === "coach" ? ASK_ABOUT_COACH_LABEL : "Ask about Shiplog");
       assert.equal(route.tagName, "A");
       assert.equal(route.getAttribute("href"), "#site-footer-panel");
       assert.ok(route.classList.contains("text-link"));
@@ -56,7 +58,7 @@ for (const [name, purpose, heroSelector, containerClass] of pages) {
       const described = document.querySelectorAll("p")
         .filter((node) => node.getAttribute("id") === ASK_ABOUT_SHIPLOG_DESCRIPTION_ID);
       assert.equal(described.length, 1, `${name}: the description is painted ${described.length} times`);
-      assert.equal(textOf(described[0]), ASK_ABOUT_SHIPLOG_DESCRIPTION);
+      assert.equal(textOf(described[0]), name === "coach" ? ASK_ABOUT_COACH_DESCRIPTION : ASK_ABOUT_SHIPLOG_DESCRIPTION);
       inContainer(described[0], `${name}: the description drifted away from the label it explains`);
       assert.equal(described[0].parentNode === route.parentNode, true,
         `${name}: the description and its label no longer share a container`);

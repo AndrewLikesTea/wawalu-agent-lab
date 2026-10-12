@@ -345,7 +345,7 @@ function contactFormLines(followUpType, followUpTopic, askMessage = false, offer
     `      <form id="site-footer-form" class="site-footer-form"${followUpType ? ` data-follow-up-type="${followUpType}"` : ""}${followUpTopic ? ` data-follow-up-topic="${followUpTopic}"` : ""} novalidate>`,
     // Why to ask, then what this request is about, then the fields: a visitor
     // reads the offer before the topic, and both before an address.
-    ...(offer ? [`        <p class="site-footer-note" id="site-footer-offer">${OFFER}</p>`] : []),
+    ...(offer ? [`        <p class="site-footer-note" id="site-footer-offer">${offer === true ? OFFER : offer}</p>`] : []),
     ...(followUpTopic ? [
       `        <p class="site-footer-note" id="site-footer-topic-note">This request is sent about the ${followUpTopic}.</p>`,
     ] : []),

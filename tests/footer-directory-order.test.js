@@ -39,6 +39,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { DEMOS, DIRECTORY_SUMMARY, INVITATION } from "../src/site-footer.js";
 import { parseHtml, pressEnter, pressSpace, pressTab, tabSequence, textOf } from "./support/browser.js";
+import { COACH_INVITATION } from "./support/coach-follow-up-copy.js";
 
 const SRC = new URL("../src/", import.meta.url);
 
@@ -64,6 +65,8 @@ const EXPECTED_INVITATION = {
   "post.html": `${INVITATION} The topics below are about Shiplog — whether it is available for your team, a demonstration, a pilot, and security and data handling — not about this post. Nothing about the post is attached to the request automatically.`,
   "social.html": FEED_INVITATION,
   "profile.html": FEED_INVITATION,
+  // #2802: a separate tool, so its request names it rather than Shiplog.
+  "coach.html": COACH_INVITATION,
 };
 
 const read = (file) => readFile(new URL(file, SRC), "utf8");

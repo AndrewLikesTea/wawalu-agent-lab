@@ -73,6 +73,16 @@ export const ASK_ABOUT_SHIPLOG_DESCRIPTION =
   + " optional note.";
 
 /**
+ * Prompt coach's own route (#2802). The page is a separate tool, not part of
+ * Shiplog, and its request is sent about Prompt coach — so a label asking about
+ * Shiplog named a different product from the form it lands on. Same id, same
+ * address and the same sentence shape; only the product named changes.
+ */
+export const ASK_ABOUT_COACH_LABEL = "Ask about Prompt coach";
+export const ASK_ABOUT_COACH_DESCRIPTION = ASK_ABOUT_SHIPLOG_DESCRIPTION
+  .replace(ASK_ABOUT_SHIPLOG_LABEL, ASK_ABOUT_COACH_LABEL);
+
+/**
  * Wire the route on a page that ships it. Returns a teardown, or null when this
  * page carries no route or no form — so a surface with neither is unaffected.
  */
