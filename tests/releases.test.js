@@ -338,6 +338,11 @@ test("the releases page states its order in the site's words and repeats no head
   const ordering = "newest first, with its linked decisions.";
   assert.ok(home.includes(`Every release, ${ordering}`), "the home page card's wording moved");
   assert.ok(page.includes(ordering), "the releases intro no longer says newest first in the card's words");
+  // The log holds only this browser's records (#2798), so the intro says so in
+  // the recorder's and share hint's words, and makes no unqualified claim.
+  const promise = page.match(/<p id="releases-promise">([^<]*)<\/p>/)?.[1] ?? "";
+  assert.match(promise, /^Each release in this browser — /);
+  assert.doesNotMatch(promise, /every release/i, "the intro claims every release again");
   assert.doesNotMatch(page, /reverse chronological/i, "the page invented a second phrase for newest first");
 
   // The destination keeps one name in all three places it names itself.
