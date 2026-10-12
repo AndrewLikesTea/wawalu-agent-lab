@@ -107,7 +107,7 @@ const IDENTITY = "Whoever published this post chose the display name on it; nobo
 const FEED_NOTE = "On any other post, whoever published it chose the name. Nobody owns or verifies a display name, and anyone can publish under any name.";
 
 const SOCIAL = { label: "Read the Social feed", href: "/social.html" };
-const PEOPLE = { label: "Open People to see Mina Okafor’s other image posts", href: "/profile.html" };
+const PEOPLE = { label: "See Mina Okafor’s image posts on People", href: "/profile.html" };
 const PUBLISH = { label: "Publish a post on Social", href: "/social.html#post-form" };
 const MINA = "/profile.html?author=Mina%20Okafor";
 

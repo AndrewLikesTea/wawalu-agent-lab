@@ -110,10 +110,12 @@ export function requestedFeedAuthor(search) {
   return String(new URLSearchParams(String(search ?? "")).get(FEED_AUTHOR_PARAM) ?? "").trim();
 }
 
-// People's address carries the name under the same parameter, so People reads
-// it with the same function. profileHref above is the write half, and the two
+// People preserves the exact requested name, including whitespace.
+// profileHref above is the write half, and the two
 // must round-trip every display name a card can link to.
-export const requestedProfileAuthor = requestedFeedAuthor;
+export function requestedProfileAuthor(search) {
+  return new URLSearchParams(String(search ?? "")).get("author") ?? "";
+}
 
 // What that link is called on People, owned here beside the label Social's own
 // links to People use. It names the display name and the destination, because a
@@ -143,5 +145,5 @@ export function socialAllPostsLabel(author) {
 // a second wording on one of them would be a second promise about the same
 // place.
 export function peopleImagePostsLabel(author) {
-  return `See ${String(author ?? "").trim()}’s image posts on People`;
+  return `See ${String(author ?? "")}’s image posts on People`;
 }

@@ -260,15 +260,14 @@ test("a settled Social post carries its display name as a link to People, in the
     "the post grew a tab stop of its own, or lost one it had");
   assert.equal(link.getAttribute("tabindex"), null, "the stop is markup order, not a tabindex trick");
 
-  // It travels with the posting metadata it is about (#2814): the name, then the
-  // People link, then the caption, then the image description.
+  // The contextual People action follows the caption and image description.
   const order = documentOrder(card);
   const at = (node) => order.indexOf(node);
   const caption = card.querySelectorAll(".post-caption")[0];
   const description = card.querySelectorAll(".post-image-description")[0];
   assert.equal(textOf(caption), "p-06 from Iris Vale");
   assert.ok(at(name) < at(link), "the People link jumped ahead of the name it is about");
-  assert.ok(at(link) < at(caption), "the posting metadata no longer leads the post");
+  assert.ok(at(description) < at(link), "the People link follows the image and its description");
   assert.ok(at(caption) < at(description), "the image description was reordered ahead of the caption");
 
   // The card's second stop, on the real page rather than in a render stub: one

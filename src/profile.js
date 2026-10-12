@@ -52,7 +52,7 @@ export function normalizeProfileApiPosts(payload) {
     if (!isRenderablePost(post?.id, post?.author, post?.content, post?.timestamp)) return [];
     const normalized = {
       id: post.id,
-      author: post.author.trim(),
+      author: post.author,
       body: post.content.trim(),
       caption: typeof post.caption === "string" && post.caption.trim() ? post.caption.trim().slice(0, MAX_CAPTION_LENGTH) : null,
       createdAt: post.timestamp,
@@ -80,7 +80,7 @@ export function normalizeSeedPosts(list) {
     if (!isRenderablePost(post?.id, post?.author, post?.body, post?.createdAt)) return [];
     const normalized = {
       id: post.id,
-      author: post.author.trim(),
+      author: post.author,
       body: post.body.trim(),
       caption: typeof post.caption === "string" && post.caption.trim() ? post.caption.trim().slice(0, MAX_CAPTION_LENGTH) : null,
       createdAt: post.createdAt,
@@ -99,7 +99,7 @@ export function normalizeSeedPosts(list) {
 
 function isRenderablePost(id, author, body, createdAt) {
   return typeof id === "string" && Boolean(id.trim())
-    && typeof author === "string" && Boolean(author.trim()) && author.trim().length <= MAX_AUTHOR_LENGTH
+    && typeof author === "string" && Boolean(author.trim()) && author.length <= MAX_AUTHOR_LENGTH
     && typeof body === "string" && Boolean(body.trim())
     && typeof createdAt === "string" && !Number.isNaN(Date.parse(createdAt));
 }
@@ -131,9 +131,9 @@ export function mergePostsById(...lists) {
 // that was asked for — rather than a reason to answer under somebody else's.
 // It used to be dropped at the door, and the page then landed on whichever name
 // had the most pictures, or on "Guest" when nothing had any, with nothing on it
-// saying the name in the link had gone. Trimmed, never truncated: a shortened
+// saying the name in the link had gone. Never trimmed or truncated: a shortened
 // name is a different name, and this one is repeated back verbatim.
-const requestedName = (param) => String(param ?? "").trim();
+const requestedName = (param) => String(param ?? "");
 
 // The name this browser last posted under. The limit stays here, because this
 // one is a name the visitor may still publish with, and rememberAuthor
@@ -175,11 +175,12 @@ export function sortNewestFirst(posts) {
 // The grid is image-first by definition, so `imagesOnly` is the default. Author
 // matching is exact: display names are the only handle this demo has, and a
 // fuzzy match would silently pool two different people's posts.
+// null explicitly selects all display names; an absent URL retains the default.
 export function selectProfilePosts(posts, author, { imagesOnly = true } = {}) {
-  const name = String(author ?? "").trim();
-  if (!name) return [];
+  const name = String(author ?? "");
+  if (!name && author !== null) return [];
   return sortNewestFirst((posts ?? []).filter((post) => post
-    && post.author === name
+    && (author === null || post.author === name)
     && (!imagesOnly || Boolean(post.image))));
 }
 
@@ -259,7 +260,7 @@ export function authorChipLabel(name, images, { selected = false } = {}) {
 // selector, so the number on a chip and the tiles below it cannot disagree.
 export function pickerEntries(posts, author) {
   const counts = imagePostCounts(posts);
-  const name = String(author ?? "").trim();
+  const name = String(author ?? "");
   return name && !counts.some((entry) => entry.name === name) ? [{ name, images: 0 }, ...counts] : counts;
 }
 
@@ -351,7 +352,7 @@ export const NO_IMAGE_POSTS_ANYWHERE = "No one has published an image post on So
 
 export function profileEmptyText(author, { anyImages = true } = {}) {
   if (!anyImages) return NO_IMAGE_POSTS_ANYWHERE;
-  const name = String(author ?? "").trim() || DEFAULT_AUTHOR;
+  const name = (author === null ? "All display names" : String(author ?? "")) || DEFAULT_AUTHOR;
   return `The display name “${name}” has no image posts yet.`;
 }
 
@@ -471,7 +472,7 @@ export const PENDING_RESULTS_HEADING = "Image posts";
 
 export function profileResultsHeading(author, count = null, { pending = false } = {}) {
   if (pending) return PENDING_RESULTS_HEADING;
-  const name = String(author ?? "").trim() || DEFAULT_AUTHOR;
+  const name = (author === null ? "All display names" : String(author ?? "")) || DEFAULT_AUTHOR;
   const counted = count === null || count === undefined ? "image posts" : countLabel(count, "image post");
   return `${name} · ${counted}`;
 }
@@ -517,12 +518,13 @@ export function profileResultsHeading(author, count = null, { pending = false } 
 // not counted its tiles cannot say how many of them are examples.
 export function profileActiveFilterLine(author, count = null, { counting = false, pending = false, examples = 0 } = {}) {
   if (pending) return "";
-  const name = String(author ?? "").trim() || DEFAULT_AUTHOR;
+  const name = (author === null ? "All display names" : String(author ?? "")) || DEFAULT_AUTHOR;
   if (count === null || count === undefined) {
     return counting
       ? `Showing image posts published as ${name} · ${COUNTING_LABEL}`
       : `Showing image posts published as ${name}.`;
   }
+  if (author === null) return `Showing ${countLabel(count ?? 0, "image post")} across all display names.`;
   if (count === 0) return `${name} has no image posts yet.`;
   return `Showing ${countLabel(count, "image post")} published as ${name}${examplePostsClause(count, examples)}.`;
 }
@@ -537,6 +539,7 @@ export function profileActiveFilterLine(author, count = null, { counting = false
 // travels with the count instead of being a fact only the sighted eyebrow above
 // the grid carries.
 export function profileAnnouncement(author, visibleCount, { anyImages = true } = {}) {
+  if (author === null && visibleCount > 0) return `Showing ${countLabel(visibleCount, "image post")} across all display names, newest first.`;
   if (visibleCount > 0) return `Showing ${countLabel(visibleCount, "image post")} by ${author}, newest first.`;
   return profileEmptyText(author, { anyImages });
 }
@@ -971,7 +974,7 @@ function renderSocialFeedRoute(container, { author = "", present = true } = {}) 
   if (!host) return null;
   const existing = [...(host.children ?? [])]
     .find((child) => child.getAttribute?.("id") === SOCIAL_FEED_ROUTE_ID) ?? null;
-  const name = String(author ?? "").trim();
+  const name = String(author ?? "");
   if (!present || !name) {
     existing?.remove();
     return null;
@@ -1143,7 +1146,7 @@ export function mountProfile(root, options = {}) {
 
   let posts = options.posts ?? [];
   let state = options.state ?? "ready";
-  let author = options.author ?? DEFAULT_AUTHOR;
+  let author = options.author === null ? null : options.author ?? DEFAULT_AUTHOR;
   // Whether the name on screen is the page's suggestion or the visitor's. It
   // starts as whatever the wiring worked out from the URL and the remembered
   // name, and only choose() below can clear it: a landing name that moves when
@@ -1245,6 +1248,17 @@ export function mountProfile(root, options = {}) {
     // Last, with the announcement in place: a reader who pressed Retry is put
     // on the new Retry if this attempt failed too, and otherwise on the region
     // above, which is now holding the news.
+    if (author !== null && state === "ready" && mine.length === 0) {
+      if (!anyImages) (elements.feedStatus ?? grid).append(el("p", "", `${author} has no image posts yet.`));
+      const clear = el("button", "text-button", "Clear selection and show all display names");
+      clear.type = "button";
+      clear.addEventListener("click", () => {
+        choose(null);
+        elements.heading?.setAttribute("tabindex", "-1");
+        elements.heading?.focus();
+      });
+      (elements.feedStatus ?? grid).append(clear);
+    }
     retryLanding.settle(state);
     if (options.onRender) options.onRender({ author, posts: mine, summary });
   };

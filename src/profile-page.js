@@ -57,8 +57,10 @@ async function init() {
   // A shared link or a remembered name is a choice and wins outright, empty
   // profile included. Only a visitor who chose nothing gets the landing default,
   // and only that visitor's selection may still move when the live feed lands.
-  let chosen = hasExplicitAuthor({ param, stored });
-  let author = resolveProfileAuthor({
+  // An explicit empty author means all names; absence keeps the established
+  // remembered-name/default landing. Both forms survive reload and history.
+  let chosen = new URLSearchParams(window.location.search).has("author") || hasExplicitAuthor({ param, stored });
+  let author = new URLSearchParams(window.location.search).get("author") === "" ? null : resolveProfileAuthor({
     param,
     stored,
     authors: distinctAuthors(seeds),
@@ -89,13 +91,23 @@ async function init() {
       chosen = true;
       rememberAuthor(globalThis.localStorage, next);
       updateTitle(next);
-      // replaceState, not pushState: switching profiles is a filter, not a
-      // navigation, and it must not turn Back into "undo one dropdown change".
-      window.history?.replaceState?.(null, "", profileHref(next));
+      window.history?.pushState?.(null, "", profileHref(next));
     },
   });
   if (!profile) return;
   updateTitle(author);
+
+  window.addEventListener?.("popstate", () => {
+    const params = new URLSearchParams(window.location.search);
+    const selected = params.has("author");
+    chosen = selected || hasExplicitAuthor({ stored });
+    author = selected ? (params.get("author") || null) : resolveProfileAuthor({
+      stored,
+      preferred: defaultProfileAuthor(profile.getPosts()),
+      authors: distinctAuthors(profile.getPosts()),
+    });
+    profile.setAuthor(author);
+  });
 
   let live = [];
 

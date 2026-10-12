@@ -500,8 +500,8 @@ test("both destinations ship as constants, and only the People link's target nar
   // is a post, and the normalizers drop a post whose author is unusable, so
   // neither shape is reachable today; this is what keeps that true if the
   // display-name limit these two both hard-code ever moves in one of them.
-  assert.equal(postPeopleLabel("Mina Okafor"), "Open People to see Mina Okafor’s other image posts");
-  assert.equal(postPeopleLabel("  Mina Okafor  "), postPeopleLabel("Mina Okafor"), "a padded name is the same name");
+  assert.equal(postPeopleLabel("Mina Okafor"), "See Mina Okafor’s image posts on People");
+  assert.equal(postPeopleLabel("  Mina Okafor  "), "See   Mina Okafor  ’s image posts on People", "preserve the exact name");
   for (const author of ["", "   ", "n".repeat(61)]) {
     assert.equal(postPeopleLabel(author), "", `"${author.slice(0, 12)}" is not a name this link can promise`);
     assert.equal(postPeopleHref("", author), POST_EXITS.people.href, "the destination must refuse what the label refuses");

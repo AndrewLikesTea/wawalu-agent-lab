@@ -775,15 +775,10 @@ function renderPostCard(post, { index, onReport = null }) {
   // example record with (.badge-example — Decisions and Releases print it), and
   // only on a post that is one: a post a visitor published carries no marker at
   // all, because an empty or hidden one beside real content is a distinction a
-  // reader cannot see. It sits in the byline, after the time and before the
-  // route to People, so it travels with the post's provenance rather than with
+  // reader cannot see. It sits in the byline, after the time,
+  // so it travels with the post's provenance rather than with
   // the card's actions — and it never joins the card's accessible name.
   if (isExamplePost(post)) byline.append(el("span", "badge badge-example", EXAMPLE_POST_LABEL));
-  if (image) {
-    const people = el("a", "post-people", peopleImagePostsLabel(post.author));
-    people.href = profileHref(post.author);
-    byline.append(people);
-  }
 
   header.append(avatar, byline);
   // One reading order on every surface (#2814): who posted and when, what they
@@ -798,6 +793,11 @@ function renderPostCard(post, { index, onReport = null }) {
   if (image) {
     article.classList.add("post-card-media");
     article.append(renderPostFigure(image, imageDescription({ ...post, image }), index));
+  }
+  if (image) {
+    const people = el("a", "post-people", peopleImagePostsLabel(post.author));
+    people.href = profileHref(post.author);
+    article.append(people);
   }
   // The card's own way into the post, last in the card so the action follows the
   // picture and the words it acts on. A plain anchor in the link shape the

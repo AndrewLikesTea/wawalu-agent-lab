@@ -68,7 +68,7 @@ async function people({ search = "", storage = {}, live = { posts: [] }, seed = 
   const savedInterval = globalThis.setInterval;
   globalThis.setInterval = () => 0; // The page's 30-second refresh must not outlive the test.
   const replaced = [];
-  globalThis.window.history = { replaceState: (...args) => replaced.push(args) };
+  globalThis.window.history = { pushState: (...args) => replaced.push(args) };
   await importPageModule("/profile-page.js");
   const { document } = page;
   await waitFor(() => document.documentElement.dataset.shiplogProfile === "ready", "the first load settles");
@@ -650,7 +650,7 @@ test("a page whose posts have not landed exposes no options and one availability
   const page = await loadPage(PAGE_URL, { routes: { [SEED_ROUTE]: SEED_FEED, [LIVE_ROUTE]: { posts: [] } } });
   const savedInterval = globalThis.setInterval;
   globalThis.setInterval = () => 0;
-  globalThis.window.history = { replaceState() {} };
+  globalThis.window.history = { pushState() {} };
   const routed = globalThis.fetch;
   globalThis.fetch = (url, init) => (url === LIVE_ROUTE ? new Promise(() => {}) : routed(url, init));
   try {
@@ -1314,7 +1314,7 @@ test("the demo disclaimer stays below the grid while the posts load and when the
   const pending = await loadPage(PAGE_URL, { routes: { [SEED_ROUTE]: SEED_FEED, [LIVE_ROUTE]: { posts: [] } } });
   const savedInterval = globalThis.setInterval;
   globalThis.setInterval = () => 0;
-  globalThis.window.history = { replaceState() {} };
+  globalThis.window.history = { pushState() {} };
   const routed = globalThis.fetch;
   globalThis.fetch = (url, init) => (url === LIVE_ROUTE ? new Promise(() => {}) : routed(url, init));
   try {
@@ -1447,7 +1447,7 @@ test("People claims no result before its first image post, and the loaded page i
   const page = await loadPage(PAGE_URL, { routes: { [SEED_ROUTE]: { posts: [] }, [LIVE_ROUTE]: live } });
   const savedInterval = globalThis.setInterval;
   globalThis.setInterval = () => 0;
-  globalThis.window.history = { replaceState() {} };
+  globalThis.window.history = { pushState() {} };
   const routed = globalThis.fetch;
   let release = () => {};
   const held = new Promise((resolve) => { release = resolve; });

@@ -189,7 +189,7 @@ async function openPeople(t, { search = "", feed = FEED } = {}) {
   const release = holdTimers(t, page);
   // The addresses the page writes as the selection moves, in order.
   page.replaced = [];
-  globalThis.window.history = { replaceState: (...args) => page.replaced.push(args) };
+  globalThis.window.history = { pushState: (...args) => page.replaced.push(args) };
   await importPageModule("/profile-page.js");
   const { document } = page;
   await waitFor(() => document.documentElement.dataset.shiplogProfile === "ready", "the People page finished its first load");

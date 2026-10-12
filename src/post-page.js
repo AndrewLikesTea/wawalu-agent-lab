@@ -228,7 +228,7 @@ async function init() {
     sayProvenance(post);
     nameHeading(post);
     aimPeople(post?.author ?? "");
-    offerPeople(Boolean(post));
+    offerPeople(Boolean(post?.image));
     document.title = postDetailTitle(post, state);
     document.documentElement.dataset.shiplogPostDetail = "ready";
 

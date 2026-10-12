@@ -66,8 +66,8 @@ export const POST_EXITS = {
 const MAX_RETURN_AUTHOR_LENGTH = 60;
 
 export function postPeopleLabel(author = "") {
-  const name = String(author).trim();
-  return name && name.length <= MAX_RETURN_AUTHOR_LENGTH ? `Open People to see ${name}’s other image posts` : "";
+  const name = String(author);
+  return name.trim() && name.length <= MAX_RETURN_AUTHOR_LENGTH ? `See ${name}’s image posts on People` : "";
 }
 
 // Where the People link goes. The words promise one display name's image posts,
@@ -78,8 +78,8 @@ export function postPeopleLabel(author = "") {
 // string longer than a display name can be is not a name.
 export function postPeopleHref(search = "", author = "") {
   const params = new URLSearchParams(String(search).replace(/^\?/, ""));
-  const name = String(author || params.get("author") || "").trim();
-  return name && name.length <= MAX_RETURN_AUTHOR_LENGTH ? profileHref(name) : POST_EXITS.people.href;
+  const name = String(author || params.get("author") || "");
+  return name.trim() && name.length <= MAX_RETURN_AUTHOR_LENGTH ? profileHref(name) : POST_EXITS.people.href;
 }
 
 export function findPostById(posts, id) {

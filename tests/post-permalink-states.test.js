@@ -618,7 +618,7 @@ test("a post with no image renders no image element and no empty frame to hold o
 // either way — so this is asserted in the missing state as well as the loaded
 // one, not just in the state that happens to work.
 const SOCIAL_LINK = "Read the Social feed";
-const PEOPLE_LINK = "Open People to see Mina Okafor’s other image posts";
+const PEOPLE_LINK = "See Mina Okafor’s image posts on People";
 // Both routes name Social; their labels explain whether to read or publish.
 const PUBLISH_LINK = "Publish a post on Social";
 const CHROME_LINKS = [SOCIAL_LINK, PEOPLE_LINK, PUBLISH_LINK];
