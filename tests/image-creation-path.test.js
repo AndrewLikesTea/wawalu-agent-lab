@@ -109,7 +109,7 @@ for (const [name, document] of Object.entries(NEARBY_INVITATION)) {
     const sentence = textOf(invitation);
     assert.match(sentence, /publish/i,
       `${name}'s helper stops at the editor and never says the image has to be published`);
-    assert.ok(sentence.indexOf("Paint") < sentence.indexOf("Social"),
+    assert.ok(sentence.indexOf("Paint") < sentence.indexOf("Use this image in a Social post"),
       `${name}'s helper names the two steps out of order`);
 
     // The destination, then the two linked steps that reach it. It used to read
@@ -126,7 +126,7 @@ for (const [name, document] of Object.entries(NEARBY_INVITATION)) {
     // and the conditions of publishing follow the result (#2484). What is
     // pinned is that the result is still stated, still after the steps, and
     // still before the consequence of carrying them out.
-    assert.match(sentence.trim(), /^To add yours: Create or open an image in Paint/);
+    assert.match(sentence.trim(), /^To add yours: On Social, select “Choose image” to choose an image file from your device\. Or Create or open an image in Paint/);
     const result = "A published post with an image appears on People, under the display name you publish it with.";
     assert.equal(sentence.split(result).length - 1, 1,
       `${name}'s helper does not explain where the post appears exactly once`);
@@ -164,8 +164,7 @@ for (const [name, document] of Object.entries(NEARBY_INVITATION)) {
     assert.equal(toSocial[0].getAttribute("target"), null);
     assert.ok(tabSequence(document).includes(toSocial[0]),
       `${name}'s route to the composer is not keyboard reachable`);
-    // And it comes after the editor it depends on, in the order the steps
-    // happen.
+    // The optional Paint route still comes before the shared publishing link.
     const order = invitation.querySelectorAll("a");
     assert.deepEqual(order.map((anchor) => anchor.getAttribute("id")),
       ["profile-paint-route", "profile-publish-route"]);
@@ -827,8 +826,8 @@ test("nothing in the image section says Paint delivers the file", () => {
 test("People names the same steps in the same words as the composer", async () => {
   const invitation = textOf(documents.People.querySelector(".feed-create")).trim();
   assert.equal(invitation,
-    "To add yours: Create or open an image in Paint (opens in a new tab). "
-    + "Select “Use this image in a Social post”, then fill in the required image description. "
+    "To add yours: On Social, select “Choose image” to choose an image file from your device. Or Create or open an image in Paint (opens in a new tab). "
+    + "Select “Use this image in a Social post”. Either path ends in the Social composer, where you fill in the required image description and publish your image post. "
     + "Publish a post on Social. A published post with an image appears on People, "
     + "under the display name you publish it with. "
     // Who can read a published post, in the one wording Social and the shared
