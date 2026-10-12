@@ -2,7 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { initReleasesPage } from "../src/releases-page.js";
 import { SAMPLE_DECISION_ID, SAMPLE_RELEASE_ID } from "../src/seed-records.js";
-import { loadPage, tabSequence, textOf } from "./support/browser.js";
+import { readFile } from "node:fs/promises";
+import { loadPage, pressTab, tabSequence, textOf } from "./support/browser.js";
 
 const PAGE = new URL("../src/releases.html", import.meta.url);
 
@@ -167,19 +168,18 @@ const isWithin = (node, ancestor) => {
 // A prospect follows "Explore the decision and release log" from the home page.
 // What they used to reach, in this order, was the pitch, the example record,
 // the deployment check and then nine fields to fill in, with the log itself at
-// the bottom of the page. The record of this deployment and the check against
-// it still lead, together, ahead of the example (#2487) — they are what the
-// observatory's link lands on — and the log now stands between them and the
-// recorder.
+// the bottom of the page. The log now stands directly under the introduction
+// (#2796); the record of this deployment and the check against it still lead
+// the supporting material, together, ahead of the example (#2487), then the
+// four-step guide and the coverage figure, and the recorder closes the page.
 test("the log's heading, count, search, filters, records and export all come before the first form field", async (t) => {
   const page = await open(t);
   const order = page.document
-    .querySelectorAll("#shipped-build,#shiplog-proof,#deployment-status,#releases-title,#release-count,#release-search,#release-status,#release-decision,#release-decision-status-all,#release-export,#release-list,#record-release,#release-form-title,#release-version")
+    .querySelectorAll("#page-title,#record-release-link,#shipped-build,#shiplog-proof,#deployment-status,#evaluation-path,#reasoning-proof,#coverage-gap-definition,#releases-title,#release-count,#release-search,#release-status,#release-decision,#release-decision-status-all,#release-export,#release-list-status,#release-list,#record-release,#release-form-title,#release-version")
     .map((node) => node.id);
   assert.deepEqual(order, [
-    "shipped-build",
-    "deployment-status",
-    "shiplog-proof",
+    "page-title",
+    "record-release-link",
     "releases-title",
     "release-count",
     "release-search",
@@ -187,7 +187,14 @@ test("the log's heading, count, search, filters, records and export all come bef
     "release-decision",
     "release-decision-status-all",
     "release-export",
+    "release-list-status",
     "release-list",
+    "shipped-build",
+    "deployment-status",
+    "shiplog-proof",
+    "evaluation-path",
+    "reasoning-proof",
+    "coverage-gap-definition",
     "record-release",
     "release-form-title",
     "release-version",
@@ -260,6 +267,72 @@ test("the jump control puts focus on the record-a-release form", async (t) => {
     "activating the jump control left focus outside the recorder");
   // Focus, not only a scroll: the next Tab is inside the form.
   assert.ok(isWithin(page.document.querySelector("#release-version"), panel));
+  // The harness's pressTab restarts at stop 0 from a tabindex="-1" element, so
+  // the browser's next stop after the panel is read off the sequence instead.
+  assert.equal(page.document.activeElement.id, "record-release");
+  assert.equal(tabSequence(page.document).find((node) => isWithin(node, panel)).id, "release-version",
+    "the first stop inside the focused recorder is not its first field");
+});
+
+// #2796: the log leads, so the hero's link is the visible way past it. Visible
+// means no hidden attribute and no visually-hidden class on it or its row.
+test("the jump control is a visible link in the introduction that targets the recorder", async (t) => {
+  const page = await open(t);
+  const link = page.document.querySelector("#record-release-link");
+  assert.ok(isWithin(link, page.document.querySelector(".hero")), "the jump control left the introduction");
+  assert.equal(link.tagName, "A");
+  assert.equal(link.getAttribute("href"), "#record-release");
+  for (let node = link; node && node.getAttribute; node = node.parentNode) {
+    assert.equal(node.hidden, false, `#${node.id || node.tagName} hides the jump control`);
+    assert.doesNotMatch(node.getAttribute("class") ?? "", /visually-hidden|sr-only/);
+  }
+  // Its focus ring is the site's global link ring; nothing on this page turns it off.
+  const styles = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
+  assert.match(styles, /a:focus-visible \{ outline:3px solid var\(--focus-ring\)/);
+  assert.doesNotMatch(styles, /\.text-link:focus(-visible)? \{[^}]*outline:(none|0)/);
+});
+
+// Tab from the introduction: the jump link, the log's search and filters (the
+// radio group as one stop), a release row, then the supporting blocks' controls,
+// and only then the recorder.
+test("tabbing from the introduction reaches the log, then the supporting blocks, then the recorder", async (t) => {
+  const page = await open(t);
+  page.document.querySelector("#record-release-link").focus();
+  const reached = ["record-release-link"];
+  for (let press = 0; press < 200 && reached.at(-1) !== "release-version"; press += 1) {
+    const node = pressTab(page.document);
+    reached.push(node.classList?.contains?.("release-toggle") ? "release-row" : node.id);
+  }
+  const at = (id) => reached.indexOf(id);
+  const expected = [
+    "record-release-link",
+    "release-search",
+    "release-status",
+    "release-decision",
+    "release-decision-status-all",
+    "release-export",
+    "release-row",
+    "ask-about-shiplog",
+    "shiplog-proof-copy",
+    "evaluation-path-action",
+    "reasoning-proof-copy",
+    "release-version",
+  ];
+  for (const id of expected) assert.ok(at(id) >= 0, `${id} was never reached by Tab from the introduction`);
+  assert.deepEqual([...expected].sort((a, b) => at(a) - at(b)), expected);
+  assert.equal(reached.filter((id) => id.startsWith("release-decision-status-")).length, 1,
+    "the decision-status radios took more than one tab stop");
+});
+
+// Nothing on this page reads matchMedia, so 390px is asserted against the rules
+// that produce it: the filter row and the radio chips wrap rather than clip.
+test("the log's filters and chips wrap at a phone width instead of scrolling the page", async () => {
+  const styles = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
+  assert.match(styles, /\.release-filters \{ display:flex; flex-wrap:wrap;/);
+  assert.match(styles, /\.filter-options \{ display:flex; flex-wrap:wrap;/);
+  assert.match(styles, /@media\(max-width:520px\) \{ \.release-filters\{align-items:stretch;flex-direction:column\}/);
+  assert.match(styles, /\.hero-actions \{ display:flex; align-items:center; flex-wrap:wrap;/);
+  assert.match(styles, /\.workspace-single \{ grid-template-columns:1fr; \}/);
 });
 
 // The hero's link used to be named for the destination alone, which read like

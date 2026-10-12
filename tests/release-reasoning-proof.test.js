@@ -679,18 +679,21 @@ test("a clipboard that is absent or refuses is a stated failure, naming where th
 
 // --- placement and cost ------------------------------------------------------
 
-test("the figure stands above the log it describes and does not repeat the example caveat", async (t) => {
+test("the figure stands under the log it describes and does not repeat the example caveat", async (t) => {
   const page = await openPage(t);
+  // The log leads the page and this block is the last of the supporting
+  // material under it (#2796), still after the example and the guide.
   const order = page.document
-    .querySelectorAll("#shiplog-proof,#evaluation-path,#reasoning-proof,#releases-title,#release-count,#release-search")
+    .querySelectorAll("#shiplog-proof,#evaluation-path,#reasoning-proof,#releases-title,#release-count,#release-search,#record-release")
     .map((node) => node.getAttribute("id"));
   assert.deepEqual(order, [
-    "shiplog-proof",
-    "evaluation-path",
-    "reasoning-proof",
     "releases-title",
     "release-count",
     "release-search",
+    "shiplog-proof",
+    "evaluation-path",
+    "reasoning-proof",
+    "record-release",
   ]);
   // The example-records caveat is counted once above the record form by
   // tests/shiplog-proof.test.js. This block states it in exactly one place: the

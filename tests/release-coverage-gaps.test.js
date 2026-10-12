@@ -560,13 +560,13 @@ test("the reveal takes its place in reading order and adds one tab stop", async 
   const sequence = tabSequence(page.document);
   const at = (id) => sequence.findIndex((stop) => stop.getAttribute?.("id") === id);
 
-  // Coverage status, then the reveal, then the log: the chip is not focusable, so
-  // the reveal is the block's first stop and it stands before every control the
-  // log has. Nothing existing moved.
+  // The log, then coverage status, then the reveal (#2796): the log leads the
+  // page, and the chip is not focusable, so the reveal is the block's first stop
+  // and comes after every control the log has.
   assert.equal(at("coverage-gap-toggle") >= 0, true, "the reveal is not reachable");
-  assert.ok(at("coverage-gap-toggle") < at("reasoning-proof-copy"));
-  assert.ok(at("reasoning-proof-copy") < at("release-search"));
   assert.ok(at("release-search") < at("release-status"));
+  assert.ok(at("release-export") < at("coverage-gap-toggle"));
+  assert.ok(at("coverage-gap-toggle") < at("reasoning-proof-copy"));
   assert.equal(
     sequence.filter((stop) => stop.getAttribute?.("id") === "coverage-gap-toggle").length,
     1,
@@ -729,4 +729,27 @@ test("long count labels retain the value and the controls allow wrapping", async
   const css = await readFile(CSS, "utf8");
   assert.match(css, /\.coverage-gap-reveal \.empty-action \{[^}]*min-width:0;[^}]*white-space:normal;[^}]*overflow-wrap:anywhere/);
   assert.match(css, /\.coverage-gap-reveal \.badge \{[^}]*white-space:normal/);
+});
+
+// #2796: the log now leads the page, so a worklist left at the head of its rows
+// would print "Uncovered releases" above the definition. It follows its reveal
+// inside the coverage block instead, and the word still arrives defined even
+// with the worklist open.
+test("the worklist follows its reveal in the coverage block, so the word stays defined first when open", async (t) => {
+  const { page } = await openPage(t);
+  let inBlock = false;
+  for (let at = byId(page, "coverage-gap-worklist"); at; at = at.parentNode) {
+    if (at.getAttribute?.("id") === "reasoning-proof") inBlock = true;
+    assert.notEqual(at.getAttribute?.("class") ?? "", "list-panel", "the worklist is back in the log panel");
+  }
+  assert.equal(inBlock, true, "the worklist left the coverage block");
+  const ids = page.document.querySelectorAll("#coverage-gap-definition,#coverage-gap-toggle,#coverage-gap-worklist,#reasoning-proof-copy")
+    .map((node) => node.getAttribute("id"));
+  assert.deepEqual(ids, ["coverage-gap-definition", "coverage-gap-toggle", "coverage-gap-worklist", "reasoning-proof-copy"]);
+
+  byId(page, "coverage-gap-toggle").click();
+  assert.equal(activeId(page), "coverage-gap-worklist");
+  const said = pageVocabulary(page.document);
+  const defined = said.indexOf(COVERAGE_DEFINITION);
+  assert.ok(defined >= 0 && said.search(/uncovered/i) > defined, "an open worklist says “uncovered” before the definition");
 });

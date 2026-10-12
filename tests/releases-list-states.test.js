@@ -236,6 +236,47 @@ test("rows clear the region, and a filter that empties the view announces no-mat
   assert.equal(textOf(page.document.querySelector(".release-reset-action")), "Clear search and filters");
 });
 
+// --- #2796: every state is drawn in the log, which stands above the proof ----
+
+// Walking up rather than selecting down: the harness rejects descendant
+// selectors, so containment is a parent chain.
+const inLog = (node) => {
+  for (let at = node; at; at = at.parentNode) if (at.classList?.contains?.("list-panel")) return true;
+  return false;
+};
+const SUPPORTING = ["real-deployment", "shiplog-proof", "evaluation-path", "reasoning-proof"];
+
+const STATE_CASES = [
+  { state: "loading", options: {}, boot: false },
+  { state: "ready", options: {}, boot: true },
+  { state: "empty", options: { releases: [] }, boot: true },
+  { state: "error", options: { refuse: true }, boot: true },
+];
+
+for (const { state, options, boot } of STATE_CASES) {
+  test(`the ${state} state is drawn in the log's results, above the supporting blocks, and keeps focus`, async (t) => {
+    const { page } = await openPage(t, { ...options, boot: false });
+    byId(page, "release-search").focus();
+    if (boot) initReleasesPage(page.document, page.storage, { seed: NO_SEED });
+
+    if (state === "ready") {
+      assert.ok(rows(page) > 0, "the populated log drew no rows");
+      assert.ok(page.document.querySelectorAll(".release-toggle").every(inLog), "a row was drawn outside the log");
+      assert.equal(region(page).hidden, true);
+    } else {
+      const drawn = page.document.querySelectorAll(`.list-state-${state}`);
+      assert.equal(drawn.length, 1, `the ${state} state is not drawn exactly once`);
+      assert.equal(inLog(drawn[0]), true, `the ${state} state was drawn outside the log`);
+    }
+    assert.equal(inLog(region(page)), true);
+    const order = page.document
+      .querySelectorAll(["#release-list-status", ...SUPPORTING.map((id) => `#${id}`)].join(","))
+      .map((node) => node.getAttribute("id"));
+    assert.deepEqual(order, ["release-list-status", ...SUPPORTING]);
+    assert.equal(activeId(page), "release-search", `the ${state} state moved focus`);
+  });
+}
+
 // --- #2377: the wait is stated once, and only while the log is loading ------
 
 // What the whole document says at the moment the log is read — the one point in

@@ -309,11 +309,8 @@ export function renderCoverageGaps(root, view, uncoveredOnly = false) {
  * The control is a real <button type="button"> in the markup, so activation,
  * role come from the platform; this reveals the page's
  * uncovered view and moves focus. Focus lands on the worklist, which carries
- * `tabindex="-1"`: it is the head of the uncovered view, inside the release-log
- * panel and directly above the rows the press just narrowed. The panel's own h2
- * was the other candidate and is the wrong one — it stands above the count, the
- * search, four filters and the export, so a keyboard reader would land a dozen
- * tab stops from the thing that changed.
+ * `tabindex="-1"`: it stands directly under this control and lists every
+ * release the press narrowed the log to.
  *
  * A document without the control gets an inert handle back, so a surface that
  * mounts the releases page without this markup is unaffected.
