@@ -9,7 +9,7 @@ const surfaces = [
   // off the page. #ask-about-shiplog used to sit above the panel, at the foot of
   // the feed panel.
   { file: "social", sequence: ["#page-title", "#post-compose-open", "#feed-title", "#post-name-filter", "#post-time-filter", "#feed-state", "#post-feed", ".social-feed-intro", "#feed-source-note", "#post-report-route", "#post-compose-panel", "#ask-about-shiplog"], guidance: ".social-feed-intro", state: "#feed-state", label: "Posts are loading." },
-  { file: "profile", sequence: ["#page-title", "#ask-about-shiplog", "#profile-author-label", "#profile-author", "#grid-title", "#profile-feed-status", "#profile-grid", ".profile-lede.hint", ".feed-create", ".profile-role"], guidance: ".profile-lede.hint", state: "#profile-feed-status", label: "Image posts are loading." },
+  { file: "profile", sequence: ["#page-title", "#ask-about-shiplog", "#profile-author-label", "#profile-author", "#grid-title", "#profile-feed-status", "#profile-grid", ".profile-lede.hint", ".profile-role", ".feed-create"], guidance: ".profile-lede.hint", state: "#profile-feed-status", label: "Image posts are loading." },
 ];
 
 for (const surface of surfaces) {
