@@ -89,13 +89,31 @@ async function init() {
       chosen = true;
       rememberAuthor(globalThis.localStorage, next);
       updateTitle(next);
-      // replaceState, not pushState: switching profiles is a filter, not a
-      // navigation, and it must not turn Back into "undo one dropdown change".
-      window.history?.replaceState?.(null, "", profileHref(next));
+      // pushState (#2826): each display name is a view somebody can bookmark or
+      // forward, so Back returns to the name the reader was looking at before
+      // rather than leaving People. Nothing is pushed on boot — the address the
+      // reader arrived on is already the entry for the first view.
+      window.history?.pushState?.(null, "", profileHref(next));
     },
   });
   if (!profile) return;
   updateTitle(author);
+
+  // The name the page showed at an address without ?author=. Back to that entry
+  // returns to this name, not to the remembered one, which by then is whatever
+  // the reader chose last — so Back would otherwise appear to do nothing.
+  let landed = author;
+
+  // Back and Forward re-apply the entry's name in place, without a reload and
+  // without pushing: the address already says it. setAuthor never calls
+  // onAuthorChange, so neither storage nor history is written here.
+  window.addEventListener?.("popstate", () => {
+    const next = requestedProfileAuthor(window.location.search) || landed;
+    if (next === profile.getAuthor()) return;
+    author = next;
+    profile.setAuthor(next);
+    updateTitle(next);
+  });
 
   let live = [];
 
@@ -114,6 +132,7 @@ async function init() {
         const landing = defaultProfileAuthor(profile.getPosts());
         if (landing && selectProfilePosts(profile.getPosts(), profile.getAuthor()).length === 0) {
           author = landing;
+          landed = landing;
           profile.setAuthor(landing);
         }
       }

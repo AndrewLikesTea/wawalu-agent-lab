@@ -228,7 +228,10 @@ async function init() {
     sayProvenance(post);
     nameHeading(post);
     aimPeople(post?.author ?? "");
-    offerPeople(Boolean(post));
+    // Its words promise this name's other image posts, and People holds image
+    // posts only (#2826), so a text-only post offers no route there — the same
+    // guard Social's cards put on their People link, on post.image itself.
+    offerPeople(Boolean(post?.image));
     document.title = postDetailTitle(post, state);
     document.documentElement.dataset.shiplogPostDetail = "ready";
 

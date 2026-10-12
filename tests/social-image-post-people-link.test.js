@@ -188,8 +188,8 @@ async function openPeople(t, { search = "", feed = FEED } = {}) {
   });
   const release = holdTimers(t, page);
   // The addresses the page writes as the selection moves, in order.
-  page.replaced = [];
-  globalThis.window.history = { replaceState: (...args) => page.replaced.push(args) };
+  page.pushed = [];
+  globalThis.window.history = { pushState: (...args) => page.pushed.push(args) };
   await importPageModule("/profile-page.js");
   const { document } = page;
   await waitFor(() => document.documentElement.dataset.shiplogProfile === "ready", "the People page finished its first load");
@@ -397,7 +397,7 @@ test("choosing a name on People writes it into the address, and that address reo
   await waitFor(() => drawnTiles(people.document).map((tile) => tile.dataset?.postId).join() === imagePostIds(ARI).join(),
     "People listed the switched-to name's image posts");
   assert.equal(pressedChip(people.document)?.dataset.author, ARI);
-  const written = people.replaced.at(-1)?.[2];
+  const written = people.pushed.at(-1)?.[2];
   assert.equal(written, profileHref(ARI), "the filter moved and the address did not");
 
   // A reload tears the page down, then cold-opens the address it wrote: nothing

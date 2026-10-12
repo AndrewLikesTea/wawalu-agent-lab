@@ -68,13 +68,18 @@ async function people({ search = "", storage = {}, live = { posts: [] }, seed = 
   const savedInterval = globalThis.setInterval;
   globalThis.setInterval = () => 0; // The page's 30-second refresh must not outlive the test.
   const replaced = [];
-  globalThis.window.history = { replaceState: (...args) => replaced.push(args) };
+  const pushed = [];
+  globalThis.window.history = {
+    replaceState: (...args) => replaced.push(args),
+    pushState: (...args) => pushed.push(args),
+  };
   await importPageModule("/profile-page.js");
   const { document } = page;
   await waitFor(() => document.documentElement.dataset.shiplogProfile === "ready", "the first load settles");
   return {
     document,
     replaced,
+    pushed,
     storage: page.storage,
     navigations: page.navigations,
     picker: document.querySelector("#profile-author"),
@@ -612,7 +617,7 @@ test("choosing another name updates the page in place and keeps the URL and stor
       assert.equal(document.querySelectorAll(".profile-tile").length, 1);
       assert.equal(page.navigations.length, 0);
       assert.equal(page.storage.getItem("shiplog.social.author"), "Bea");
-      assert.deepEqual(page.replaced.at(-1)?.[2], "/profile.html?author=Bea");
+      assert.deepEqual(page.pushed.at(-1)?.[2], "/profile.html?author=Bea");
       assert.equal(document.querySelector("#profile-paint-route").href, "/paint/?from=profile&author=Bea");
     } finally {
       page.restore();
@@ -634,7 +639,7 @@ test("selecting with the pointer moves the heading, the list, the URL, and the s
     // this browser's remembered name exactly as it was from the old position.
     assert.equal(page.navigations.length, 0);
     assert.equal(page.storage.getItem("shiplog.social.author"), "Bea");
-    assert.deepEqual(page.replaced.at(-1)?.[2], "/profile.html?author=Bea");
+    assert.deepEqual(page.pushed.at(-1)?.[2], "/profile.html?author=Bea");
     // The route into Paint follows the selection, so its back link returns here.
     assert.equal(document.querySelector("#profile-paint-route").href, "/paint/?from=profile&author=Bea");
   } finally {
