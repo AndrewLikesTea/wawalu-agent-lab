@@ -123,10 +123,12 @@ test("the picker is read and reached before the name, the count, and the results
     assert.ok(at("#profile-author") < at("#profile-summary"));
     assert.ok(at("#profile-author") < at("#profile-grid"));
 
-    // The primary action leads directly into the display-name filters.
+    // The hero's actions — the route and its two direct asks (#2807) — lead
+    // directly into the display-name filters.
     const inMain = tabSequence(document).filter((element) => element.closest("#main-content"));
-    assert.equal(inMain[0].id, "ask-about-shiplog");
-    assert.deepEqual(inMain.slice(1, 4).map((element) => element.dataset.author), ["Ari", "Bea", "Zed"]);
+    assert.deepEqual(inMain.slice(0, 3).map((element) => element.id),
+      ["ask-about-shiplog", "ask-about-shiplog-demo", "ask-about-shiplog-pilot"]);
+    assert.deepEqual(inMain.slice(3, 6).map((element) => element.dataset.author), ["Ari", "Bea", "Zed"]);
     for (const chip of chips(page))
       assert.equal(chip.getAttribute("tabindex"), null, "the order is markup order, not a tabindex trick");
   } finally {
@@ -876,7 +878,8 @@ test("tabbing from the top reaches the picker, then the posts under the header",
     const { document } = page;
     // Walked, not read off the markup: every stop is a real focus move made by
     // the page harness that boots the shipped markup with the shipped module.
-    document.querySelector("#ask-about-shiplog").focus();
+    // The last of the hero's three actions (#2807); the picker follows it.
+    document.querySelector("#ask-about-shiplog-pilot").focus();
     const tiles = drawnTiles(document);
     const walked = [];
     // Two stops per post: the tile, then its Report post button (#2343).
@@ -926,7 +929,7 @@ test("tabbing from the top reaches the picker, then the posts under the header",
     const inMain = tabSequence(document).filter((element) => element.closest("#main-content"));
     const beforePanel = inMain.filter((element) => !element.closest(".list-panel"));
     assert.deepEqual(beforePanel.map((element) => element.dataset?.author ?? element.getAttribute("href")),
-      ["#site-footer-panel", "Ari", "Bea", "Zed", "/social.html?author=Zed"]);
+      ["#site-footer-panel", "#site-footer-intent-demo", "#site-footer-intent-pilot", "Ari", "Bea", "Zed", "/social.html?author=Zed"]);
   } finally {
     page.restore();
   }

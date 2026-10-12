@@ -541,9 +541,11 @@ test("Personal AI history is pitched once, in the card under the grade, with a d
     .map((link) => link.getAttribute("href")), [],
     "the introduction offers no destination of its own, and no second history pitch");
   // The follow-up route the introduction used to carry is below the grade now
-  // (#2654), and it is still the only link in the row it moved to.
+  // (#2654). Every link in the row it moved to goes to the follow-up form: the
+  // route, then the two direct asks that each land on one of its answers (#2807).
   assert.deepEqual(document.querySelector("#ask-about-shiplog-actions").querySelectorAll("a")
-    .map((link) => link.getAttribute("href")), ["#site-footer-panel"],
+    .map((link) => link.getAttribute("href")),
+  ["#site-footer-panel", "#site-footer-intent-demo", "#site-footer-intent-pilot"],
     "the follow-up row offers something other than the follow-up");
 
   // The surviving pitch carries every fact the deleted one had, so nothing a

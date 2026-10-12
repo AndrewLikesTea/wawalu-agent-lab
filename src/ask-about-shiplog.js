@@ -88,3 +88,44 @@ export function initAskAboutShiplog(root = document) {
   link.addEventListener("click", onClick);
   return () => link.removeEventListener("click", onClick);
 }
+
+/**
+ * The two direct asks beside the route (#2807), keyed by the FOLLOW_UP_INTENTS
+ * value each one preselects. Both are answers the form's own "What do you want
+ * to discuss?" question already offers, so no topic, purpose or wire field is
+ * new: the request carries the page's purpose and the chosen intent exactly as
+ * a visitor who ticked the radio by hand would send them.
+ */
+export const ASK_ABOUT_SHIPLOG_ACTIONS = Object.freeze({
+  demo: "Request a Shiplog demonstration",
+  pilot: "Discuss a Shiplog pilot",
+});
+
+/**
+ * Wire every `data-follow-up-intent` link on the page. Each one is an ordinary
+ * link to its own radio in the footer form, so with no script it still lands
+ * the reader on the question it would have answered for them. The script makes
+ * the answer: it ticks the radio the way a click would — which fires the change
+ * the footer already listens for, clearing an old error and showing the note's
+ * guidance — and puts focus on it. The navigation that follows targets the same
+ * radio, so nothing moves focus anywhere else afterwards.
+ */
+export function initAskAboutShiplogActions(root = document) {
+  const links = [...root.querySelectorAll("[data-follow-up-intent]")];
+  const teardowns = links.map((link) => {
+    const onClick = (event) => {
+      if (event.button > 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      // A sent request is replaced by its receipt; reopen it through its own
+      // control first, as the home page's topic pair does.
+      if (root.querySelector("#site-footer-form")?.hidden) root.querySelector("#site-footer-again")?.click();
+      const radio = root.querySelector(`#site-footer-intent-${link.getAttribute("data-follow-up-intent")}`);
+      if (!radio) return;
+      if (!radio.checked) radio.click();
+      radio.focus?.({ preventScroll: true });
+      radio.scrollIntoView?.({ block: "center" });
+    };
+    link.addEventListener("click", onClick);
+    return () => link.removeEventListener("click", onClick);
+  });
+  return () => teardowns.forEach((teardown) => teardown());
+}
