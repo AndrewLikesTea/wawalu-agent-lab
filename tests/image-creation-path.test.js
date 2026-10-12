@@ -126,7 +126,7 @@ for (const [name, document] of Object.entries(NEARBY_INVITATION)) {
     // and the conditions of publishing follow the result (#2484). What is
     // pinned is that the result is still stated, still after the steps, and
     // still before the consequence of carrying them out.
-    assert.match(sentence.trim(), /^To add yours: Create or open an image in Paint/);
+    assert.match(sentence.trim(), /^To add yours, start from Paint or from a file\. From Paint: Create or open an image in Paint/);
     const result = "A published post with an image appears on People, under the display name you publish it with.";
     assert.equal(sentence.split(result).length - 1, 1,
       `${name}'s helper does not explain where the post appears exactly once`);
@@ -827,8 +827,10 @@ test("nothing in the image section says Paint delivers the file", () => {
 test("People names the same steps in the same words as the composer", async () => {
   const invitation = textOf(documents.People.querySelector(".feed-create")).trim();
   assert.equal(invitation,
-    "To add yours: Create or open an image in Paint (opens in a new tab). "
-    + "Select “Use this image in a Social post”, then fill in the required image description. "
+    "To add yours, start from Paint or from a file. "
+    + "From Paint: Create or open an image in Paint (opens in a new tab), then select “Use this image in a Social post”. "
+    + "From a file: when you write a Social post, select Choose image to add an image from this device. "
+    + "Either way, fill in the required image description. "
     + "Publish a post on Social. A published post with an image appears on People, "
     + "under the display name you publish it with. "
     // Who can read a published post, in the one wording Social and the shared
@@ -880,6 +882,21 @@ test("People names the same steps in the same words as the composer", async () =
   assert.equal(paintLink.getAttribute("target"), "_blank");
   assert.doesNotMatch(invitation, /PNG|export|save|download|upload/i,
     "People should describe the direct handoff without requiring an exported file");
+
+  // Paint is one of two routes, not a requirement (#2816). The composer offers
+  // the same two, under the same "From Paint" and "From a file" labels, and
+  // People names the file route with the picker's own label. Both routes end
+  // in the same composer, so the description and publishing steps follow both.
+  for (const route of ["From Paint", "From a file"]) {
+    assert.ok(invitation.includes(`${route}: `), `People drops the ${route} route: ${invitation}`);
+    assert.ok(composer.includes(`${route}: `), `the composer no longer labels a route ${route}`);
+  }
+  const picker = documents.Social.querySelectorAll("label")
+    .filter((label) => label.getAttribute("for") === "post-image");
+  assert.equal(textOf(picker[0]).trim(), "Choose image");
+  assert.ok(invitation.includes("when you write a Social post, select Choose image"));
+  assert.ok(invitation.indexOf("From a file") < invitation.indexOf("Either way, fill in the required image description."));
+  assert.doesNotMatch(invitation, /Paint is required|you need Paint|only (in|from|with) Paint/i);
 });
 
 test("the steps are the image field's own description, so focusing it reads them", () => {
