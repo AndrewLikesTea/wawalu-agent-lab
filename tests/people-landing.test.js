@@ -68,7 +68,7 @@ async function people({ search = "", storage = {}, live = { posts: [] }, seed = 
   const savedInterval = globalThis.setInterval;
   globalThis.setInterval = () => 0; // The page's 30-second refresh must not outlive the test.
   const replaced = [];
-  globalThis.window.history = { replaceState: (...args) => replaced.push(args) };
+  globalThis.window.history = { pushState: (...args) => replaced.push(args) };
   await importPageModule("/profile-page.js");
   const { document } = page;
   await waitFor(() => document.documentElement.dataset.shiplogProfile === "ready", "the first load settles");
@@ -500,7 +500,7 @@ test("a name whose posts are all gone is offered the publishing flow", async () 
     assert.equal(document.querySelectorAll(".empty-state").length, 1);
     const panel = document.querySelector(".empty-state");
     assert.equal(document.querySelectorAll(".empty-state-filtered").length, 0);
-    assert.equal(textOf(panel), "The display name “Bea” has no image posts yet.Choose another display name");
+    assert.equal(textOf(panel), "The display name “Bea” has no image posts yet.Choose another display nameClear selection and show all display names");
     assert.equal(panel.querySelectorAll("a")[0].getAttribute("href"), "#profile-name-picker");
   } finally {
     page.restore();
@@ -536,7 +536,7 @@ test("an empty display name is named in prose once and counted once", async () =
     // feed holds image posts under other display names, so it is the filter that
     // emptied the view. Guidance rather than a second telling of the count.
     assert.equal(document.querySelectorAll(".empty-state").length, 1);
-    assert.equal(textOf(document.querySelector(".empty-state")), "The display name “Nova” has no image posts yet.Choose another display name");
+    assert.equal(textOf(document.querySelector(".empty-state")), "The display name “Nova” has no image posts yet.Choose another display nameClear selection and show all display names");
   } finally {
     page.restore();
   }
@@ -591,7 +591,7 @@ test("a display name that is markup is rendered as text and forges no second rou
   }
 });
 
-test("choosing another name updates the page in place and keeps the URL and storage in step", async () => {
+test("choosing another name updates the page in place and writes the URL without changing publishing identity", async () => {
   for (const key of [" ", "Enter"]) {
     const page = await people();
     try {
@@ -611,7 +611,7 @@ test("choosing another name updates the page in place and keeps the URL and stor
       assert.match(textOf(document.querySelector("#profile-summary")), /^1 image post /);
       assert.equal(document.querySelectorAll(".profile-tile").length, 1);
       assert.equal(page.navigations.length, 0);
-      assert.equal(page.storage.getItem("shiplog.social.author"), "Bea");
+      assert.equal(page.storage.getItem("shiplog.social.author"), null, "filtering must not change the remembered publishing name");
       assert.deepEqual(page.replaced.at(-1)?.[2], "/profile.html?author=Bea");
       assert.equal(document.querySelector("#profile-paint-route").href, "/paint/?from=profile&author=Bea");
     } finally {
@@ -620,7 +620,7 @@ test("choosing another name updates the page in place and keeps the URL and stor
   }
 });
 
-test("selecting with the pointer moves the heading, the list, the URL, and the storage together", async () => {
+test("selecting with the pointer moves the heading, list, and URL together", async () => {
   const page = await people();
   try {
     const { document } = page;
@@ -630,10 +630,10 @@ test("selecting with the pointer moves the heading, the list, the URL, and the s
     assert.equal(textOf(document.querySelector("#profile-name")), "Showing 1 image post published as Bea, an example post.");
     assert.match(textOf(document.querySelector("#profile-summary")), /^1 image post /);
     assert.equal(document.querySelectorAll(".profile-tile").length, 1);
-    // In place: no navigation, and the selection is carried in the URL and in
-    // this browser's remembered name exactly as it was from the old position.
+    // In place: the selection is carried in the URL without changing the
+    // browser's remembered publishing name.
     assert.equal(page.navigations.length, 0);
-    assert.equal(page.storage.getItem("shiplog.social.author"), "Bea");
+    assert.equal(page.storage.getItem("shiplog.social.author"), null, "filtering must not change the remembered publishing name");
     assert.deepEqual(page.replaced.at(-1)?.[2], "/profile.html?author=Bea");
     // The route into Paint follows the selection, so its back link returns here.
     assert.equal(document.querySelector("#profile-paint-route").href, "/paint/?from=profile&author=Bea");
@@ -1170,7 +1170,7 @@ test("a selected name with no image posts offers the picker, and the path is sta
     // One region, not two, and not an empty list.
     assert.equal(document.querySelectorAll(".empty-state").length, 1);
     const empty = document.querySelector(".empty-state");
-    assert.equal(textOf(empty), "The display name “Nova” has no image posts yet.Choose another display name");
+    assert.equal(textOf(empty), "The display name “Nova” has no image posts yet.Choose another display nameClear selection and show all display names");
     assert.equal(document.querySelector("#profile-grid").querySelectorAll(".profile-grid").length, 0,
       "the grid drew an empty list beside the region that explains it");
     assert.equal(empty.querySelectorAll("a").length, 1);

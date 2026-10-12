@@ -260,15 +260,14 @@ test("a settled Social post carries its display name as a link to People, in the
     "the post grew a tab stop of its own, or lost one it had");
   assert.equal(link.getAttribute("tabindex"), null, "the stop is markup order, not a tabindex trick");
 
-  // It travels with the posting metadata it is about (#2814): the name, then the
-  // People link, then the caption, then the image description.
+  // The People action follows the caption, image, and image description.
   const order = documentOrder(card);
   const at = (node) => order.indexOf(node);
   const caption = card.querySelectorAll(".post-caption")[0];
   const description = card.querySelectorAll(".post-image-description")[0];
   assert.equal(textOf(caption), "p-06 from Iris Vale");
   assert.ok(at(name) < at(link), "the People link jumped ahead of the name it is about");
-  assert.ok(at(link) < at(caption), "the posting metadata no longer leads the post");
+  assert.ok(at(description) < at(link), "the People action must follow the post content");
   assert.ok(at(caption) < at(description), "the image description was reordered ahead of the caption");
 
   // The card's second stop, on the real page rather than in a render stub: one
@@ -360,7 +359,7 @@ test("a forwarded name with no image posts is named, and offered the whole feed"
   // This feed has image posts, under other display names, so the region says
   // the filter emptied the view rather than that there is nothing to see. The
   // genuinely-empty invitation belongs to a feed with no images at all.
-  assert.equal(textOf(empty), `The display name “${TESS}” has no image posts yet.Choose another display name`);
+  assert.equal(textOf(empty), `The display name “${TESS}” has no image posts yet.Choose another display nameClear selection and show all display names`);
 
   // The way back to the whole feed is the reset that undoes the filter, in the
   // one label this site uses for it — and it is the panel's only route, because

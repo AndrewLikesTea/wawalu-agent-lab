@@ -64,7 +64,7 @@ function exits(document) {
   return document.querySelectorAll("a").filter((link) => !link.hidden && (
     // Each route leads with its own act since #2717, so this matches the three
     // openers rather than one shared "Open … to".
-    /^Read the Social feed|^Publish a post on Social|^Open People to |←|Back to/.test(link.textContent)
+    /^Read the Social feed|^Publish a post on Social|^See .*image posts on People|←|Back to/.test(link.textContent)
     // …and any chrome link that is on the page with no words in it. The People
     // label is now written from the loaded display name, so a name the page
     // cannot put in a label leaves a focusable link holding nothing — the one
@@ -107,7 +107,7 @@ const IDENTITY = "Whoever published this post chose the display name on it; nobo
 const FEED_NOTE = "On any other post, whoever published it chose the name. Nobody owns or verifies a display name, and anyone can publish under any name.";
 
 const SOCIAL = { label: "Read the Social feed", href: "/social.html" };
-const PEOPLE = { label: "Open People to see Mina Okafor’s other image posts", href: "/profile.html" };
+const PEOPLE = { label: "See Mina Okafor’s image posts on People", href: "/profile.html" };
 const PUBLISH = { label: "Publish a post on Social", href: "/social.html#post-form" };
 const MINA = "/profile.html?author=Mina%20Okafor";
 

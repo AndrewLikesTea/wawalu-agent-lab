@@ -131,9 +131,9 @@ export function mergePostsById(...lists) {
 // that was asked for — rather than a reason to answer under somebody else's.
 // It used to be dropped at the door, and the page then landed on whichever name
 // had the most pictures, or on "Guest" when nothing had any, with nothing on it
-// saying the name in the link had gone. Trimmed, never truncated: a shortened
+// saying the name in the link had gone. Never trimmed or truncated: a shortened
 // name is a different name, and this one is repeated back verbatim.
-const requestedName = (param) => String(param ?? "").trim();
+const requestedName = (param) => String(param ?? "");
 
 // The name this browser last posted under. The limit stays here, because this
 // one is a name the visitor may still publish with, and rememberAuthor
@@ -176,7 +176,7 @@ export function sortNewestFirst(posts) {
 // matching is exact: display names are the only handle this demo has, and a
 // fuzzy match would silently pool two different people's posts.
 export function selectProfilePosts(posts, author, { imagesOnly = true } = {}) {
-  const name = String(author ?? "").trim();
+  const name = String(author ?? "");
   if (!name) return [];
   return sortNewestFirst((posts ?? []).filter((post) => post
     && post.author === name
@@ -259,7 +259,7 @@ export function authorChipLabel(name, images, { selected = false } = {}) {
 // selector, so the number on a chip and the tiles below it cannot disagree.
 export function pickerEntries(posts, author) {
   const counts = imagePostCounts(posts);
-  const name = String(author ?? "").trim();
+  const name = String(author ?? "");
   return name && !counts.some((entry) => entry.name === name) ? [{ name, images: 0 }, ...counts] : counts;
 }
 
@@ -351,7 +351,7 @@ export const NO_IMAGE_POSTS_ANYWHERE = "No one has published an image post on So
 
 export function profileEmptyText(author, { anyImages = true } = {}) {
   if (!anyImages) return NO_IMAGE_POSTS_ANYWHERE;
-  const name = String(author ?? "").trim() || DEFAULT_AUTHOR;
+  const name = String(author ?? "") || DEFAULT_AUTHOR;
   return `The display name “${name}” has no image posts yet.`;
 }
 
@@ -471,7 +471,7 @@ export const PENDING_RESULTS_HEADING = "Image posts";
 
 export function profileResultsHeading(author, count = null, { pending = false } = {}) {
   if (pending) return PENDING_RESULTS_HEADING;
-  const name = String(author ?? "").trim() || DEFAULT_AUTHOR;
+  const name = String(author ?? "") || DEFAULT_AUTHOR;
   const counted = count === null || count === undefined ? "image posts" : countLabel(count, "image post");
   return `${name} · ${counted}`;
 }
@@ -517,7 +517,7 @@ export function profileResultsHeading(author, count = null, { pending = false } 
 // not counted its tiles cannot say how many of them are examples.
 export function profileActiveFilterLine(author, count = null, { counting = false, pending = false, examples = 0 } = {}) {
   if (pending) return "";
-  const name = String(author ?? "").trim() || DEFAULT_AUTHOR;
+  const name = String(author ?? "") || DEFAULT_AUTHOR;
   if (count === null || count === undefined) {
     return counting
       ? `Showing image posts published as ${name} · ${COUNTING_LABEL}`
@@ -793,7 +793,7 @@ function renderSkeleton(container, count = 6) {
 // instead — still one link, still on this page.
 export const CREATE_STEPS_LABEL = "Go to the steps for adding the first image post";
 
-function renderEmpty(container, author, anyImages = true) {
+function renderEmpty(container, author, anyImages = true, onClear = null) {
   const empty = el("div", anyImages ? "empty-state" : "empty-state empty-state-none");
   empty.append(el("h3", "empty-title", profileEmptyText(author, { anyImages })));
   if (!anyImages) {
@@ -805,6 +805,13 @@ function renderEmpty(container, author, anyImages = true) {
     anyImages ? "Choose another display name" : CREATE_STEPS_LABEL);
   choose.href = anyImages ? "#profile-name-picker" : "#profile-create-steps";
   actions.append(choose);
+  if (onClear) {
+    if (!anyImages) empty.prepend(el("p", "empty-copy", `The display name “${author}” has no image posts yet.`));
+    const clear = el("button", "empty-action empty-action-secondary", "Clear selection and show all display names");
+    clear.type = "button";
+    clear.addEventListener("click", onClear);
+    actions.append(clear);
+  }
   empty.append(actions);
   container.append(empty);
 }
@@ -830,7 +837,7 @@ function renderError(container, onRetry) {
 // over content the reader could already see.
 export function renderProfileGrid(container, posts, options = {}) {
   const {
-    state = "ready", onRetry = null, author = DEFAULT_AUTHOR, statusRegion = container, onReport = null,
+    state = "ready", onRetry = null, author = DEFAULT_AUTHOR, statusRegion = container, onReport = null, onClear = null,
     anyImages = true,
   } = options;
   const ordered = sortNewestFirst(posts ?? []);
@@ -871,7 +878,7 @@ export function renderProfileGrid(container, posts, options = {}) {
       });
       renderSkeleton(container);
     } else if (phase === "failed") renderError(statusRegion, onRetry);
-    else renderEmpty(statusRegion, author, anyImages);
+    else renderEmpty(statusRegion, author, anyImages, onClear);
     return;
   }
 
@@ -971,7 +978,7 @@ function renderSocialFeedRoute(container, { author = "", present = true } = {}) 
   if (!host) return null;
   const existing = [...(host.children ?? [])]
     .find((child) => child.getAttribute?.("id") === SOCIAL_FEED_ROUTE_ID) ?? null;
-  const name = String(author ?? "").trim();
+  const name = String(author ?? "");
   if (!present || !name) {
     existing?.remove();
     return null;
@@ -1217,6 +1224,7 @@ export function mountProfile(root, options = {}) {
       onRetry: retryLoad,
       author,
       anyImages,
+      onClear: options.onClearSelection,
       statusRegion: elements.feedStatus ?? grid,
       onReport: report ? (post, button) => report.open(post, button) : null,
     });

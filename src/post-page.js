@@ -73,25 +73,8 @@ async function init() {
     people.href = postPeopleHref(window.location.search, author);
     people.textContent = postPeopleLabel(author);
   };
-  // …and whether it is offered at all. Its words promise "this display name's
-  // other image posts", which only means something while there is a post, or
-  // while one may still arrive. When the lookup settles on not-found or error
-  // there is no post and therefore no display name this page can point at — an
-  // ?author= in the URL is what the arriving link claimed, not a name the page
-  // resolved — so the link is removed from the document rather than left
-  // pointing at People-in-general under words that promise one person. Removed,
-  // not dimmed and not left in place: a link that is on the page is a promise
-  // the page can keep, and this one it cannot.
-  //
-  // It comes back on the next attempt. A retry re-enters the loading state,
-  // where a post may yet arrive, so the link is restored to the exits paragraph
-  // in its shipped position — Social first, People second — before every load.
-  //
-  // A reader can be standing on that link at the moment it goes — they tabbed
-  // to it while the lookup was still running, and the lookup then failed.
-  // Removing the focused element would drop focus to the document and cost them
-  // their place, so focus moves one stop back first, to the exit that is still
-  // there and sits beside it in the same paragraph.
+  // Offer the name's image-post route only once an image post has loaded.
+  // If a refresh withdraws a focused exit, preserve the reader's place on Social.
   const offerPeople = (offered) => {
     if (!people || !exits) return;
     if (offered) {
@@ -228,7 +211,7 @@ async function init() {
     sayProvenance(post);
     nameHeading(post);
     aimPeople(post?.author ?? "");
-    offerPeople(Boolean(post));
+    offerPeople(Boolean(post?.image));
     document.title = postDetailTitle(post, state);
     document.documentElement.dataset.shiplogPostDetail = "ready";
 

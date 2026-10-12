@@ -744,18 +744,8 @@ function renderPostCard(post, { index, onReport = null }) {
   const avatar = el("span", "post-avatar", initials(post.author));
   avatar.setAttribute("aria-hidden", "true");
 
-  // People holds image posts and nothing else, so a card links there exactly
-  // when there is something at the other end of it: an image post offers "See
-  // Ari’s image posts on People", and a text-only post offers nothing. This is
-  // the rule showConfirmation() below already follows for the link it offers
-  // after publishing, in the same words — a link to a view the destination
-  // cannot fill is a promise, not a path.
-  //
-  // The display name is prose on every card; .post-author marks an image post's.
-  // The link is its own element after the time, never the name itself, so
-  // whatever reads a card's name reads only the name, and the words on the link,
-  // not an aria-label, say where it goes. It follows the post it belongs to and
-  // precedes Open post, in DOM and therefore Tab order.
+  // The display name remains prose. An image post's People link follows its
+  // content below, before the remaining actions in DOM and keyboard order.
   const image = normalizeImage(post.image);
   const byline = el("div", "post-byline");
   const author = el("span", image ? "post-author" : "post-name", post.author);
@@ -776,14 +766,9 @@ function renderPostCard(post, { index, onReport = null }) {
   // only on a post that is one: a post a visitor published carries no marker at
   // all, because an empty or hidden one beside real content is a distinction a
   // reader cannot see. It sits in the byline, after the time and before the
-  // route to People, so it travels with the post's provenance rather than with
+  // post content, so it travels with the post's provenance rather than with
   // the card's actions — and it never joins the card's accessible name.
   if (isExamplePost(post)) byline.append(el("span", "badge badge-example", EXAMPLE_POST_LABEL));
-  if (image) {
-    const people = el("a", "post-people", peopleImagePostsLabel(post.author));
-    people.href = profileHref(post.author);
-    byline.append(people);
-  }
 
   header.append(avatar, byline);
   // One reading order on every surface (#2814): who posted and when, what they
@@ -798,6 +783,11 @@ function renderPostCard(post, { index, onReport = null }) {
   if (image) {
     article.classList.add("post-card-media");
     article.append(renderPostFigure(image, imageDescription({ ...post, image }), index));
+  }
+  if (image) {
+    const people = el("a", "post-people", peopleImagePostsLabel(post.author));
+    people.href = profileHref(post.author);
+    article.append(people);
   }
   // The card's own way into the post, last in the card so the action follows the
   // picture and the words it acts on. A plain anchor in the link shape the

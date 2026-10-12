@@ -126,7 +126,7 @@ test("a display name with zero image posts is answered under that name, with a s
     // is the reset rather than the editor.
     assert.equal(document.querySelectorAll(".empty-state").length, 1);
     const panel = document.querySelector("#profile-feed-status").querySelector(".empty-state");
-    assert.equal(textOf(panel), "The display name “Ari” has no image posts yet.Choose another display name");
+    assert.equal(textOf(panel), "The display name “Ari” has no image posts yet.Choose another display nameClear selection and show all display names");
     assert.equal(textOf(panel.querySelectorAll("a")[0]), "Choose another display name");
     assert.equal(panel.querySelectorAll("a")[0].getAttribute("href"), "#profile-name-picker");
     // And the page's one voice names the display name, because an announcement
@@ -152,9 +152,9 @@ test("a feed with no pictures under any name states the path once, under the gri
     const panel = document.querySelector("#profile-feed-status").querySelector(".empty-state");
     assert.ok(panel.classList.contains("empty-state-none"));
     assert.equal(textOf(panel.querySelector("h3")), "No one has published an image post on Social yet.");
-    assert.equal(textOf(panel), "No one has published an image post on Social yet."
+    assert.equal(textOf(panel), "The display name “Ari” has no image posts yet.No one has published an image post on Social yet."
       + "Image posts appear here, under the display name they were published under, once someone publishes one."
-      + "Go to the steps for adding the first image post");
+      + "Go to the steps for adding the first image postClear selection and show all display names");
     assert.doesNotMatch(textOf(panel), /published as|Showing \d+ image post/);
     assert.equal(textOf(document.querySelector("#profile-announcer")), "No one has published an image post on Social yet.");
     const routes = panel.querySelectorAll("a");

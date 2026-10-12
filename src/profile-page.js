@@ -20,7 +20,7 @@ import {
   selectProfilePosts,
   distinctAuthors,
 } from "/profile.js";
-import { readStoredAuthor, rememberAuthor } from "/social-identity.js";
+import { readStoredAuthor } from "/social-identity.js";
 import { requestedProfileAuthor } from "/social-links.js";
 import { recordTitle } from "/page-title.js";
 
@@ -84,18 +84,38 @@ async function init() {
       profile.setState("loading");
       return refresh();
     },
+    onClearSelection() {
+      window.history?.pushState?.(null, "", "/profile.html");
+      // A remembered name with no image posts would just redraw this empty state.
+      restoreSelection("", selectProfilePosts(profile.getPosts(), stored).length ? stored : null);
+      document.querySelector("#profile-name-picker")?.focus();
+    },
     onAuthorChange(next) {
       author = next;
       chosen = true;
-      rememberAuthor(globalThis.localStorage, next);
       updateTitle(next);
-      // replaceState, not pushState: switching profiles is a filter, not a
-      // navigation, and it must not turn Back into "undo one dropdown change".
-      window.history?.replaceState?.(null, "", profileHref(next));
+      // Filters belong to the URL, not the remembered publishing identity.
+      // Keeping storage stable also makes the unfiltered history entry reloadable.
+      window.history?.pushState?.(null, "", profileHref(next));
     },
   });
   if (!profile) return;
   updateTitle(author);
+
+  // The unfiltered address keeps the existing default, independent of later
+  // filter clicks changing the remembered publishing name.
+  function restoreSelection(search, remembered = stored) {
+    const requested = requestedProfileAuthor(search);
+    author = resolveProfileAuthor({
+      param: requested, stored: remembered,
+      authors: distinctAuthors(profile.getPosts()),
+      preferred: defaultProfileAuthor(profile.getPosts()),
+    });
+    chosen = true;
+    profile.setAuthor(author);
+    updateTitle();
+  }
+  window.addEventListener("popstate", () => restoreSelection(window.location.search));
 
   let live = [];
 

@@ -601,6 +601,8 @@ test("a post with no image renders no image element and no empty frame to hold o
     assert.equal(page.panel.querySelectorAll(".detail-media").length, 0, "no empty frame reserving space for nothing");
     assert.equal(page.panel.querySelectorAll(".detail-image").length, 0);
 
+    assert.equal(page.document.querySelector("#post-people").hidden, true);
+    assert.ok(!tabSequence(page.document).includes(page.document.querySelector("#post-people")));
     // The post itself still reads in full.
     assert.match(textOf(page.panel), /Shipped the retry path today\./);
     assert.equal(textOf(page.panel.querySelector(".detail-author-link")), "Rowan Diaz");
@@ -618,7 +620,7 @@ test("a post with no image renders no image element and no empty frame to hold o
 // either way — so this is asserted in the missing state as well as the loaded
 // one, not just in the state that happens to work.
 const SOCIAL_LINK = "Read the Social feed";
-const PEOPLE_LINK = "Open People to see Mina Okafor’s other image posts";
+const PEOPLE_LINK = "See Mina Okafor’s image posts on People";
 // Both routes name Social; their labels explain whether to read or publish.
 const PUBLISH_LINK = "Publish a post on Social";
 const CHROME_LINKS = [SOCIAL_LINK, PEOPLE_LINK, PUBLISH_LINK];
@@ -1787,4 +1789,20 @@ test("the note about this page's address stands through loading, a loaded exampl
   } finally {
     page.restore();
   }
+});
+
+
+test("the shared image post exit carries special-character display names as text and encoded URL state", async () => {
+  const author = `<& "猫" O'Neil + 50%/?=#`;
+  const page = await openPostPage(`?id=${IMAGE_POST.id}`, seedOnly([{ ...IMAGE_POST, author }]));
+  try {
+    const link = page.document.querySelector("#post-people");
+    assert.equal(link.hidden, false);
+    assert.equal(textOf(link), `See ${author}’s image posts on People`);
+    assert.equal(new URL(link.href, "https://labs.wawalu.org").searchParams.get("author"), author);
+    assert.ok(tabSequence(page.document).includes(link));
+    const stops = tabSequence(page.document);
+    assert.ok(stops.indexOf(page.document.querySelector("#post-back")) < stops.indexOf(link));
+    assert.ok(stops.indexOf(link) < stops.indexOf(page.document.querySelector("#post-publish")));
+  } finally { page.restore(); }
 });
