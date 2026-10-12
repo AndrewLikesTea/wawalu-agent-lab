@@ -783,10 +783,10 @@ function renderSkeleton(container, count = 6) {
 // (#2497). That account is the .feed-create sequence under the grid, and it is on
 // screen in this exact state: feedPresence restores it for every phase but
 // "loading", so the reader met three steps in one panel and five in the paragraph
-// below it. The page states the path once now, in order, in the sequence:
-// Paint, "Use this image in a Social post", the required image description,
-// publish, then the post appears on People under the display name it was
-// published under.
+// below it. The page states the path once now, in the sequence: two starts
+// (Paint, or a file chosen in Social's composer), the required image
+// description, Publish post, then the post appears on People under the display
+// name it was published under.
 //
 // The deleted Paint route also never said it opened a new tab, which it did, and
 // which every route into Paint in authored markup discloses in its own text.

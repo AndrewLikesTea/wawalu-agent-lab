@@ -1014,7 +1014,7 @@ test("People tells no image posts anywhere apart from none under the selected na
   // grid, and the panel does not tell three of its steps over again (#2497).
   assert.equal(document.querySelectorAll(".feed-create").length, 1);
   assert.match(textOf(document.querySelector(".feed-create")),
-    /Create or open an image in Paint \(opens in a new tab\)\. Select “Use this image in a Social post”, then fill in the required image description\. Publish a post on Social\. A published post with an image appears on People, under the display name you publish it with\./);
+    /From Paint: Create or open an image in Paint \(opens in a new tab\), then select “Use this image in a Social post”\. From a file: Publish a post on Social, select Choose image, and add an image already saved on this device\. Both ways end in Social's composer: fill in the required image description, then select Publish post\. A published post with an image appears on People, under the display name you publish it with\./);
 });
 
 test("People's chooser is inoperable until there is something to choose between", async (t) => {

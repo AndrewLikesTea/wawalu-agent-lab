@@ -175,7 +175,7 @@ test("a feed with no pictures under any name states the path once, under the gri
     // The page states the path from a blank grid to a picture on it, in the
     // order the steps happen, beside the state that needs it.
     assert.match(textOf(document.querySelector(".feed-create")),
-      /To add yours: Create or open an image in Paint \(opens in a new tab\)\. Select “Use this image in a Social post”, then fill in the required image description\. Publish a post on Social\. A published post with an image appears on People, under the display name you publish it with\./);
+      /To add yours, start an image post in one of two ways\. From Paint: Create or open an image in Paint \(opens in a new tab\), then select “Use this image in a Social post”\. From a file: Publish a post on Social, select Choose image, and add an image already saved on this device\. Both ways end in Social's composer: fill in the required image description, then select Publish post\. A published post with an image appears on People, under the display name you publish it with\./);
   } finally {
     page.restore();
   }

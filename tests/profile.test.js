@@ -672,7 +672,7 @@ test("the People picker and the page's own description use one term for what is 
   // the term and the link rather than to the whole sentence, which is the helper
   // beside the grid and is worded with Social's composer.
   assert.match(html, /A published post with an image appears on People, under the display name you publish it with\./);
-  assert.match(html, /Select “Use this image in a Social post”, then fill in the required image description\. <a[^>]+>Publish a post on Social<\/a>\. A published post with an image appears on People, under the display name you publish it with\./);
+  assert.match(html, /From a file: <a[^>]+>Publish a post on Social<\/a>, select Choose image, and add an image already saved on this device\. Both ways end in Social's composer: fill in the required image description, then select Publish post\. A published post with an image appears on People, under the display name you publish it with\./);
   const social = await readFile(new URL("../src/social.html", import.meta.url), "utf8");
   assert.match(social, /<label for="post-author">Display name <span class="label-optional">\(optional\)<\/span><\/label>/,
     "the composer names the same thing the picker selects");

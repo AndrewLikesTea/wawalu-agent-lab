@@ -1178,7 +1178,7 @@ test("a selected name with no image posts offers the picker, and the path is sta
     // under the grid — Paint, the control, the description, publish, People.
     const invitation = textOf(document.querySelector(".feed-create"));
     assert.match(invitation,
-      /To add yours: Create or open an image in Paint \(opens in a new tab\)\. Select “Use this image in a Social post”, then fill in the required image description\. Publish a post on Social\. A published post with an image appears on People, under the display name you publish it with\./);
+      /To add yours, start an image post in one of two ways\. From Paint: Create or open an image in Paint \(opens in a new tab\), then select “Use this image in a Social post”\. From a file: Publish a post on Social, select Choose image, and add an image already saved on this device\. Both ways end in Social's composer: fill in the required image description, then select Publish post\. A published post with an image appears on People, under the display name you publish it with\./);
     assert.match(invitation, /A published post is public and cannot be edited or deleted/);
     assert.match(invitation, /Do not include customer or production data\./);
     // And it is the only place the settled page names either end of the handoff.
@@ -1193,6 +1193,31 @@ test("a selected name with no image posts offers the picker, and the path is sta
     assert.equal(status.getAttribute("aria-live"), null);
     assert.equal(status.getAttribute("role"), null);
     assert.equal(textOf(document.querySelector("#profile-announcer")), "The display name “Nova” has no image posts yet.");
+  } finally {
+    page.restore();
+  }
+});
+
+// Paint is one way to start an image post, not the only one (#2816). The steps
+// are read off the hydrated page — the authored markup fakes hydration, so the
+// wait is on painted, non-skeleton tiles — in the words Social's composer uses.
+test("People names both ways to start an image post and where both finish", async () => {
+  const page = await people();
+  try {
+    const { document } = page;
+    await waitFor(() => [...document.querySelectorAll(".profile-tile")]
+      .filter((tile) => !tile.classList.contains("profile-tile-skeleton")).length > 0, "People painted image posts");
+    const steps = textOf(document.querySelector(".feed-create"));
+    assert.match(steps, /start an image post in one of two ways/);
+    // A file from this device, chosen on Social, and an image sent from Paint.
+    assert.match(steps, /From a file: Publish a post on Social, select Choose image, and add an image already saved on this device\./);
+    assert.match(steps, /From Paint: Create or open an image in Paint \(opens in a new tab\), then select “Use this image in a Social post”\./);
+    // Both finish in the composer, with the description and the publish step.
+    assert.match(steps, /Both ways end in Social's composer: fill in the required image description, then select Publish post\./);
+    // Nothing reads as if Paint were required.
+    assert.doesNotMatch(steps, /in Paint first|use Paint to|To add yours: Create/i);
+    assert.equal(document.getElementById("profile-publish-route").getAttribute("href"), "/social.html#post-form");
+    assert.match(document.getElementById("profile-paint-route").getAttribute("href"), /^\/paint\/\?/);
   } finally {
     page.restore();
   }

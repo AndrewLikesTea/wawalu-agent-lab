@@ -126,11 +126,11 @@ for (const [name, document] of Object.entries(NEARBY_INVITATION)) {
     // and the conditions of publishing follow the result (#2484). What is
     // pinned is that the result is still stated, still after the steps, and
     // still before the consequence of carrying them out.
-    assert.match(sentence.trim(), /^To add yours: Create or open an image in Paint/);
+    assert.match(sentence.trim(), /^To add yours, start an image post in one of two ways\. From Paint: Create or open an image in Paint/);
     const result = "A published post with an image appears on People, under the display name you publish it with.";
     assert.equal(sentence.split(result).length - 1, 1,
       `${name}'s helper does not explain where the post appears exactly once`);
-    assert.ok(sentence.indexOf("Publish a post on Social.") < sentence.indexOf(result),
+    assert.ok(sentence.indexOf("select Publish post.") < sentence.indexOf(result),
       `${name}'s helper states the result before the step that produces it`);
     assert.ok(sentence.indexOf(result) < sentence.indexOf("A published post is public"),
       `${name}'s helper states the consequence before it says what publishing does`);
@@ -827,9 +827,12 @@ test("nothing in the image section says Paint delivers the file", () => {
 test("People names the same steps in the same words as the composer", async () => {
   const invitation = textOf(documents.People.querySelector(".feed-create")).trim();
   assert.equal(invitation,
-    "To add yours: Create or open an image in Paint (opens in a new tab). "
-    + "Select “Use this image in a Social post”, then fill in the required image description. "
-    + "Publish a post on Social. A published post with an image appears on People, "
+    "To add yours, start an image post in one of two ways. "
+    + "From Paint: Create or open an image in Paint (opens in a new tab), then select “Use this image in a Social post”. "
+    + "From a file: Publish a post on Social, select Choose image, and add an image already saved on this device. "
+    // Social's composer lists the same two starts, in this order and these words.
+    + "Both ways end in Social's composer: fill in the required image description, then select Publish post. "
+    + "A published post with an image appears on People, "
     + "under the display name you publish it with. "
     // Who can read a published post, in the one wording Social and the shared
     // post page also render (#2734). Social says it in the storage block above
@@ -846,7 +849,7 @@ test("People names the same steps in the same words as the composer", async () =
   const DESCRIPTION_FIELD = "image description";
   assert.ok(invitation.includes(`the required ${DESCRIPTION_FIELD}`),
     `People does not name the description as required: ${invitation}`);
-  assert.ok(invitation.indexOf(DESCRIPTION_FIELD) < invitation.indexOf("Publish a post on Social."),
+  assert.ok(invitation.indexOf(DESCRIPTION_FIELD) < invitation.indexOf("select Publish post"),
     "People names the description after the publishing step it is required for");
   assert.doesNotMatch(invitation, /caption|alt text/i,
     "People invents a second name for the field Social calls the image description");
@@ -873,12 +876,19 @@ test("People names the same steps in the same words as the composer", async () =
   assert.ok(composer.includes(`“${handoff}”`));
   assert.ok(invitation.includes(`“${handoff}”`));
   assert.ok(invitation.indexOf(handoff) < invitation.indexOf(DESCRIPTION_FIELD));
-  assert.ok(invitation.indexOf("Publish a post on Social.") < invitation.indexOf(RESULT));
+  assert.ok(invitation.indexOf("select Publish post") < invitation.indexOf(RESULT));
+  // Social's two starts, in its own words: Choose image is the file chooser's
+  // label, and "already saved on this device" is its From a file item.
+  assert.ok(composer.includes("From a file: add an image already saved on this device"));
+  assert.ok(invitation.includes("select Choose image, and add an image already saved on this device"));
+  assert.equal(textOf(documents.Social.querySelector("label.file-button")).trim().startsWith("Choose image"), true);
   const paintLink = documents.People.getElementById("profile-paint-route");
   assert.equal(textOf(paintLink), "Create or open an image in Paint (opens in a new tab)");
   assert.equal(textOf(composerPaintLink()).replace(/ ↗$/, ""), textOf(paintLink));
   assert.equal(paintLink.getAttribute("target"), "_blank");
-  assert.doesNotMatch(invitation, /PNG|export|save|download|upload/i,
+  // The file start names a saved image; the Paint start must not ask for one.
+  const paintStart = invitation.slice(invitation.indexOf("From Paint:"), invitation.indexOf("From a file:"));
+  assert.doesNotMatch(paintStart, /PNG|export|save|download|upload/i,
     "People should describe the direct handoff without requiring an exported file");
 });
 
