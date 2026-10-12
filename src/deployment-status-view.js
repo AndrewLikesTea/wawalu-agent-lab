@@ -15,6 +15,7 @@
 // action is a link to a record a person then operates.
 
 import {
+  CHECKING_LINE,
   NO_ACTION_TEXT,
   deploymentResultSnapshot,
   deploymentVerdict,
@@ -379,7 +380,7 @@ export async function initDeploymentStatus(root, options = {}) {
   const timeLine = byId(root, DEPLOYMENT_IDS.checkedAt);
   if (timeLine) timeLine.hidden = true;
   const verdictLine = byId(root, DEPLOYMENT_IDS.verdict);
-  if (verdictLine) verdictLine.textContent = "Checking the running build now…";
+  if (verdictLine) verdictLine.textContent = CHECKING_LINE;
   const copy = byId(root, DEPLOYMENT_IDS.copy);
   if (copy) {
     copy.disabled = true;

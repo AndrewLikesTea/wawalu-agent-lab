@@ -138,7 +138,7 @@ test("the band leads with what it compares, then answers, outside every disclosu
   // the verdict.
   assert.match(
     sentence,
-    /^This compares the version this site is running with the version in the deployment record\. A match means the page you are reading came from the build that record names\./,
+    /^The deployment check compares the running site version with the deployment record version\. Confirmed: the running site is the recorded deployment\./,
   );
   assert.doesNotMatch(sentence, /\?/, "the lead asks a question instead of stating the comparison");
   // No contrast with the invented example (#2487): the check shares a block
@@ -555,7 +555,7 @@ test("the probe recognises both shipped health bodies and refuses anything else"
 // function both pages render through — rather than against a copy of its
 // output, because a copy is exactly what would drift.
 
-const WAITING_LINE = "Checking the running build now…";
+const WAITING_LINE = "Checking: the result appears here in a few seconds.";
 
 // The stamp both pages are driven from below. Injected for the same reason the
 // clock is: what is asserted is that the link is derived from the stamp, not
@@ -635,11 +635,11 @@ test("the front door's log section carries the check, its question, and the way 
   // its destination are one thing with one name.
   assert.equal(
     textOf(page.document.querySelector("#deployment-status-proof")),
-    "This compares the version this site is running with the version in the deployment record."
-      + " A match means the page you are reading came from the build that record names.",
+    "The deployment check compares the running site version with the deployment record version."
+      + " Confirmed: the running site is the recorded deployment.",
   );
   assert.equal(
-    (textOf(panel).match(/the version in the deployment record\./g) ?? []).length,
+    (textOf(panel).match(/\bcompares?\b/g) ?? []).length,
     1,
     "what the check compares is stated more than once",
   );
@@ -649,13 +649,12 @@ test("the front door's log section carries the check, its question, and the way 
     "the block is not inside the decision and release section",
   );
 
-  // The link names its destination, and the destination is a block that exists:
-  // the releases page's deployment band carries that id and the evidence
-  // disclosure inside it.
+  // The link names its destination in the words the mismatch sentence sends a
+  // reader there with (#2808), and the destination is the record on Releases.
   const link = page.document.querySelectorAll("a")
-    .find((node) => node.getAttribute("href") === "/releases.html#deployment-status");
-  assert.ok(link, "the block must link to the deployment check on Releases");
-  assert.equal(textOf(link), "See the deployment check on Releases");
+    .find((node) => node.getAttribute("href") === "/releases.html#shipped-build");
+  assert.ok(link, "the block must link to the deployment record on Releases");
+  assert.equal(textOf(link), "Open the deployment record");
   assert.ok(ancestorIds(link).includes(DEPLOYMENT_IDS.panel), "the link sits outside the block it belongs to");
 
   // Reachable by Tab, and in reading order: after the example records the block
@@ -676,7 +675,7 @@ test("the front door's log section carries the check, its question, and the way 
 test("the front door ships one waiting line, and no settled state stays on it", async (t) => {
   const html = await readFile(HOME_PAGE, "utf8");
   assert.equal(
-    (html.match(/Checking the running build now…/g) ?? []).length,
+    html.split(WAITING_LINE).length - 1,
     1,
     "the cold document must carry exactly one waiting line",
   );
@@ -736,7 +735,7 @@ test("the front door's section states the example-records caveat once", async (t
   // draw the same line two ways.
   assert.match(
     section,
-    /It reads the running build when the page loads\. The example decision and release above are invented; this answer is not\./,
+    /The example decision and release above are invented; this answer is not\./,
   );
   assert.equal((section.match(/this answer is not/g) ?? []).length, 1);
 });
@@ -843,10 +842,13 @@ test("the front door's two links do different jobs and read as different things"
   const links = page.document.querySelectorAll("a")
     .filter((node) => ancestorIds(node).includes(DEPLOYMENT_IDS.panel));
 
-  // The link that was already there keeps its words and its destination.
-  const toReleases = links.find((node) => node.getAttribute("href") === "/releases.html#deployment-status");
-  assert.ok(toReleases, "the block no longer links to the deployment check on Releases");
-  assert.equal(textOf(toReleases), "See the deployment check on Releases");
+  // The record link the mismatch sentence names (#2808).
+  const toRecord = links.find((node) => node.getAttribute("href") === "/releases.html#shipped-build");
+  assert.ok(toRecord, "the block no longer links to the deployment record");
+  assert.equal(textOf(toRecord), "Open the deployment record");
+  // One repository link: the commit link. No other link in the block names it.
+  assert.equal(links.filter((node) => /repository/.test(textOf(node))).length, 1);
+  assert.doesNotMatch(textOf(page.document.querySelector(`#${DEPLOYMENT_IDS.panel}`)).replace(textOf(commitLink(page)), ""), /repository/);
 
   // Read out of context, in a screen reader's link list, the two are not near
   // synonyms of each other: different words, different destinations.

@@ -225,7 +225,7 @@ export function deployedReleaseRecord(stamp) {
     sourceUrl: commitUrl(commitSha),
     detailHref: "/releases.html#shipped-build",
     actionLabel: REAL_RECORD_LINK_LABEL,
-    actionTarget: "The page you are reading and the deployment answering the health check name different builds. Reload this page; if they still disagree, they came from different builds and the newer one has not finished replacing the older.",
+    actionTarget: "It names the build this site should be running.",
     decisionIds: Object.freeze([]),
   });
 }

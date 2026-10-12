@@ -54,21 +54,21 @@ export const DEPLOYMENT_STATES = Object.freeze(["match", "drift", "unknown"]);
  * byte for byte, rather than to two literals kept in step by hand.
  *
  * ONE SENTENCE PER STATE IN `DEPLOYMENT_STATES`, and no fourth: a state this
- * check cannot reach is not one a reader may be told to expect. `drift` names
- * the one thing a reader can do about it from either page — the public
- * repository, which the front door links inside this block and the releases
- * page links from its record and its footer — in the words that link uses.
+ * check cannot reach is not one a reader may be told to expect. (Checking is
+ * the authored waiting line, CHECKING_LINE.) Each opens on the name the painted
+ * verdict uses, and the two that are not a match carry exactly one instruction
+ * (#2808). `drift` sends the reader to the record: on Releases it is the
+ * block above, and the front door links it at the foot of the check.
  */
 export const DEPLOYMENT_OUTCOMES = Object.freeze({
-  match: "A match means the page you are reading came from the build that record names.",
-  // The match sentence, negated, in its own words: a reader meets one claim
-  // about one thing, not a second vocabulary for the same comparison. "The
-  // running deployment" is a name tests/releases.test.js retired.
-  drift: "If the versions do not match, the page you are reading did not come from the build that record names."
-    + " Open the public repository this site is built from to look up either version.",
-  unknown: "If the check cannot complete, nothing here says which version this site is running."
-    + " Reload the page to run it again.",
+  match: "Confirmed: the running site is the recorded deployment.",
+  drift: "Not a match: the running site is a different build from the recorded deployment."
+    + " See the deployment record for the build that should be running.",
+  unknown: "Did not complete: this page cannot say which version is running. Check again later.",
 });
+
+// What the verdict line says while the check is still reading.
+export const CHECKING_LINE = "Checking: the result appears here in a few seconds.";
 
 // Why the answer is unknown, in plain language and never as an error object: a
 // reader gets a sentence, not a stack trace.

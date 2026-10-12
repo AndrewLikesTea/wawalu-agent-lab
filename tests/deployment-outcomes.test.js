@@ -18,6 +18,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 import {
+  CHECKING_LINE,
   DEPLOYMENT_OUTCOMES,
   DEPLOYMENT_STATES,
   deploymentVerdict,
@@ -34,7 +35,7 @@ const read = (file) => readFile(new URL(`../src/${file}`, import.meta.url), "utf
 // pair is the point, so they are driven from one list rather than two tests.
 const PAGES = ["index.html", "releases.html"];
 
-const REPOSITORY_LINK_LABEL = "Open the public repository this site is built from";
+const RECORD_LINK_LABEL = "Open the deployment record";
 
 const NOW = "2026-08-06T12:00:00.000Z";
 const RECORD = Object.freeze({
@@ -79,11 +80,21 @@ test("the outcome copy covers every state the check can reach, and invents no ot
 
   // A mismatch is a result, not an apology and not an alarm.
   assert.doesNotMatch(DEPLOYMENT_OUTCOMES.drift, /sorry|unfortunately|problem|wrong|error|failed/i);
-  // And it names the one thing a reader can do about it from either page.
-  assert.ok(
-    DEPLOYMENT_OUTCOMES.drift.includes(`Open the public repository this site is built from`),
-    "the mismatch explanation names no next step",
-  );
+
+  // (#2808) Each opens on the name the painted verdict uses, says what the
+  // result means in one sentence, and the two that are not a match end on
+  // exactly one instruction. The repository is linked once, by the commit
+  // link, so no outcome restates it.
+  assert.match(DEPLOYMENT_OUTCOMES.match, /^Confirmed: [^.]+\.$/);
+  assert.equal(DEPLOYMENT_OUTCOMES.drift,
+    "Not a match: the running site is a different build from the recorded deployment."
+      + " See the deployment record for the build that should be running.");
+  assert.equal(DEPLOYMENT_OUTCOMES.unknown,
+    "Did not complete: this page cannot say which version is running. Check again later.");
+  for (const sentence of Object.values(DEPLOYMENT_OUTCOMES)) {
+    assert.doesNotMatch(sentence, /repository|[Rr]eload/, "an outcome offers a competing next step");
+  }
+  assert.match(CHECKING_LINE, /^Checking: [^.]+\.$/);
 });
 
 /* ----------------------- both documents, same words ----------------------- */
@@ -143,13 +154,20 @@ test("both documents ship the three outcome explanations before the check runs",
       `${file} states a verdict the page has not reached`,
     );
 
-    // The next step the mismatch sentence names is a link this document
-    // already carries, under the words the sentence uses for it. No new
-    // focusable was added to say so: the front door's first screen has no
-    // spare tab stop.
-    const repositoryLinks = document.querySelectorAll("a")
-      .filter((node) => textOf(node) === REPOSITORY_LINK_LABEL);
-    assert.ok(repositoryLinks.length >= 1, `${file} names a repository link it does not carry`);
+    // The record the mismatch sentence sends a reader to is reachable from
+    // this document: the block above on Releases, a link on the front door
+    // that took over the old link's tab stop rather than adding one.
+    const reachable = file === "releases.html"
+      ? document.querySelectorAll("#shipped-build").length === 1
+      : document.querySelectorAll("a").some((node) => textOf(node) === RECORD_LINK_LABEL
+        && node.getAttribute("href") === "/releases.html#shipped-build");
+    assert.ok(reachable, `${file} names a deployment record it does not offer`);
+
+    // The repository is linked once from the check (the commit link), and the
+    // waiting line ships in the shared words.
+    const band = document.querySelector("#deployment-status");
+    assert.equal(textOf(band).split("repository").length - 1, file === "index.html" ? 1 : 0);
+    assert.equal(textOf(document.querySelector("#deployment-verdict")), CHECKING_LINE);
   }
 });
 
