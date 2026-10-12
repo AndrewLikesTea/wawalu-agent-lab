@@ -190,7 +190,8 @@
           <h3 class="release-followup-title" id="deployment-status-title">Deployment check</h3>
           <p class="release-followup-lead" id="deployment-status-proof">This compares the version this site is running with the version in the deployment record. A match means the page you are reading came from the build that record names. It reads the running build when the page loads.</p>
           <p class="release-followup-lead" id="deployment-outcomes">If the versions do not match, the page you are reading did not come from the build that record names. Open the public repository this site is built from to look up either version. If the check cannot complete, nothing here says which version this site is running. Reload the page to run it again.</p>
-          <p class="release-followup-lead" id="deployment-verdict" role="status">Checking the running build now…</p>
+          <p class="release-followup-lead" id="deployment-verdict" role="status" aria-describedby="deployment-checked-at">Checking the running build now…</p>
+          <p class="detail-summary" id="deployment-checked-at" hidden></p>
           <p class="detail-summary" id="deployment-identifiers"></p>
           <div class="shiplog-proof-share">
             <button class="share-button" id="deployment-copy" type="button" disabled aria-describedby="deployment-copy-status">Copy the deployment check verdict and both versions</button>
