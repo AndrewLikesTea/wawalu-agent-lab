@@ -154,7 +154,7 @@ for (const surface of surfaces) {
     // above places, so rewriting it to something that is not a promise fails
     // here rather than drifting.
     assert.match(textOf(document.querySelector(surface.before[1])),
-      surface.name === "releases" ? /^Every release — Completed, Planned, or Cancelled/ : /^Grade a prompt before you send it/);
+      surface.name === "releases" ? /^Each release in this browser — Completed, Planned, or Cancelled/ : /^Grade a prompt before you send it/);
   });
 
   test(`${surface.name}: the ask keeps its one control, its landing and its description`, async (t) => {
