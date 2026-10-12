@@ -56,9 +56,9 @@
              order check can name the promise without matching on words the
              build stamp below may also print. -->
         <p id="releases-promise">Every release — Completed, Planned, or Cancelled — newest first, with its linked decisions. Expand a release to review each linked decision and its status.</p>
-        <!-- The log stands above the recorder now, so a visitor who came here
-             to write a record would otherwise pass the whole history on the way
-             to a field. One control, one destination: it lands on the recorder
+        <!-- The log and its supporting material stand above the recorder, so a
+             visitor who came here to write a record would otherwise pass all of
+             it on the way to a field. One control, one destination: it lands on the recorder
              panel, which takes its name from the heading inside it, and the
              panel carries tabindex="-1" so the landing is focus and not only a
              scroll. Same anchor the deployment check's "Record the release that
@@ -71,11 +71,195 @@
         </div>
       </section>
 
+      <!-- THE LOG FIRST (#2796), directly under the introduction. A visitor who
+           opens Releases can search, filter and browse the history before any
+           supporting material: the deployment record, the example records, the
+           four-step guide and the coverage figure all follow it, in that order,
+           and the recorder closes the page. The markup moved rather than the
+           painted order, so reading order and tab order are the same order and
+           no rule has to keep them in step. The coverage worklist moved out of
+           this panel into the coverage block, under the definition of the word
+           it is named by, so the definition is still the page's first use of it.
+           Single column, for the reason Social's composer stands below its
+           feed rather than beside it. -->
+      <section class="workspace workspace-single release-workspace" id="release-log" aria-labelledby="releases-title">
+      <div class="list-panel" aria-labelledby="releases-title">
+        <div class="section-heading list-heading">
+          <div>
+            <!-- No ordering eyebrow, and no ordering in the heading. Both used
+                 to read the panel's name, one of them with ", newest first"
+                 attached, directly above a sentence that ends "newest first" —
+                 the name twice and the order twice on one screen. The heading
+                 names the panel; the sentence below carries the order, because
+                 it is the line that also carries the count. -->
+            <h2 id="releases-title" tabindex="-1">Release log</h2>
+          </div>
+        </div>
+        <!-- How many releases are on screen and in what order, in one sentence.
+             Written by releases-page.js from the same array the rows are
+             rendered from, never a second filter pass, so the number here is
+             the number of rows in every state — including after a search or a
+             filter narrows the list.
+             Social's feed summary is this sentence in this class, and this page
+             follows it rather than inventing a second idiom; the class is
+             reused rather than extended because styles.css is at its measured
+             size budget.
+             Ships empty because a count is a claim the page cannot make until
+             the log has loaded: the list below states the wait, and states it
+             once. It stands outside every panel that can be folded away — a
+             live region behind a closed disclosure is silent — and a reader who
+             needs this sentence needs it before the records. -->
+        <p class="feed-summary" id="release-count" aria-live="polite"></p>
+        <div class="release-filters" role="search" aria-label="Filter releases">
+          <!-- The two filters below say what they narrow to; this one used to
+               say nothing, so what a typed word was tested against was a guess.
+               The line names the fields filterReleases actually reads and no
+               others — a version tag or an owner name matches nothing — and a
+               test in releases.test.js holds the sentence to that function. -->
+          <div class="filter release-search-filter">
+            <label for="release-search">Search releases</label>
+            <input id="release-search" type="search" placeholder="Title, description, or decision context" autocomplete="off" aria-describedby="release-search-hint" />
+            <span class="hint" id="release-search-hint">Shows releases matching your text in their title or summary, or in the title or context of a linked decision.</span>
+          </div>
+          <div class="filter">
+            <label for="release-status">Release status</label>
+            <select id="release-status">
+              <option value="all">All statuses</option>
+              <option value="planned">Planned</option>
+              <option value="completed">Completed</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </div>
+          <!-- A select, not radios: the options are this visitor's own decision
+               log, so the list is unbounded and grows with every record. Its
+               value rides in the query string (?decision=…) so a link to the
+               releases behind one decision can be shared and reopened. The
+               options are filled by releases-page.js from the same decisions
+               the recorder above offers. -->
+          <div class="filter release-decision-id-filter">
+            <label for="release-decision">Linked decision</label>
+            <select id="release-decision" aria-describedby="release-decision-hint">
+              <option value="all">All decisions</option>
+            </select>
+            <span class="hint" id="release-decision-hint">Shows only releases linked to the chosen decision.</span>
+          </div>
+          <!-- Radios, not a select: the options are few, all six stay visible
+               with the chosen one marked, and the platform gives the group one
+               tab stop with arrow-key movement for free. The last option is not
+               a status a decision can hold — it selects releases whose linked
+               decision id resolves to nothing, so its label names the
+               association rather than posing as a fifth status. -->
+          <fieldset class="filter filter-group release-decision-filter" aria-describedby="release-decision-status-hint">
+            <legend>Status of linked decisions</legend>
+            <p class="hint" id="release-decision-status-hint">A release appears when at least one linked decision has the selected status. “Decision not in this log” shows releases linked to a decision this log does not hold. Arrow keys move between the options.</p>
+            <div class="filter-options">
+              <span class="filter-option">
+                <input id="release-decision-status-all" name="release-decision-status" type="radio" value="all" checked />
+                <label for="release-decision-status-all">Any status</label>
+              </span>
+              <span class="filter-option">
+                <input id="release-decision-status-proposed" name="release-decision-status" type="radio" value="proposed" />
+                <label for="release-decision-status-proposed">Proposed</label>
+              </span>
+              <span class="filter-option">
+                <input id="release-decision-status-pending" name="release-decision-status" type="radio" value="pending" />
+                <label for="release-decision-status-pending">Pending</label>
+              </span>
+              <span class="filter-option">
+                <input id="release-decision-status-accepted" name="release-decision-status" type="radio" value="accepted" />
+                <label for="release-decision-status-accepted">Accepted</label>
+              </span>
+              <span class="filter-option">
+                <input id="release-decision-status-superseded" name="release-decision-status" type="radio" value="superseded" />
+                <label for="release-decision-status-superseded">Superseded</label>
+              </span>
+              <span class="filter-option">
+                <input id="release-decision-status-missing" name="release-decision-status" type="radio" value="missing" />
+                <label for="release-decision-status-missing">Decision not in this log</label>
+              </span>
+            </div>
+          </fieldset>
+        </div>
+        <!-- Share whatever the filters are showing. The label is the one the
+             decisions history already uses for the same control on index.html,
+             and it names the view because this page carries a second copy
+             button higher up, for the deployment record. The scope sentence
+             says what the link does not carry as plainly as what it does: it
+             repeats the promise the recorder makes further down this page, that
+             a release recorded here stays in this browser, so a reader learns
+             before pressing that a colleague gets the filters and their own
+             log. Both buttons start disabled and are enabled by
+             release-filter-url.js — without the script neither can do anything.
+             The manual field stays hidden until a copy fails, and carries a
+             name of its own (#2644): when it wore the button's label, two
+             controls in the same toolbar answered to the same name, and a
+             reader listing the controls got that name twice with nothing to
+             choose between them. Its name follows the one the prompt
+             coach already uses for the box behind its copy button — the thing,
+             then what to do with it by hand. It borrows the
+             filter class so its label and box match the controls above rather
+             than paying for a new rule in styles.css. -->
+        <div class="share-control">
+          <button class="share-button" id="release-copy-link" type="button" aria-describedby="release-share-scope" disabled>Copy link to this view</button>
+          <button class="share-button" id="release-clear-filters" type="button" disabled>Clear filters</button>
+          <span class="hint" id="release-share-scope">The link keeps your search and filters. Whoever opens it sees the releases saved in their own browser.</span>
+          <span class="share-status" id="release-copy-status" role="status" aria-live="polite" aria-atomic="true"></span>
+          <div class="filter" id="release-copy-fallback" hidden>
+            <label for="release-copy-url">Link to copy by hand</label>
+            <input id="release-copy-url" type="text" readonly />
+          </div>
+        </div>
+        <!-- Export what the filters are showing. Outside the search landmark
+             above, because this writes a file rather than narrowing the list.
+             A button element, not a link: there is no address to open, and the
+             platform then gives keyboard operation and the role for free. The
+             scope sentence is static because it is true on every render — with
+             no filters set, "the releases shown" is the whole log — so it can
+             never disagree with the file that was just written. Classes are the
+             detail page's share control, reused rather than extended: styles.css
+             is at its measured size budget. -->
+        <div class="share-control">
+          <button class="share-button" id="release-export" type="button" aria-describedby="release-export-scope">Export shown releases as JSON</button>
+          <span class="hint" id="release-export-scope">The JSON download includes only the releases currently shown by the active search and filters. Each exported release includes its linked decisions.</span>
+          <span class="share-status" id="release-export-status" role="status" aria-live="polite" aria-atomic="true"></span>
+        </div>
+        <!-- One action per key, and only the keys the list answers. Space
+             expands the row in place — the same verb the paragraph above the
+             list uses — while Enter leaves for the release's own page, so a
+             reader can tell the two apart before pressing either. Exercised
+             key by key in tests/release-keyboard-line.test.js. -->
+        <p class="hint release-hint">Use ↑ and ↓ to move between releases, Home and End to jump to the first and last release, Space to expand a release in place, and Enter to open its details page.</p>
+        <!-- One prioritised follow-up for whatever the filters left on screen.
+             Filled by releases-page.js and hidden while nothing is outstanding;
+             it is not a live region, because #release-count already announces
+             that the view changed. -->
+        <div class="release-followup-slot" id="release-followup" hidden></div>
+        <!-- The log's one status region: the only place loading, no releases
+             yet, no match and a failed load are ever drawn, and the only live
+             region the list has. It is visible rather than visually hidden so
+             one node serves both readers — the shape this replaced kept a
+             hidden region for the announcement and a second, aria-hidden panel
+             for the eye, which stated the wait twice in the markup and had no
+             correct answer once the panel grew a Retry button.
+             It ships holding the wait so a reader is told before any module
+             runs, and releases-page.js only ever updates it: the glyph, the
+             heading, the sentence and the one action are permanent children, so
+             the control a reader is standing on is relabelled rather than
+             removed. The list below holds nothing but rows and is not live. -->
+        <div class="list-state list-state-loading" id="release-list-status" role="status" aria-live="polite">
+          <span class="list-state-glyph" aria-hidden="true"></span>
+          <h3>Loading releases…</h3>
+        </div>
+        <div id="release-list" aria-busy="true" aria-describedby="release-count"></div>
+      </div>
+      </section>
+
       <!-- THE ONE RECORD ON THIS PAGE THAT IS NOT INVENTED, and the reason it
-           is first. The Agent observatory links here saying the merged pull
-           requests it counts shipped the releases at the other end; it lands on
-           this block, above the invented example, so what a visitor sees on
-           arrival is a record they can check rather than a disclaimer.
+           leads the supporting material under the log. The Agent observatory
+           links here saying the merged pull requests it counts shipped the
+           releases at the other end; it lands on this block, above the invented
+           example, so what a visitor lands on is a record they can check rather
+           than a disclaimer.
 
            Filled by deployed-release-view.js from src/build-stamp.js, which the
            build rewrites with the commit the artifact was built from. The
@@ -271,8 +455,8 @@
            already done and which of THIS page's controls the one next link
            names. There is no second step model to keep in step with the first.
 
-           WHY IT STANDS HERE. It is the last thing a reader passes before the
-           log and the recorder it directs them into, and it stands after the
+           WHY IT STANDS HERE. It is supporting material under the log (#2796),
+           and it stands after the
            real deployment record and the example records rather than above
            them: the guide describes what a visitor can do, not a record they
            can check, so it must not displace the one block on this page that is
@@ -326,8 +510,8 @@
         </section>
       </section>
 
-      <!-- HOW CONSISTENTLY THIS LOG KEEPS ITS REASONING (#2579), directly above
-           the log it is a claim about. One quotable figure, stated as two
+      <!-- HOW CONSISTENTLY THIS LOG KEEPS ITS REASONING (#2579), the last of
+           the supporting material under the log it is a claim about. One quotable figure, stated as two
            numbers — how many releases kept their reasoning, out of how many
            loaded — and beside it the three things a quoted figure needs: the
            rule it was counted under, what it was counted over, and whose
@@ -407,7 +591,7 @@
              out it was one rule. The home page's copy of this block carries
              these same bytes, from the same constant. -->
         <p class="shiplog-proof-note" id="coverage-gap-definition">A release is covered when it links at least one decision the decision log holds; every other release is uncovered.</p>
-        <p class="shiplog-proof-note" id="reasoning-proof-scope">Both numbers are over every release loaded on this page, not the filtered view: the search and the filters below do not change them.</p>
+        <p class="shiplog-proof-note" id="reasoning-proof-scope">Both numbers are over every release loaded on this page, not the filtered view: the search and the filters do not change them.</p>
         <!-- One count and one review action, derived from the existing worklist.
              The text announces loading, success and failure; only dynamic
              coverage status uses a filled badge. Review reveals and focuses the
@@ -420,6 +604,35 @@
           <button class="empty-action empty-action-secondary coverage-gap-toggle" id="coverage-gap-toggle" type="button" aria-expanded="false" aria-controls="coverage-gap-worklist" hidden>Review uncovered releases</button>
           <p class="shiplog-proof-note" id="coverage-gap-status" role="status" aria-live="polite" aria-atomic="true"></p>
         </div>
+        <!-- THE UNCOVERED WORKLIST (#2630), at the head of the uncovered view and
+             the thing the reveal above moves focus to, which is why it carries a
+             tabindex of minus one, so focus lands on what changed rather than a
+             dozen tab stops away. Focusable only by script, so it adds no tab stop
+             and reorders nothing.
+             It stands in this block, directly under the reveal, rather than in the
+             log above (#2796): the log leads the page, and its heading, here, would
+             say "uncovered" before the definition above it does.
+             One entry per uncovered release, written by release-coverage-gaps.js:
+             its name, which of the two kinds of gap it has IN WORDS, and the one
+             next step that applies to that kind. Hidden until the reveal is
+             pressed, and empty in the markup, because which releases are
+             uncovered is not knowable before the log loads.
+             IT IS NAMED AFTER THE DEFINED WORD (#2702). The heading used to be a
+             sentence about missing links, which named only the first of the two
+             ways in and coined a second way to say a word the block above already
+             defines. So the heading is now the term itself, and the authored
+             sentence under it states both ways in: no link at all, or every link
+             pointing at a decision this log does not hold. That sentence avoids
+             the word "uncovered" on purpose — naming the list is the heading's
+             job here, and a rendered-order check holds the definition above to
+             being the page's first use of the word. -->
+        <section class="coverage-gap-worklist" id="coverage-gap-worklist" aria-labelledby="coverage-gap-worklist-title" tabindex="-1" hidden>
+          <h3 id="coverage-gap-worklist-title">Uncovered releases</h3>
+          <p class="shiplog-proof-note" id="coverage-gap-worklist-rule">A release is on this list when it links no decision at all, or when every decision it links is one this log does not hold.</p>
+          <p class="shiplog-proof-note" id="coverage-gap-worklist-lead"></p>
+          <button class="empty-action empty-action-secondary" id="coverage-gap-reset" type="button" hidden>Show all releases</button>
+          <ol class="coverage-gap-list" id="coverage-gap-list"></ol>
+        </section>
         <!-- THE COPIED SENTENCE, ON SCREEN (#2682). The control below hands over
              six lines, and until now the only way to find out what they said was
              to press it and paste somewhere. A reader checking a figure before
@@ -477,217 +690,7 @@
         <p class="shiplog-proof-note" id="reasoning-proof-copy-availability">The copy control becomes available once the figures are counted.</p>
       </section>
 
-      <!-- The log first, the recorder under it. A prospect following "Explore
-           the decision and release log" from the home page reaches the count,
-           the search, the filters, the export and a real record before any
-           field to fill in; the hero's one link carries a visitor who came to
-           write straight past all of it. The markup moved rather than the
-           painted order, so reading order and tab order are the same order and
-           no rule has to keep them in step.
-           Single column, for the reason Social's composer stands below its
-           feed rather than beside it: in two columns the recorder is still the
-           first thing on the widest screens, whichever column it sits in. -->
-      <section class="workspace workspace-single release-workspace" aria-label="Release log and recorder">
-      <div class="list-panel" aria-labelledby="releases-title">
-        <div class="section-heading list-heading">
-          <div>
-            <!-- No ordering eyebrow, and no ordering in the heading. Both used
-                 to read the panel's name, one of them with ", newest first"
-                 attached, directly above a sentence that ends "newest first" —
-                 the name twice and the order twice on one screen. The heading
-                 names the panel; the sentence below carries the order, because
-                 it is the line that also carries the count. -->
-            <h2 id="releases-title" tabindex="-1">Release log</h2>
-          </div>
-        </div>
-        <!-- How many releases are on screen and in what order, in one sentence.
-             Written by releases-page.js from the same array the rows are
-             rendered from, never a second filter pass, so the number here is
-             the number of rows in every state — including after a search or a
-             filter narrows the list.
-             Social's feed summary is this sentence in this class, and this page
-             follows it rather than inventing a second idiom; the class is
-             reused rather than extended because styles.css is at its measured
-             size budget.
-             Ships empty because a count is a claim the page cannot make until
-             the log has loaded: the list below states the wait, and states it
-             once. It stands outside every panel that can be folded away — a
-             live region behind a closed disclosure is silent — and a reader who
-             needs this sentence needs it before the records. -->
-        <p class="feed-summary" id="release-count" aria-live="polite"></p>
-        <div class="release-filters" role="search" aria-label="Filter releases">
-          <!-- The two filters below say what they narrow to; this one used to
-               say nothing, so what a typed word was tested against was a guess.
-               The line names the fields filterReleases actually reads and no
-               others — a version tag or an owner name matches nothing — and a
-               test in releases.test.js holds the sentence to that function. -->
-          <div class="filter release-search-filter">
-            <label for="release-search">Search releases</label>
-            <input id="release-search" type="search" placeholder="Title, description, or decision context" autocomplete="off" aria-describedby="release-search-hint" />
-            <span class="hint" id="release-search-hint">Shows releases matching your text in their title or summary, or in the title or context of a linked decision.</span>
-          </div>
-          <div class="filter">
-            <label for="release-status">Release status</label>
-            <select id="release-status">
-              <option value="all">All statuses</option>
-              <option value="planned">Planned</option>
-              <option value="completed">Completed</option>
-              <option value="cancelled">Cancelled</option>
-            </select>
-          </div>
-          <!-- A select, not radios: the options are this visitor's own decision
-               log, so the list is unbounded and grows with every record. Its
-               value rides in the query string (?decision=…) so a link to the
-               releases behind one decision can be shared and reopened. The
-               options are filled by releases-page.js from the same decisions
-               the recorder above offers. -->
-          <div class="filter release-decision-id-filter">
-            <label for="release-decision">Linked decision</label>
-            <select id="release-decision" aria-describedby="release-decision-hint">
-              <option value="all">All decisions</option>
-            </select>
-            <span class="hint" id="release-decision-hint">Shows only releases linked to the chosen decision.</span>
-          </div>
-          <!-- Radios, not a select: the options are few, all six stay visible
-               with the chosen one marked, and the platform gives the group one
-               tab stop with arrow-key movement for free. The last option is not
-               a status a decision can hold — it selects releases whose linked
-               decision id resolves to nothing, so its label names the
-               association rather than posing as a fifth status. -->
-          <fieldset class="filter filter-group release-decision-filter" aria-describedby="release-decision-status-hint">
-            <legend>Status of linked decisions</legend>
-            <p class="hint" id="release-decision-status-hint">A release appears when at least one linked decision has the selected status. “Decision not in this log” shows releases linked to a decision this log does not hold. Arrow keys move between the options.</p>
-            <div class="filter-options">
-              <span class="filter-option">
-                <input id="release-decision-status-all" name="release-decision-status" type="radio" value="all" checked />
-                <label for="release-decision-status-all">Any status</label>
-              </span>
-              <span class="filter-option">
-                <input id="release-decision-status-proposed" name="release-decision-status" type="radio" value="proposed" />
-                <label for="release-decision-status-proposed">Proposed</label>
-              </span>
-              <span class="filter-option">
-                <input id="release-decision-status-pending" name="release-decision-status" type="radio" value="pending" />
-                <label for="release-decision-status-pending">Pending</label>
-              </span>
-              <span class="filter-option">
-                <input id="release-decision-status-accepted" name="release-decision-status" type="radio" value="accepted" />
-                <label for="release-decision-status-accepted">Accepted</label>
-              </span>
-              <span class="filter-option">
-                <input id="release-decision-status-superseded" name="release-decision-status" type="radio" value="superseded" />
-                <label for="release-decision-status-superseded">Superseded</label>
-              </span>
-              <span class="filter-option">
-                <input id="release-decision-status-missing" name="release-decision-status" type="radio" value="missing" />
-                <label for="release-decision-status-missing">Decision not in this log</label>
-              </span>
-            </div>
-          </fieldset>
-        </div>
-        <!-- Share whatever the filters are showing. The label is the one the
-             decisions history already uses for the same control on index.html,
-             and it names the view because this page carries a second copy
-             button higher up, for the deployment record. The scope sentence
-             says what the link does not carry as plainly as what it does: it
-             repeats the promise the recorder makes further down this page, that
-             a release recorded here stays in this browser, so a reader learns
-             before pressing that a colleague gets the filters and their own
-             log. Both buttons start disabled and are enabled by
-             release-filter-url.js — without the script neither can do anything.
-             The manual field stays hidden until a copy fails, and carries a
-             name of its own (#2644): when it wore the button's label, two
-             controls in the same toolbar answered to the same name, and a
-             reader listing the controls got that name twice with nothing to
-             choose between them. Its name follows the one the prompt
-             coach already uses for the box behind its copy button — the thing,
-             then what to do with it by hand. It borrows the
-             filter class so its label and box match the controls above rather
-             than paying for a new rule in styles.css. -->
-        <div class="share-control">
-          <button class="share-button" id="release-copy-link" type="button" aria-describedby="release-share-scope" disabled>Copy link to this view</button>
-          <button class="share-button" id="release-clear-filters" type="button" disabled>Clear filters</button>
-          <span class="hint" id="release-share-scope">The link keeps your search and filters. Whoever opens it sees the releases saved in their own browser.</span>
-          <span class="share-status" id="release-copy-status" role="status" aria-live="polite" aria-atomic="true"></span>
-          <div class="filter" id="release-copy-fallback" hidden>
-            <label for="release-copy-url">Link to copy by hand</label>
-            <input id="release-copy-url" type="text" readonly />
-          </div>
-        </div>
-        <!-- Export what the filters are showing. Outside the search landmark
-             above, because this writes a file rather than narrowing the list.
-             A button element, not a link: there is no address to open, and the
-             platform then gives keyboard operation and the role for free. The
-             scope sentence is static because it is true on every render — with
-             no filters set, "the releases shown" is the whole log — so it can
-             never disagree with the file that was just written. Classes are the
-             detail page's share control, reused rather than extended: styles.css
-             is at its measured size budget. -->
-        <div class="share-control">
-          <button class="share-button" id="release-export" type="button" aria-describedby="release-export-scope">Export shown releases as JSON</button>
-          <span class="hint" id="release-export-scope">The JSON download includes only the releases currently shown by the active search and filters. Each exported release includes its linked decisions.</span>
-          <span class="share-status" id="release-export-status" role="status" aria-live="polite" aria-atomic="true"></span>
-        </div>
-        <!-- One action per key, and only the keys the list answers. Space
-             expands the row in place — the same verb the paragraph above the
-             list uses — while Enter leaves for the release's own page, so a
-             reader can tell the two apart before pressing either. Exercised
-             key by key in tests/release-keyboard-line.test.js. -->
-        <p class="hint release-hint">Use ↑ and ↓ to move between releases, Home and End to jump to the first and last release, Space to expand a release in place, and Enter to open its details page.</p>
-        <!-- One prioritised follow-up for whatever the filters left on screen.
-             Filled by releases-page.js and hidden while nothing is outstanding;
-             it is not a live region, because #release-count already announces
-             that the view changed. -->
-        <div class="release-followup-slot" id="release-followup" hidden></div>
-        <!-- THE UNCOVERED WORKLIST (#2630), at the head of the uncovered view and
-             the thing the reveal above moves focus to, which is why it carries a
-             tabindex of minus one: the panel's own heading stands above the count,
-             the search, four filters and the export, so landing there would leave
-             a keyboard reader a dozen tab stops from what changed. Focusable only
-             by script, so it adds no tab stop and reorders nothing.
-             It stands above the log's status region rather than between it and the
-             rows: that region states the wait, and the wait belongs immediately
-             before the list it is about.
-             One entry per uncovered release, written by release-coverage-gaps.js:
-             its name, which of the two kinds of gap it has IN WORDS, and the one
-             next step that applies to that kind. Hidden until the reveal is
-             pressed, and empty in the markup, because which releases are
-             uncovered is not knowable before the log loads.
-             IT IS NAMED AFTER THE DEFINED WORD (#2702). The heading used to be a
-             sentence about missing links, which named only the first of the two
-             ways in and coined a second way to say a word the block above already
-             defines. So the heading is now the term itself, and the authored
-             sentence under it states both ways in: no link at all, or every link
-             pointing at a decision this log does not hold. That sentence avoids
-             the word "uncovered" on purpose — naming the list is the heading's
-             job here, and a rendered-order check holds the definition above to
-             being the page's first use of the word. -->
-        <section class="coverage-gap-worklist" id="coverage-gap-worklist" aria-labelledby="coverage-gap-worklist-title" tabindex="-1" hidden>
-          <h3 id="coverage-gap-worklist-title">Uncovered releases</h3>
-          <p class="shiplog-proof-note" id="coverage-gap-worklist-rule">A release is on this list when it links no decision at all, or when every decision it links is one this log does not hold.</p>
-          <p class="shiplog-proof-note" id="coverage-gap-worklist-lead"></p>
-          <button class="empty-action empty-action-secondary" id="coverage-gap-reset" type="button" hidden>Show all releases</button>
-          <ol class="coverage-gap-list" id="coverage-gap-list"></ol>
-        </section>
-        <!-- The log's one status region: the only place loading, no releases
-             yet, no match and a failed load are ever drawn, and the only live
-             region the list has. It is visible rather than visually hidden so
-             one node serves both readers — the shape this replaced kept a
-             hidden region for the announcement and a second, aria-hidden panel
-             for the eye, which stated the wait twice in the markup and had no
-             correct answer once the panel grew a Retry button.
-             It ships holding the wait so a reader is told before any module
-             runs, and releases-page.js only ever updates it: the glyph, the
-             heading, the sentence and the one action are permanent children, so
-             the control a reader is standing on is relabelled rather than
-             removed. The list below holds nothing but rows and is not live. -->
-        <div class="list-state list-state-loading" id="release-list-status" role="status" aria-live="polite">
-          <span class="list-state-glyph" aria-hidden="true"></span>
-          <h3>Loading releases…</h3>
-        </div>
-        <div id="release-list" aria-busy="true" aria-describedby="release-count"></div>
-      </div>
-
+      <section class="workspace workspace-single release-workspace" id="release-recorder" aria-labelledby="release-form-title">
         <!-- The recorder, below the log it writes into. It keeps the id the
              deployment check's "Record the release that is running" link has
              always pointed at, moved off the section and onto the panel that

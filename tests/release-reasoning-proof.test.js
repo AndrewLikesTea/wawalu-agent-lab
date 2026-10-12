@@ -593,7 +593,7 @@ test("filtering the log moves the list's own count and leaves the figure alone",
   assert.equal(claim(page), before, "an empty view moved the figure");
   assert.equal(provenance(page), "Counted here: no example records and 3 you added.");
   // The copy is what tells a reader that, so it is held to saying it.
-  assert.match(REASONING_PROOF_SCOPE, /the search and the filters below do not change them/);
+  assert.match(REASONING_PROOF_SCOPE, /the search and the filters do not change them/);
 });
 
 // --- the copy control --------------------------------------------------------
@@ -679,18 +679,20 @@ test("a clipboard that is absent or refuses is a stated failure, naming where th
 
 // --- placement and cost ------------------------------------------------------
 
-test("the figure stands above the log it describes and does not repeat the example caveat", async (t) => {
+test("the figure stands under the log it describes and does not repeat the example caveat", async (t) => {
   const page = await openPage(t);
+  // The log leads the page (#2796); the figure is the last supporting block.
   const order = page.document
-    .querySelectorAll("#shiplog-proof,#evaluation-path,#reasoning-proof,#releases-title,#release-count,#release-search")
+    .querySelectorAll("#shiplog-proof,#evaluation-path,#reasoning-proof,#releases-title,#release-count,#release-search,#record-release")
     .map((node) => node.getAttribute("id"));
   assert.deepEqual(order, [
-    "shiplog-proof",
-    "evaluation-path",
-    "reasoning-proof",
     "releases-title",
     "release-count",
     "release-search",
+    "shiplog-proof",
+    "evaluation-path",
+    "reasoning-proof",
+    "record-release",
   ]);
   // The example-records caveat is counted once above the record form by
   // tests/shiplog-proof.test.js. This block states it in exactly one place: the

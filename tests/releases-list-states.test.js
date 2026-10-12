@@ -216,6 +216,50 @@ test("a failed load settles the region on the error state without moving focus",
   assert.equal(textOf(page.document.querySelector(".release-retry-action")), "Retry");
 });
 
+// The log leads the page (#2796), so the supporting blocks are all below it.
+// Every state, and Retry, is drawn in the log's own section; none of them moves
+// focus, or the address, to a block under it.
+const SUPPORTING = ["real-deployment", "shiplog-proof", "evaluation-path", "reasoning-proof"];
+const within = (node, ancestor) => {
+  for (let cursor = node; cursor; cursor = cursor.parentNode) if (cursor === ancestor) return true;
+  return false;
+};
+
+test("every state renders inside the Release log section and never reaches a supporting block", async (t) => {
+  const { page, control } = await openPage(t, { refuse: true, boot: false });
+  const log = byId(page, "release-log");
+  assert.ok(within(region(page), log), "the status region left the Release log section");
+  assert.ok(within(byId(page, "release-list"), log), "the results left the Release log section");
+  const inSupport = () => SUPPORTING.some((id) => within(page.document.activeElement, byId(page, id)));
+  const check = (state) => {
+    assert.ok(within(page.document.querySelector(`.list-state-${state}`) ?? region(page), log), `${state} drew outside the log`);
+    assert.equal(inSupport(), false, `${state} moved focus into a supporting block`);
+    assert.deepEqual(page.document.navigations ?? [], [], `${state} changed the page's location`);
+  };
+  check("loading");
+
+  initReleasesPage(page.document, page.storage, { seed: NO_SEED });
+  assert.equal(regionText(page), FAILED);
+  check("error");
+
+  control.refuse = false;
+  page.document.querySelector(".release-retry-action").click();
+  assert.equal(rows(page), 2);
+  for (const row of page.document.querySelectorAll(".release-toggle")) {
+    assert.ok(within(row, byId(page, "release-list")), "a row rendered outside the log's results");
+  }
+  // A successful Retry lands on the log's own heading, inside the log.
+  assert.ok(within(page.document.activeElement, log), "Retry left focus outside the log");
+  check("ready");
+});
+
+test("the empty state renders inside the Release log section and never reaches a supporting block", async (t) => {
+  const { page } = await openPage(t, { releases: [] });
+  assert.equal(regionText(page), EMPTY);
+  assert.ok(within(page.document.querySelector(".list-state-empty"), byId(page, "release-log")));
+  assert.equal(SUPPORTING.some((id) => within(page.document.activeElement, byId(page, id))), false);
+});
+
 test("rows clear the region, and a filter that empties the view announces no-match without moving focus", async (t) => {
   const { page } = await openPage(t, { boot: false });
   byId(page, "release-export").focus();

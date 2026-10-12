@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { initReleasesPage } from "../src/releases-page.js";
 import { SAMPLE_DECISION_ID, SAMPLE_RELEASE_ID } from "../src/seed-records.js";
 import { loadPage, tabSequence, textOf } from "./support/browser.js";
@@ -165,21 +166,17 @@ const isWithin = (node, ancestor) => {
 };
 
 // A prospect follows "Explore the decision and release log" from the home page.
-// What they used to reach, in this order, was the pitch, the example record,
-// the deployment check and then nine fields to fill in, with the log itself at
-// the bottom of the page. The record of this deployment and the check against
-// it still lead, together, ahead of the example (#2487) — they are what the
-// observatory's link lands on — and the log now stands between them and the
-// recorder.
-test("the log's heading, count, search, filters, records and export all come before the first form field", async (t) => {
+// What they used to reach first was the deployment record, the example records,
+// the four-step guide and the coverage figure, with the log below all of it.
+// The log now leads directly under the introduction (#2796); the supporting
+// blocks follow it in their own order — the record and the check against it
+// still together ahead of the example (#2487) — and the recorder closes the page.
+test("the log's heading, count, search, filters, records and export come before every supporting block and the form", async (t) => {
   const page = await open(t);
   const order = page.document
-    .querySelectorAll("#shipped-build,#shiplog-proof,#deployment-status,#releases-title,#release-count,#release-search,#release-status,#release-decision,#release-decision-status-all,#release-export,#release-list,#record-release,#release-form-title,#release-version")
+    .querySelectorAll("#shipped-build,#shiplog-proof,#deployment-status,#evaluation-path,#reasoning-proof,#releases-title,#release-count,#release-search,#release-status,#release-decision,#release-decision-status-all,#release-export,#release-list-status,#release-list,#record-release,#release-form-title,#release-version")
     .map((node) => node.id);
   assert.deepEqual(order, [
-    "shipped-build",
-    "deployment-status",
-    "shiplog-proof",
     "releases-title",
     "release-count",
     "release-search",
@@ -187,11 +184,44 @@ test("the log's heading, count, search, filters, records and export all come bef
     "release-decision",
     "release-decision-status-all",
     "release-export",
+    "release-list-status",
     "release-list",
+    "shipped-build",
+    "deployment-status",
+    "shiplog-proof",
+    "evaluation-path",
+    "reasoning-proof",
     "record-release",
     "release-form-title",
     "release-version",
   ]);
+
+  // As top-level blocks of the content region: introduction, log, then the
+  // supporting material, then the recorder. Whole units, so the log's results
+  // live inside the log's own section and nowhere else.
+  const main = page.document.getElementById("main-content");
+  const blocks = main.children.filter((node) => node.getAttribute?.("id")).map((node) => node.getAttribute("id"));
+  assert.deepEqual(blocks, [
+    "top", "release-log", "real-deployment", "ask-about-shiplog-actions", "release-discussion-actions",
+    "shiplog-proof", "evaluation-path", "reasoning-proof", "release-recorder",
+  ]);
+  const log = page.document.getElementById("release-log");
+  for (const id of ["releases-title", "release-search", "release-status", "release-list-status", "release-list"]) {
+    assert.ok(isWithin(page.document.getElementById(id), log), `#${id} left the Release log section`);
+  }
+  assert.ok(isWithin(page.document.getElementById("record-release"), page.document.getElementById("release-recorder")));
+  // The order is the markup's, not a rule's: no positive tabindex anywhere in
+  // the content region.
+  const positive = [];
+  const walk = (node) => {
+    for (const child of node.children ?? []) {
+      if (!child.getAttribute) continue;
+      if (Number(child.getAttribute("tabindex")) > 0) positive.push(child.getAttribute("id"));
+      walk(child);
+    }
+  };
+  walk(main);
+  assert.deepEqual(positive, []);
 
   // Scrolling from the top with the log loaded, a release record arrives before
   // any field of the recorder does.
@@ -245,6 +275,81 @@ test("tab order reaches the log's controls before the recorder's fields, and add
   // The recorder panel is a focus target, not a stop: it carries tabindex="-1",
   // so nothing else joined the sequence when it became focusable.
   assert.equal(sequence.filter((node) => node.id === "record-release").length, 0);
+});
+
+// The whole page in Tab order (#2796): the introduction's one link, the log's
+// search and filters, its results, then each supporting block's controls in
+// their order, then the form. The status-of-linked-decisions radios are one stop.
+test("tab order runs intro link, search, filters, results, supporting blocks, then the form", async (t) => {
+  const page = await open(t);
+  const sequence = tabSequence(page.document);
+  const at = (id) => sequence.findIndex((node) => node.id === id);
+  const firstToggle = sequence.findIndex((node) => node.classList?.contains?.("release-toggle"));
+  const chain = [
+    at("record-release-link"), at("release-search"), at("release-status"), at("release-decision"),
+    at("release-decision-status-all"), at("release-export"), firstToggle,
+    at("ask-about-shiplog"), at("shiplog-proof-copy"), at("evaluation-path-action"), at("release-version"),
+  ];
+  for (const index of chain) assert.ok(index >= 0, `a stop in the chain ${JSON.stringify(chain)} is not reachable`);
+  for (let i = 1; i < chain.length; i += 1) {
+    assert.ok(chain[i] > chain[i - 1], `stop ${i} of ${JSON.stringify(chain)} is tabbed to out of order`);
+  }
+  const radios = sequence.filter((node) => node.getAttribute?.("name") === "release-decision-status");
+  assert.equal(radios.length, 1, "the linked-decision status radios are more than one tab stop");
+});
+
+// Supporting material moved, it was not cut: each block keeps its heading and
+// one action a reader can still reach.
+test("the supporting blocks keep their headings and actions below the log", async (t) => {
+  const page = await open(t);
+  const sequence = tabSequence(page.document);
+  const blocks = [
+    ["real-deployment", "shipped-build-title", "Deployment record", "deployment-copy"],
+    ["shiplog-proof", "shiplog-proof-title", "From decision to release", "shiplog-proof-copy"],
+    ["evaluation-path", "evaluation-path-title", "Try the whole demo in four steps", "evaluation-path-action"],
+    ["reasoning-proof", "reasoning-proof-title", "Releases on this page that link a decision", "reasoning-proof-copy"],
+  ];
+  for (const [block, heading, words, action] of blocks) {
+    const region = page.document.getElementById(block);
+    assert.ok(isWithin(page.document.getElementById(heading), region), `#${heading} left #${block}`);
+    assert.equal(textOf(page.document.getElementById(heading)), words);
+    const control = page.document.getElementById(action);
+    assert.ok(isWithin(control, region), `#${action} left #${block}`);
+    assert.equal(control.hidden, false, `#${action} is hidden`);
+  }
+  // The JSON export stays with the log it exports, and both reachable controls
+  // are in the Tab order.
+  assert.ok(isWithin(page.document.getElementById("release-export"), page.document.getElementById("release-log")));
+  for (const id of ["shiplog-proof-copy", "evaluation-path-action"]) {
+    assert.equal(sequence.filter((node) => node.id === id).length, 1, `#${id} is not one tab stop`);
+  }
+});
+
+// The harness models no layout, so the narrow-width and focus-ring claims are
+// the rules themselves.
+test("at a phone width the log's chips wrap in the column, and the intro link has the focus ring", async () => {
+  const sheet = await readFile(new URL("../src/releases-proof.css", import.meta.url), "utf8");
+  const site = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
+  const narrow = sheet.match(/@media\(max-width:520px\) \{ \.release-filters [^\n]*\}/)?.[0] ?? "";
+  assert.match(narrow, /\.release-filters \.filter\{min-width:0\}/);
+  assert.match(narrow, /\.release-filters \.filter-option\{max-width:100%\}/);
+  assert.match(narrow, /#release-log \.badge\{[^}]*max-width:100%[^}]*white-space:normal/);
+  // Words are never split mid-word: no anywhere-wrap on the chips' labels.
+  assert.doesNotMatch(narrow, /overflow-wrap:anywhere/);
+  // The chips' row already wraps, and the filters stack at the same width.
+  assert.match(site, /\.filter-options \{ display:flex; flex-wrap:wrap;/);
+  assert.match(site, /@media\(max-width:520px\) \{ \.release-filters\{align-items:stretch;flex-direction:column\}/);
+  // The intro link is a plain anchor wearing an existing class, so the site's
+  // focus ring is what draws on it.
+  const page = await loadPage(PAGE);
+  try {
+    const link = page.document.querySelector("#record-release-link");
+    assert.equal(link.tagName, "A");
+    assert.equal(link.getAttribute("class"), "text-link");
+  } finally {
+    page.restore();
+  }
+  assert.match(site, /a:focus-visible \{ outline:3px solid var\(--focus-ring\)/);
 });
 
 test("the jump control puts focus on the record-a-release form", async (t) => {

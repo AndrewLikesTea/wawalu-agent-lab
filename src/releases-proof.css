@@ -1,3 +1,10 @@
+/* The log leads the page (#2796): the supporting blocks follow it, and the
+ * recorder closes the page after the last of them, whose own bottom margin is
+ * the gap. At a phone width the filter chips and the row badges wrap inside the
+ * column rather than widening the page; a label still breaks between words. */
+#release-log { margin:24px 0; }
+#release-recorder { margin-top:0; }
+@media(max-width:520px) { .release-filters .filter{min-width:0}.release-filters .filter-option{max-width:100%}#release-log .badge{display:inline-block;max-width:100%;white-space:normal} }
 .shiplog-proof { display:grid; gap:16px; margin:0 0 24px; border:1px solid #b9cec4; border-left:5px solid #315f50; border-radius:12px; padding:clamp(16px,3vw,22px); background:#eef6f2; }
 /* The real record and the deployment check share one block (#2487); the record
  * keeps the block's rhythm and is still the target its copied link lands on. */

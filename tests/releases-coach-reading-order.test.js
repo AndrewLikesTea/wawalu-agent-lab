@@ -112,9 +112,10 @@ const surfaces = [
     open: openReleases,
     purpose: "follow_up_releases",
     // The heading, the one-line promise of what the log holds, the route into
-    // the recorder, then the page's one checkable record — and the invented
-    // example still wholly after the ask, not interleaved with it.
-    before: ["#page-title", "#releases-promise", "#record-release-link", "#shipped-build-title"],
+    // the recorder, the log itself (#2796), then the page's one checkable
+    // record — and the invented example still wholly after the ask, not
+    // interleaved with it.
+    before: ["#page-title", "#releases-promise", "#record-release-link", "#releases-title", "#shipped-build-title"],
     after: ["#shiplog-proof-title"],
   },
   {

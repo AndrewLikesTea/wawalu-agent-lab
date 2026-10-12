@@ -380,7 +380,7 @@ export function initReleasesPage(root = document, storage = localStorage, option
   // visitor downloads is the list they are looking at by construction and not
   // by two implementations agreeing.
   let shown = [];
-  // The reasoning figure above the log (#2579). Mounted before the first render
+  // The reasoning figure under the log (#2579, #2796). Mounted before the first render
   // so its copy control is live from the same moment its sentence is, and fed
   // from `releases` — the complete loaded log — on every render below rather than
   // from `shown`, which is what makes "the filters do not move this number" a
