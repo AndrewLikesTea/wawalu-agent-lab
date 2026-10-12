@@ -471,6 +471,7 @@ test("the body the endpoint really serves is one this band reads, and it resolve
   assert.equal(
     page.document.querySelector("#deployment-copy").dataset.copyText,
     `Deployment check verdict: ${verdictText(page)}\nRunning build version: ${SHA}. Deployment record version: ${SHA}.`
+      + `\n${textOf(page.document.querySelector("#deployment-checked-at"))}`
       + "\nCopied from: https://labs.wawalu.org/",
   );
 });

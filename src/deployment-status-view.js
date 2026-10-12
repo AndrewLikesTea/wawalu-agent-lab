@@ -16,11 +16,10 @@
 
 import {
   NO_ACTION_TEXT,
-  comparedVersionsText,
+  deploymentResultSnapshot,
   deploymentVerdict,
   verdictCopyText,
   verdictMetricText,
-  verdictSentence,
 } from "./deployment-status.js";
 import { BUILD_STAMP } from "./build-stamp.js";
 import { commitLinkText, deployedReleaseRecord } from "./deployed-release.js";
@@ -33,6 +32,7 @@ export const DEPLOYMENT_IDS = Object.freeze({
   callout: "deployment-status-callout",
   verdict: "deployment-verdict",
   identifiers: "deployment-identifiers",
+  checkedAt: "deployment-checked-at",
   metric: "deployment-metric",
   copy: "deployment-copy",
   copyStatus: "deployment-copy-status",
@@ -195,11 +195,24 @@ export function renderDeploymentStatus(
       : "release-followup release-followup-missing";
   }
   panel.dataset.deploymentState = verdict.state;
+  panel.dataset.checkState = verdict.state === "unknown" ? "failure" : "success";
+  const snapshot = deploymentResultSnapshot(verdict);
+  const checkedAtLine = byId(root, DEPLOYMENT_IDS.checkedAt);
+  if (checkedAtLine) {
+    checkedAtLine.replaceChildren();
+    checkedAtLine.hidden = !snapshot.checkedAt;
+    if (snapshot.checkedAt) {
+      const time = doc.createElement("time");
+      time.setAttribute("datetime", snapshot.checkedAt);
+      time.textContent = snapshot.checkTime;
+      checkedAtLine.append(time);
+    }
+  }
 
   const verdictLine = byId(root, DEPLOYMENT_IDS.verdict);
-  if (verdictLine) verdictLine.textContent = verdictSentence(verdict);
+  if (verdictLine) verdictLine.textContent = snapshot.verdict;
   const identifiers = byId(root, DEPLOYMENT_IDS.identifiers);
-  if (identifiers) identifiers.textContent = comparedVersionsText(verdict);
+  if (identifiers) identifiers.textContent = snapshot.versions;
   const metric = byId(root, DEPLOYMENT_IDS.metric);
   if (metric) metric.textContent = verdictMetricText(verdict);
   const copy = byId(root, DEPLOYMENT_IDS.copy);
@@ -219,7 +232,7 @@ export function renderDeploymentStatus(
     const offered = hasVerdict || !availability;
     // Empty rather than stale when nothing is offered: a hidden control whose
     // payload still reads as a verdict is one focus bug away from copying it.
-    copy.dataset.copyText = offered ? verdictCopyText(verdict, pageAddress(location)) : "";
+    copy.dataset.copyText = offered ? verdictCopyText(verdict, pageAddress(location), snapshot) : "";
     // The control ships disabled and is enabled by the render that gives it
     // something to say. Before a verdict exists there is no result to copy, and
     // a click on nothing would report a clipboard failure that never happened.
@@ -254,7 +267,7 @@ export function renderDeploymentStatus(
   const body = byId(root, DEPLOYMENT_IDS.evidenceBody);
   if (body) {
     body.replaceChildren(...fieldList(doc, [
-      ["Checked at", displayValue(verdict.checkedAt)],
+      ...(snapshot.checkedAt ? [["Checked at", snapshot.checkedAt]] : []),
       ...healthEntries(reading),
       ...releaseEntries(release),
     ]));
@@ -269,9 +282,12 @@ export function bindDeploymentCopy(root, clipboard = globalThis.navigator?.clipb
   if (!button || !status || button.dataset.copyBound === "true") return null;
   button.dataset.copyBound = "true";
   button.addEventListener("click", async () => {
+    const payload = button.dataset.copyText;
+    if (!payload || button.disabled) return;
     button.disabled = true;
     status.textContent = "";
-    const copied = await copyRecordUrl(clipboard, button.dataset.copyText);
+    const copied = await copyRecordUrl(clipboard, payload);
+    if (button.dataset.copyText !== payload) return;
     status.textContent = copied
       ? "Deployment check verdict and both version values copied to clipboard."
       : "Clipboard unavailable. Select the verdict and both version values above to copy them.";
@@ -329,9 +345,10 @@ export function bindDeploymentEvidence(root) {
   return details;
 }
 
+const activeChecks = new WeakMap();
+
 /**
- * Boot the band: take the deployment record, probe health, render
- * once.
+ * Boot or recheck the band: clear prior evidence, probe health, then render.
  *
  * @param options.release the record to compare against. Passing it explicitly —
  *   including as `null` — is how a caller says which record this is about; left
@@ -348,6 +365,29 @@ export function bindDeploymentEvidence(root) {
 export async function initDeploymentStatus(root, options = {}) {
   const panel = byId(root, DEPLOYMENT_IDS.panel);
   if (!panel) return null;
+  const request = {};
+  activeChecks.set(panel, request);
+  panel.dataset.checkState = "loading";
+  panel.dataset.deploymentState = "loading";
+  const documentElement = root.documentElement ?? globalThis.document?.documentElement;
+  if (documentElement) documentElement.dataset.shiplogDeployment = "loading";
+  for (const id of [DEPLOYMENT_IDS.checkedAt, DEPLOYMENT_IDS.identifiers,
+    DEPLOYMENT_IDS.metric, DEPLOYMENT_IDS.copyStatus, DEPLOYMENT_IDS.evidenceBody,
+    DEPLOYMENT_IDS.action]) {
+    byId(root, id)?.replaceChildren();
+  }
+  const timeLine = byId(root, DEPLOYMENT_IDS.checkedAt);
+  if (timeLine) timeLine.hidden = true;
+  const verdictLine = byId(root, DEPLOYMENT_IDS.verdict);
+  if (verdictLine) verdictLine.textContent = "Checking the running build now…";
+  const copy = byId(root, DEPLOYMENT_IDS.copy);
+  if (copy) {
+    copy.disabled = true;
+    copy.hidden = false;
+    copy.dataset.copyText = "";
+  }
+  const availability = byId(root, DEPLOYMENT_IDS.copyAvailability);
+  if (availability) availability.textContent = COPY_PENDING_LINE;
   bindDeploymentEvidence(root);
   bindDeploymentCopy(root, options.clipboard);
   const stampedRecord = deployedReleaseRecord(options.buildStamp ?? BUILD_STAMP);
@@ -357,8 +397,10 @@ export async function initDeploymentStatus(root, options = {}) {
   // reading?", and only the stamp knows that.
   renderDeploymentSource(root, stampedRecord);
   const release = options.release !== undefined ? options.release : stampedRecord;
+  const reading = await probeHealth(options.readHealth ?? healthEndpointReader());
+  if (activeChecks.get(panel) !== request) return null;
   const checkedAt = (options.now ?? (() => new Date().toISOString()))();
-  const reading = await probeHealth(options.readHealth ?? healthEndpointReader(), checkedAt);
+  reading.checkedAt = checkedAt;
   let verdict;
   try {
     verdict = deploymentVerdict(reading, release, checkedAt);
@@ -368,7 +410,6 @@ export async function initDeploymentStatus(root, options = {}) {
     verdict = deploymentVerdict({ failure: "unreachable", checkedAt }, release, checkedAt);
   }
   renderDeploymentStatus(root, verdict, { reading, release });
-  const documentElement = root.documentElement ?? globalThis.document?.documentElement;
   if (documentElement) documentElement.dataset.shiplogDeployment = "ready";
   return verdict;
 }

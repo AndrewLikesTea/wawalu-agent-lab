@@ -290,6 +290,24 @@ export function comparedVersionsText(verdict) {
   return `Running build version: ${running}. Deployment record version: ${recorded}.`;
 }
 
+// Format once per rendered result; copying reuses this exact snapshot.
+export function deploymentResultSnapshot(verdict) {
+  const successful = verdict.state === "match" || verdict.state === "drift";
+  const instant = new Date(verdict.checkedAt);
+  const checkedAt = successful && Number.isFinite(instant.getTime())
+    ? instant.toISOString() : null;
+  const checkTime = checkedAt ? new Intl.DateTimeFormat(undefined, {
+    year: "numeric", month: "short", day: "numeric",
+    hour: "numeric", minute: "2-digit", second: "2-digit", timeZoneName: "short",
+  }).format(instant) : "";
+  return Object.freeze({
+    checkedAt,
+    checkTime: checkTime ? `Deployment checked at: ${checkTime}` : "",
+    verdict: verdictSentence(verdict),
+    versions: comparedVersionsText(verdict),
+  });
+}
+
 /**
  * The portable deployment-check result copied by the visible control.
  *
@@ -305,9 +323,10 @@ export function comparedVersionsText(verdict) {
  *   it invents, and a note that names the wrong page is worse than one that
  *   names none.
  */
-export function verdictCopyText(verdict, pageUrl = null) {
+export function verdictCopyText(verdict, pageUrl = null, snapshot = deploymentResultSnapshot(verdict)) {
   const address = text(pageUrl);
-  return `Deployment check verdict: ${verdictSentence(verdict)}\n${comparedVersionsText(verdict)}`
+  return `Deployment check verdict: ${snapshot.verdict}\n${snapshot.versions}`
+    + (snapshot.checkTime ? `\n${snapshot.checkTime}` : "")
     + (address ? `\nCopied from: ${address}` : "");
 }
 
