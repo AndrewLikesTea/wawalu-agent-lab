@@ -1178,7 +1178,7 @@ test("a selected name with no image posts offers the picker, and the path is sta
     // under the grid — Paint, the control, the description, publish, People.
     const invitation = textOf(document.querySelector(".feed-create"));
     assert.match(invitation,
-      /To add yours: Create or open an image in Paint \(opens in a new tab\)\. Select “Use this image in a Social post”, then fill in the required image description\. Publish a post on Social\. A published post with an image appears on People, under the display name you publish it with\./);
+      /To add yours, start from Paint or from a file\. From Paint: Create or open an image in Paint \(opens in a new tab\), then select “Use this image in a Social post”\. From a file: when you write a Social post, select Choose image to add an image from this device\. Either way, fill in the required image description\. Publish a post on Social\. A published post with an image appears on People, under the display name you publish it with\./);
     assert.match(invitation, /A published post is public and cannot be edited or deleted/);
     assert.match(invitation, /Do not include customer or production data\./);
     // And it is the only place the settled page names either end of the handoff.
