@@ -185,13 +185,18 @@
            live region stays outside the evidence disclosure, which is a details
            element so Enter and Space both operate it; the summary's
            aria-expanded is mirrored from the element's own open state. -->
-      <section class="release-followup-slot" id="deployment-status" aria-labelledby="deployment-status-title">
+      <section class="release-followup-slot" id="deployment-status" aria-labelledby="deployment-status-title" tabindex="-1">
         <div class="release-followup" id="deployment-status-callout">
           <h3 class="release-followup-title" id="deployment-status-title">Deployment check</h3>
           <p class="release-followup-lead" id="deployment-status-proof">This compares the version this site is running with the version in the deployment record. A match means the page you are reading came from the build that record names. It reads the running build when the page loads.</p>
           <p class="release-followup-lead" id="deployment-outcomes">If the versions do not match, the page you are reading did not come from the build that record names. Open the public repository this site is built from to look up either version. If the check cannot complete, nothing here says which version this site is running. Reload the page to run it again.</p>
           <p class="release-followup-lead" id="deployment-verdict" role="status" aria-describedby="deployment-checked-at">Checking the running build now…</p>
           <p class="detail-summary" id="deployment-checked-at" hidden></p>
+          <!-- The check's own recovery (#2806), shown only while it could not
+               complete, and re-running this probe alone: the record above, the
+               coverage count and the log below are not read again. Same class
+               as the coverage count's retry, so the two read as one kind. -->
+          <button class="empty-action empty-action-secondary" id="deployment-retry" type="button" hidden>Retry the deployment check</button>
           <p class="detail-summary" id="deployment-identifiers"></p>
           <div class="shiplog-proof-share">
             <button class="share-button" id="deployment-copy" type="button" disabled aria-describedby="deployment-copy-status">Copy the deployment check verdict and both versions</button>
@@ -417,7 +422,7 @@
              worklist. Count completion alone never moves focus. -->
         <p class="coverage-gap-skeleton" id="coverage-gap-skeleton" aria-hidden="true"></p>
         <div class="coverage-gap-reveal">
-          <p class="shiplog-proof-note" id="coverage-gap-result" role="status" aria-live="polite" aria-atomic="true" tabindex="-1">Counting releases…</p>
+          <p class="shiplog-proof-note" id="coverage-gap-result" role="status" aria-live="polite" aria-atomic="true" tabindex="-1">Coverage count still in progress.</p>
           <button class="empty-action empty-action-secondary" id="coverage-gap-retry" type="button" hidden>Retry coverage count</button>
           <span class="badge" id="coverage-gap-chip" hidden></span>
           <button class="empty-action empty-action-secondary coverage-gap-toggle" id="coverage-gap-toggle" type="button" aria-expanded="false" aria-controls="coverage-gap-worklist" hidden>Review uncovered releases</button>

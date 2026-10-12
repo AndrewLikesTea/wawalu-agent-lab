@@ -1163,6 +1163,12 @@ const LIST_STATE_ACTIONS = {
 
 const STATUS_PARTS = new WeakMap();
 
+// Writes only what changed: a live region handed the words it already holds
+// can say them again, once per filter keystroke (#2806).
+function say(node, text) {
+  if (node.textContent !== text) node.textContent = text;
+}
+
 function statusParts(node) {
   const existing = STATUS_PARTS.get(node);
   if (existing) return existing;
@@ -1194,8 +1200,8 @@ export function renderReleaseListStatus(node, state, options = {}) {
     // announce that sentence again the moment the next state unhid it.
     node.className = "list-state";
     parts.glyph.textContent = "";
-    parts.heading.textContent = "";
-    parts.body.textContent = "";
+    say(parts.heading, "");
+    say(parts.body, "");
     parts.body.hidden = true;
     // Stripped back to the bare control, not merely hidden: a page that still
     // held a "Clear search and filters" in its markup would answer a search for
@@ -1208,8 +1214,8 @@ export function renderReleaseListStatus(node, state, options = {}) {
   }
   node.className = `list-state list-state-${state}`;
   parts.glyph.textContent = LIST_STATE_GLYPHS[state] ?? "";
-  parts.heading.textContent = heading;
-  parts.body.textContent = body ?? "";
+  say(parts.heading, heading);
+  say(parts.body, body ?? "");
   // A state with nothing to add beyond its heading says only that; an empty
   // paragraph would take a line and be read out as one.
   parts.body.hidden = !body;
