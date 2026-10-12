@@ -85,7 +85,7 @@ test("absent, not-found, and error states explain the outcome and keep return na
     const links = tags(container, "A");
     assert.equal(container.children[0], links[0], `${state} return link should be first`);
     assert.equal(links[0].href, "/");
-    assert.equal(links[0].textContent, "← Back to Decisions");
+    assert.equal(links[0].textContent, "← Back to Decision log");
     assert.match(panel.textContent, copy);
     assert.equal(panel.getAttribute("role"), state === "error" ? "alert" : "status");
     assert.equal(panel.dataset.state, state);
@@ -167,7 +167,7 @@ test("recovery follows the words that explain it, and return navigation stays fi
 
   // The two operable things on a failed first screen, in the order they are met.
   const operable = [...tags(container, "A"), ...tags(container, "BUTTON")];
-  assert.equal(operable[0].textContent, "← Back to Decisions");
+  assert.equal(operable[0].textContent, "← Back to Decision log");
   assert.equal(container.children[0], tags(container, "A")[0], "the labelled route back is still first");
   assert.equal(tags(container, "BUTTON")[0].textContent, DECISION_RETRY_LABEL);
   // Script-only focus targets for the moment a retry replaces the button.
@@ -180,7 +180,7 @@ test("every state keeps a labelled route back to Decisions", () => {
     renderDecisionDetailState(container, state, { onRetry() {} });
     const back = tags(container, "A")[0];
     assert.equal(back.href, "/", `${state}: the route back points at Decisions`);
-    assert.match(back.textContent, /Back to Decisions/, `${state}: the route back is labelled`);
+    assert.match(back.textContent, /Back to Decision log/, `${state}: the route back is labelled`);
   }
 });
 
@@ -203,7 +203,7 @@ test("available detail renders labelled text, empty alternatives, and linked-rel
     }],
   });
 
-  assert.equal(tags(container, "A")[0].textContent, "← Back to Decisions");
+  assert.equal(tags(container, "A")[0].textContent, "← Back to Decision log");
   assert.equal(tags(container, "H1")[0].textContent, "Keep durable jobs in a queue");
   assert.match(container.textContent, /Status accepted Owner Mina Recorded/);
   assert.match(container.textContent, /Context and rationale Retries must survive a deploy/);
@@ -286,7 +286,7 @@ test("detail page uses semantic landmarks and safe DOM rendering", async () => {
   assert.match(page, /renderDecisionDetailSkeleton\(container\);/);
   assert.doesNotMatch(page, /if[^\n]*renderDecisionDetailSkeleton/);
   assert.match(page, /renderDecisionDetailState\(container, "error", retry\)/);
-  assert.match(html, /href="\/">← Back to Decisions<\/a>/);
+  assert.match(html, /href="\/">← Back to Decision log<\/a>/);
   assert.match(css, /@media\(max-width:760px\)/);
 });
 

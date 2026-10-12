@@ -4,7 +4,7 @@ import { readFile, readdir } from "node:fs/promises";
 import { NAV_SETS, SITE_NAV, navCurrentFor } from "../src/site-nav.js";
 import { parseHtml, pressKey, tabSequence, textOf } from "./support/browser.js";
 
-const primary = ["Home", "Decisions", "Releases"];
+const primary = ["Home", "Decision log", "Releases"];
 const secondary = ["AI FinOps", "Prompt coach", "Social", "People", "Paint", "Agent observatory"];
 const pages = [];
 for (const file of await readdir(new URL("../src/", import.meta.url))) {

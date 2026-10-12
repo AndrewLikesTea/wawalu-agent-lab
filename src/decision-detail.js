@@ -74,7 +74,7 @@ function el(tag, className, content) {
 }
 
 function renderBackLink() {
-  const back = el("a", "detail-back", "← Back to Decisions");
+  const back = el("a", "detail-back", "← Back to Decision log");
   back.href = "/";
   return back;
 }
@@ -101,14 +101,14 @@ export const DETAIL_STATE_COPY = {
     tone: "neutral",
     label: "No decision selected",
     title: "Choose a decision",
-    description: "No decision was specified. Use “Back to Decisions” above to choose one from the log.",
+    description: "No decision was specified. Use “Back to Decision log” above to choose one from the log.",
     recoverable: false,
   },
   "not-found": {
     tone: "missing",
     label: "Not found",
     title: "Decision not found",
-    description: "This decision may have been removed or is not recorded in this browser. Trying again will not find it — use “Back to Decisions” above to choose another record.",
+    description: "This decision may have been removed or is not recorded in this browser. Trying again will not find it — use “Back to Decision log” above to choose another record.",
     recoverable: false,
   },
   error: {
