@@ -43,6 +43,7 @@ import { renderOverdueFinding } from "./overdue-decision-view.js";
 import {
   ADDED_LABEL,
   EXAMPLE_LABEL,
+  REPOSITORY_DECISIONS,
   REPOSITORY_LABEL,
   REPOSITORY_RELEASE_ABSENT,
   SAMPLE_RELEASE_ID,
@@ -76,6 +77,8 @@ import {
   statusSummaryText,
 } from "./releases.js";
 import { shippedState } from "./shipped-releases.js";
+import { BUILD_STAMP } from "./build-stamp.js";
+import { commitUrl, deployedReleaseRecord, parseShipReason, shortCommit } from "./deployed-release.js";
 
 export const STORAGE_KEY = "shiplog.decisions.v1";
 // Every value a stored or imported record may carry. The words a visitor reads
@@ -1436,8 +1439,75 @@ export function renderRepositoryEvidence(root, decisions = SEED_DECISIONS) {
   target.append(paragraph);
 }
 
+export const RELEASE_PAIR_LOADED = "Loaded: one repository decision and the release that shipped it.";
+export const RELEASE_PAIR_UNAVAILABLE = "No verifiable linked decision and release could be loaded. The build this page came from does not name a pull request that one of this repository’s decisions cites.";
+
+// THE ONE LINK THE DATA PROVES (#2805). No record in this repository stores a
+// decision-to-release link: every repository decision sets releaseInLog false,
+// and every release in the log is invented. The one real release is the
+// deployment record, and its commit subject ends in the "(#N)" the squash merge
+// wrote. When exactly one repository decision cites that same pull request,
+// this build is the merge of that decision, which is a link the data proves
+// rather than one this page asserts. Any other build, any missing field, or two
+// decisions citing one number gives null, and null renders no field at all.
+export function repositoryReleasePair(decisions = REPOSITORY_DECISIONS, stamp = BUILD_STAMP) {
+  const release = deployedReleaseRecord(stamp);
+  const pullNumber = parseShipReason(release?.commitSubject)?.pullNumber;
+  if (!release || !pullNumber || !commitUrl(release.commitSha)) return null;
+  const cited = decisions.filter((decision) => decision?.repository?.pullRequest === pullNumber);
+  const [decision] = cited;
+  const status = canonicalDecisionStatus(decision?.status);
+  if (cited.length !== 1 || !STORED_DECISION_STATUSES.includes(status)
+    || ![decision.id, decision.title, decision.owner].every((value) => typeof value === "string" && value.trim())) return null;
+  return { decision, release, pullNumber, status };
+}
+
+export function renderRepositoryReleasePair(root, pair = repositoryReleasePair()) {
+  const target = root.querySelector("#repository-release-pair");
+  const status = root.querySelector("#repository-release-pair-status");
+  if (!target || !status) return;
+  target.replaceChildren();
+  status.textContent = pair ? RELEASE_PAIR_LOADED : RELEASE_PAIR_UNAVAILABLE;
+  if (!pair) return;
+  const { decision, release, pullNumber } = pair;
+  const commit = shortCommit(release.commitSha);
+  const facts = root.createElement("dl");
+  facts.setAttribute("class", "hero-proof-facts");
+  for (const [term, value] of [
+    ["Decision", decision.title],
+    ["Release", `Deployed build ${commit}`],
+    ["Status", pair.status[0].toUpperCase() + pair.status.slice(1)],
+    ["Owner", decision.owner],
+    ["What shipped", `Commit ${commit} merged pull request #${pullNumber}, “${release.commitSubject}”, and this page was built from it.`],
+  ]) {
+    const row = root.createElement("div");
+    const dt = root.createElement("dt");
+    const dd = root.createElement("dd");
+    dt.textContent = term;
+    dd.textContent = value;
+    row.append(dt, dd);
+    facts.append(row);
+  }
+  target.append(facts);
+  for (const [href, text] of [
+    [`/?source=repository#decision-${encodeURIComponent(decision.id)}`, `Read the full decision record: ${decision.title}`],
+    [release.detailHref, `Open the deployment record for build ${commit} on the Releases page`],
+    [commitUrl(release.commitSha), `Open commit ${commit}, which merged pull request #${pullNumber}, in the public repository`],
+  ]) {
+    const paragraph = root.createElement("p");
+    paragraph.setAttribute("class", "release-followup-lead");
+    const link = root.createElement("a");
+    link.setAttribute("class", "text-link");
+    link.setAttribute("href", href);
+    link.textContent = text;
+    paragraph.append(link);
+    target.append(paragraph);
+  }
+}
+
 export async function initDecisionLog(root = document, storage = localStorage, options = {}) {
   renderRepositoryEvidence(root);
+  renderRepositoryReleasePair(root, repositoryReleasePair(REPOSITORY_DECISIONS, options.buildStamp ?? BUILD_STAMP));
   initLeadCapture(root);
   // The log entry's route to the follow-up form. Guarded inside, so a page that
   // mounts this log without the route or without the band gets nothing.
