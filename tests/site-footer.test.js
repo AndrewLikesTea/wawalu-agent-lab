@@ -29,6 +29,8 @@ import { REPOSITORY_URL } from "../src/repository-url.js";
 import { FOLLOW_UP_TOPICS, POST_FOLLOW_UP_TOPIC } from "../src/leads.js";
 import { FOLLOW_UP_PRIVACY, FOLLOW_UP_REPLY, FOLLOW_UP_USE } from "../src/lead-capture.js";
 import { SITE_NAV } from "../src/site-nav.js";
+import { initDecisionDetail } from "../src/decision-page.js";
+import { SAMPLE_RELEASE_ID } from "../src/seed-records.js";
 import { loadPage, parseHtml, pressEnter, tabSequence, textOf, typeText } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 
@@ -372,16 +374,16 @@ test("the About block says who Shiplog is for, and reaches the worked decision i
         assert.doesNotMatch(textOf(pitch), claim, `${file}: the pitch claims ${claim}`);
       }
 
-      // One click to the worked decision, by the name the home page's own call
-      // to action uses for it, at the address the site forwards for that figure.
+      // One click to Shiplog's own example decision record (#2828), the one the
+      // home page's "Example records" open on, not AI FinOps' answer.
       const link = pitch.querySelectorAll("a")[0];
-      assert.ok(Boolean(link), `${file}: the pitch must link the worked decision`);
+      assert.ok(Boolean(link), `${file}: the pitch must link the example decision`);
       assert.equal(link.tagName, "A");
       assert.equal(textOf(link), PITCH_LINK);
       assert.equal(link.getAttribute("href"), PITCH_HREF);
       assert.equal(pitch.querySelectorAll("a").length, 1, `${file}: one pointer, not a second site map`);
       assert.ok(tabSequence(document).includes(link), `${file}: the pointer must be keyboard reachable`);
-      assert.ok(html.includes(`<a href="${PITCH_HREF}">`), `${file}: the pointer must carry the answer's fragment`);
+      assert.ok(html.includes(`<a href="${PITCH_HREF}">`), `${file}: the pointer must carry the example's id`);
 
       // After the heading, before the list: it sells, then it directs. Asserted
       // on the document's own order, which is what a reader and a screen reader
@@ -418,10 +420,63 @@ test("the pitch is one sentence and a pointer, in the words the site already use
   assert.ok(PITCH.split(/\s+/).length <= 20, `the pitch runs to ${PITCH.split(/\s+/).length} words`);
   assert.doesNotMatch(PITCH, /powerful|seamless|unlock|leverage|central hub|best-in-class|simply/i, "the pitch uses filler");
 
+  // The target is an invented record, so the pointer says "example", as the
+  // home page's "Example records" label does for the same record (#2828).
+  assert.match(PITCH_LINK, /\bexample decision\b/, "the pointer must say the decision is an example");
+  assert.doesNotMatch(PITCH_LINK, /FinOps/, "the pointer must lead to Shiplog, not a separate tool");
   const hero = textOf(parseHtml(await read("index.html")).querySelector(".hero-finops"));
-  assert.ok(hero.includes(PITCH_LINK), "the pitch must name the worked decision the way the home page names it");
   assert.ok(!hero.includes(PITCH), "the pitch must not be the home page's hero sentence pasted into the footer");
   assert.ok(PITCH.split(/\s+/).length < hero.split(/\s+/).length, "the footer points, the home page explains");
+});
+
+// #2828: the band says AI FinOps is not part of Shiplog, then sent the reader
+// there to see Shiplog work. The pointer now opens Shiplog's own example
+// decision, which shows the release it shaped. Pinned literally on every page,
+// so a page left on the old link cannot pass by agreeing with a constant.
+const EXAMPLE_LINK_TEXT = "an example decision and the release it shaped";
+const EXAMPLE_LINK_HREF = "/decision.html?id=demo-queue";
+const SEPARATE_TOOLS_SENTENCE = "AI FinOps, Prompt coach, Personal AI history, and Agent observatory are separate "
+  + "tools hosted in the same lab, not part of Shiplog.";
+
+test("every About Shiplog block points at the example decision, not AI FinOps", async () => {
+  assert.equal(PITCH_LINK, EXAMPLE_LINK_TEXT);
+  assert.equal(PITCH_HREF, EXAMPLE_LINK_HREF);
+  for (const file of PAGES) {
+    const document = parseHtml(await read(file));
+    const pitches = document.querySelectorAll(".site-footer-pitch");
+    assert.equal(pitches.length, 1, `${file}: one pitch`);
+    const block = textOf(document.querySelector(".site-footer"));
+    assert.ok(!block.includes("See the worked decision in AI FinOps"), `${file}: the old pointer is still there`);
+    assert.equal(textOf(pitches[0]), `${PITCH} See ${EXAMPLE_LINK_TEXT}.`, `${file}: the pitch reads differently`);
+
+    const links = document.querySelector(".site-footer").querySelectorAll("a")
+      .filter((link) => textOf(link) === EXAMPLE_LINK_TEXT);
+    assert.equal(links.length, 1, `${file}: the block must hold exactly one example-decision link`);
+    const href = links[0].getAttribute("href");
+    assert.equal(href, EXAMPLE_LINK_HREF, `${file}: the link must open the example decision`);
+    const resolved = new URL(href, "https://labs.wawalu.org/releases.html");
+    assert.equal(resolved.origin, "https://labs.wawalu.org", `${file}: the link must stay on this site`);
+    assert.equal(resolved.pathname, "/decision.html", `${file}: the link must open the decision record page`);
+    assert.doesNotMatch(href, /evolution|finops/i, `${file}: the link still leads to AI FinOps`);
+
+    const identity = textOf(document.querySelector(".site-footer-identity"));
+    assert.ok(identity.includes(SEPARATE_TOOLS_SENTENCE), `${file}: the separate-tools sentence changed`);
+  }
+});
+
+test("the example decision the pitch opens renders the release it shaped", async (t) => {
+  const target = new URL(PITCH_HREF, "https://labs.wawalu.org/");
+  const page = await loadPage(pageUrl("decision.html"), { storage: {}, location: { search: target.search } });
+  t.after(() => page.restore());
+  await initDecisionDetail();
+
+  const detail = page.document.querySelector("#decision-detail");
+  assert.equal(page.document.documentElement.dataset.shiplogDecisionDetail, "ready");
+  assert.match(textOf(detail), /Adopt a durable job queue/);
+  const releaseLinks = detail.querySelectorAll("a")
+    .filter((link) => link.getAttribute("href") === `/release.html?id=${SAMPLE_RELEASE_ID}`);
+  assert.equal(releaseLinks.length, 1, "the example decision must link the release it shaped");
+  assert.match(textOf(releaseLinks[0]), /v1\.3\.0/, "the linked release must be named");
 });
 
 test("the footer is a site map: every destination the navigation offers, each one a link", async () => {

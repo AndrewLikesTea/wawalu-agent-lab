@@ -93,8 +93,8 @@ export const IDENTITY = "Shiplog is a decision and release log: it records a dec
 
 // Who Shiplog is for, and the page that shows it working; the tests say why.
 export const PITCH = "Shiplog is for engineering teams that have to explain why something shipped.";
-export const PITCH_LINK = "the worked decision in AI FinOps";
-export const PITCH_HREF = "/evolution.html#workspace-answer";
+export const PITCH_LINK = "an example decision and the release it shaped";
+export const PITCH_HREF = "/decision.html?id=demo-queue";
 
 /**
  * Every door the navigation offers, and what each one is for.
