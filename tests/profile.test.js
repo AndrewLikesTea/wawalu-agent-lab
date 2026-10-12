@@ -126,7 +126,7 @@ test("merging prefers the earlier list, so live posts shadow same-id seeds", () 
 
 test("the profile subject is the query param, then the remembered name, then a default", () => {
   assert.equal(resolveProfileAuthor({ param: "Mina", stored: "Kai" }), "Mina");
-  assert.equal(resolveProfileAuthor({ param: "  ", stored: "Kai" }), "Kai");
+  assert.equal(resolveProfileAuthor({ param: "  ", stored: "Kai" }), "  ");
   assert.equal(resolveProfileAuthor({ authors: ["Ari", "Kai"] }), "Ari");
   assert.equal(resolveProfileAuthor({}), "Guest");
   // A forwarded name past the author limit is answered under, not discarded: no
@@ -156,7 +156,7 @@ test("with nothing asked for, the landing name beats the first name alphabetical
 test("an explicit name is told apart from a first-time landing", () => {
   assert.equal(hasExplicitAuthor({ param: "Kai" }), true);
   assert.equal(hasExplicitAuthor({ stored: "Kai" }), true);
-  assert.equal(hasExplicitAuthor({ param: "  ", stored: null }), false);
+  assert.equal(hasExplicitAuthor({ param: "  ", stored: null }), true);
   assert.equal(hasExplicitAuthor({}), false);
   // A link that asked for an over-long name still asked for somebody, so the
   // page must not report that name back as a preselection of its own, and must

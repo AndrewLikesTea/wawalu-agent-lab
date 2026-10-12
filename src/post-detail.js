@@ -18,6 +18,7 @@
 
 // Relative, not root-absolute: this module is imported by `node --test` as well
 // as by the browser, and only a relative specifier resolves in both.
+import { peopleImagePostsLabel } from "./social-links.js";
 import { captionFor, countLabel, profileHref } from "./profile.js";
 import { IMAGE_DESCRIPTION_LABEL, renderImageDescriptionText, renderImageUnavailable } from "./image-description.js";
 import { pageTitle } from "./page-title.js";
@@ -67,7 +68,7 @@ const MAX_RETURN_AUTHOR_LENGTH = 60;
 
 export function postPeopleLabel(author = "") {
   const name = String(author).trim();
-  return name && name.length <= MAX_RETURN_AUTHOR_LENGTH ? `Open People to see ${name}’s other image posts` : "";
+  return name && name.length <= MAX_RETURN_AUTHOR_LENGTH ? peopleImagePostsLabel(name) : "";
 }
 
 // Where the People link goes. The words promise one display name's image posts,

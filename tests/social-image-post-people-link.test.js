@@ -180,16 +180,32 @@ async function openSocial(t, { feed = FEED } = {}) {
  * on body text — People's authored markup already prints profile prose before a
  * single post has arrived, so a text-based wait returns on turn zero.
  */
-async function openPeople(t, { search = "", feed = FEED } = {}) {
+async function openPeople(t, { search = "", feed = FEED, storage = {} } = {}) {
   const page = await loadPage(PEOPLE_PAGE, {
-    storage: {},
+    storage,
     location: { search },
     routes: { [SEED_ROUTE]: { posts: feed }, [LIVE_ROUTE]: { posts: [] } },
   });
   const release = holdTimers(t, page);
   // The addresses the page writes as the selection moves, in order.
   page.replaced = [];
-  globalThis.window.history = { replaceState: (...args) => page.replaced.push(args) };
+  const browser = globalThis.window;
+  const entries = [search];
+  let position = 0;
+  let onPop;
+  browser.addEventListener = (type, handler) => { if (type === "popstate") onPop = handler; };
+  browser.history = { pushState: (...args) => {
+    page.replaced.push(args);
+    entries.splice(++position);
+    entries.push(new URL(args[2], "https://labs.wawalu.org").search);
+    browser.location.search = entries[position];
+  } };
+  page.go = (delta) => {
+    position += delta;
+    browser.location.search = entries[position];
+    onPop();
+  };
+  page.address = () => browser.location.search;
   await importPageModule("/profile-page.js");
   const { document } = page;
   await waitFor(() => document.documentElement.dataset.shiplogProfile === "ready", "the People page finished its first load");
@@ -245,6 +261,10 @@ test("an image post carries one link to People, named for the name and the desti
   assert.deepEqual(stops.map((element) => element.className), ["post-people", "release-detail-link", "text-button post-report-button"],
     "the card grew a tab stop of its own, or lost one it had");
   assert.equal(link.getAttribute("tabindex"), null);
+  const children = card.children;
+  assert.ok(children.indexOf(card.querySelector(".post-caption")) < children.indexOf(link));
+  assert.ok(children.indexOf(card.querySelector(".post-figure")) < children.indexOf(link));
+  assert.ok(children.indexOf(link) < children.indexOf(card.querySelector(".post-report-button")));
 });
 
 test("a text-only post offers no People link at all, and keeps its remaining tab stop", async (t) => {
@@ -412,14 +432,15 @@ test("choosing a name on People writes it into the address, and that address reo
 // Names that break naive URL building or naive markup: a space and an accent,
 // an ampersand, the two characters that end a query and start a fragment, and
 // a tag. Ids end in a real day of the month, or People drops the post.
-const AWKWARD_NAMES = ["Ana María", "A & B", "x#y?z", "<b>Zed"];
+const AWKWARD_NAMES = ["Ana María", "A & B", "x#y?z", "<b>Zed", "O'Neil \"猫\" + 50%/=?"];
+
 const AWKWARD_FEED = AWKWARD_NAMES.map((author, index) => ({
   ...post(`p-1${index}`, author, `1${index}`),
   image: { src: `/media/awkward-${index}.svg`, alt: `Drawing ${index}`, width: 1200, height: 900 },
 }));
 
 test("the People address round-trips every awkward name through the one helper both sides use", () => {
-  for (const name of [...AWKWARD_NAMES, ARI, "Zoë Ødegård", "50%+more", "a=b;c/d"]) {
+  for (const name of [...AWKWARD_NAMES, ARI, "Zoë Ødegård", "50%+more", "a=b;c/d", "  padded name  "]) {
     const { search } = new URL(profileHref(name), "https://labs.wawalu.org");
     assert.equal(requestedProfileAuthor(search), name, `${name} did not survive the address`);
   }
@@ -466,4 +487,44 @@ test("the People link and People's messages are drawn as text, never as markup",
   assert.match(social, /el\("a", "post-people", peopleImagePostsLabel\(post\.author\)\)/);
   assert.match(social, /if \(text !== undefined\) node\.textContent = text;/);
   assert.match(profilePage, /const param = requestedProfileAuthor\(window\.location\.search\);/);
+});
+
+
+test("People history restores selections and clearing an unknown name restores the default picker", async (t) => {
+  const page = await openPeople(t, { search: "?author=Unknown%20%3C%26%3E" });
+  const { document } = page;
+  const clear = document.querySelector(".empty-actions").querySelector("button");
+  assert.equal(textOf(clear), "Clear selection and show all display names");
+  assert.ok(tabSequence(document).includes(clear));
+  clear.click();
+  assert.equal(page.address(), "");
+  assert.equal(pressedChip(document).dataset.author, ARI);
+  assert.deepEqual(chips(document).map((chip) => chip.dataset.author).sort(), [ARI, REMY, TESS].sort());
+  assert.equal(document.activeElement.id, "profile-name-picker");
+  chips(document).find((chip) => chip.dataset.author === REMY).click();
+  assert.equal(requestedProfileAuthor(page.address()), REMY);
+  assert.deepEqual(drawnTiles(document).map((tile) => tile.dataset.postId), imagePostIds(REMY));
+  page.go(-1);
+  assert.equal(pressedChip(document).dataset.author, ARI);
+  page.go(-1);
+  assert.equal(pressedChip(document).dataset.author, "Unknown <&>");
+  assert.equal(drawnTiles(document).length, 0);
+  page.go(1);
+  page.go(1);
+  assert.equal(pressedChip(document).dataset.author, REMY);
+  assert.deepEqual(drawnTiles(document).map((tile) => tile.dataset.postId), imagePostIds(REMY));
+  assert.equal(page.replaced.length, 2, "popstate must not write another history entry");
+});
+
+// A browser that once published only text as "Kai" remembers a name with no
+// image posts. Clearing must not land on another empty state whose only way
+// out is the same Clear button.
+test("clearing an unknown name lands on image posts even when the remembered name has none", async (t) => {
+  const page = await openPeople(t, { search: "?author=Nobody", storage: { "shiplog.social.author": "Kai" } });
+  const { document } = page;
+  document.querySelector(".empty-actions").querySelector("button").click();
+  assert.equal(page.address(), "");
+  assert.equal(document.querySelectorAll(".empty-state").length, 0, "Clear led to another empty state");
+  assert.equal(pressedChip(document).dataset.author, ARI);
+  assert.equal(page.storage.getItem("shiplog.social.author"), "Kai", "clearing a filter must not forget the publishing name");
 });
