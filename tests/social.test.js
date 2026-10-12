@@ -1225,7 +1225,7 @@ test("the feed toolbar names what each control filters, in the site's own terms"
     "the ordering eyebrow survives above a summary sentence that already ends \"newest first\"");
   // "Show posts" named no field — it read as the button beside it rather than
   // as the label above a menu. The label is the fact the menu narrows on.
-  assert.match(markup, /<label for="post-time-filter">Filter posts by posting time<\/label>/,
+  assert.match(markup, /<label for="post-time-filter">Filter posts by publication time<\/label>/,
     "the time menu is labelled by what it filters on");
   assert.doesNotMatch(markup.replace(/<!--[\s\S]*?-->/g, ""), /Show posts/,
     "the label that read like a button survives somewhere on the page");
@@ -1236,7 +1236,7 @@ test("the feed toolbar names what each control filters, in the site's own terms"
   // names, exactly as the display-name menu writes its own. "From any time"
   // opened like a start date — "from" and an unbounded point — which is not what
   // choosing it does.
-  assert.match(markup, /<option value="all">All posting times<\/option>/,
+  assert.match(markup, /<option value="all">All publication times<\/option>/,
     "the all-values option names every post, in the label's own term");
   assert.doesNotMatch(markup.replace(/<!--[\s\S]*?-->/g, ""), /From any time/,
     "the all-values option still opens like a start date");
@@ -1270,8 +1270,16 @@ test("the feed toolbar names what each control filters, in the site's own terms"
   // Both menus, and only these two, carry a visible label tied to their own
   // control — so neither reads as the button they sit beside.
   const labels = page.document.querySelector(".social-toolbar").querySelectorAll("label");
-  assert.deepEqual(labels.map((label) => textOf(label)), ["Filter posts by display name", "Filter posts by posting time"]);
+  assert.deepEqual(labels.map((label) => textOf(label)), ["Filter posts by display name", "Filter posts by publication time"]);
   assert.deepEqual(labels.map((label) => label.getAttribute("for")), ["post-name-filter", "post-time-filter"]);
+  // One term for when a post went out (#2810): cards, People and the post page
+  // say "published", so the time filter says it too, and "posting time" is gone.
+  assert.match(textOf(labels[1]), /publication/);
+  assert.doesNotMatch(textOf(page.document.body), /posting[ -]time/i,
+    "the rendered page still calls the time filter's subject \"posting time\"");
+  const timeOptions = page.document.querySelector("#post-time-filter").options;
+  assert.deepEqual(timeOptions.map((option) => option.getAttribute("value")), ["all", "hour", "day", "week"],
+    "the rewording changed the time filter's values");
 });
 
 // The one sentence a settled feed owes a first-time visitor: how many posts,
