@@ -506,14 +506,14 @@ test("the hero's first step records a decision before its release, in the direct
 
   // #2316: the sentence under the demo link said to record a release and then
   // inspect its decisions, while the site directory on the same page says
-  // "Decisions — start here: record a decision, then link it to the release it
+  // "Decision log — start here: record a decision, then link it to the release it
   // shaped". Two orders for one workflow on one page; the directory's is the
   // one every other page carries, so the hero follows it.
   const step = textOf(document.getElementById("top").querySelector(".hero-boundary"));
   assert.doesNotMatch(step, /record a release and inspect its linked decisions/i);
   assert.match(step, /^Record a decision, then link it to the release it shaped\./);
   const directory = document.querySelectorAll("li").map(textOf)
-    .find((text) => text.startsWith("Decisions — start here"));
+    .find((text) => text.startsWith("Decision log — start here"));
   assert.match(directory, /record a decision, then link it to the release it shaped/,
     "the hero's order is only right while the directory still says the same thing");
 

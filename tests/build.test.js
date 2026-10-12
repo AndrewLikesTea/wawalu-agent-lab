@@ -144,16 +144,17 @@ const heroLeadOf = (html) =>
 const logEntryOf = (html) =>
   html.slice(html.indexOf('<section class="shiplog-entry"'), html.indexOf('<section class="hero-finops"'));
 
-test("the homepage leads with the decision-to-release benefit and a primary demo action", async () => {
+test("the homepage names the Decision log and explains browsing and recording", async () => {
   const html = await readFile(new URL("../src/index.html", import.meta.url), "utf8");
   const document = parseHtml(html);
   const hero = document.querySelector(".hero");
   assert.equal(document.querySelectorAll("h1").length, 1);
-  assert.equal(document.querySelector("h1").textContent.trim(), "Keep the reasoning behind what shipped.");
-  // The lede says what gets recorded instead of restating the h1's point.
+  assert.equal(document.querySelector("h1").textContent.trim(), "Decision log");
+  // The introduction explains both things a visitor can do in the log.
   const lede = hero.querySelectorAll("p").filter((p) => !p.getAttribute("class"));
   assert.equal(lede.length, 1);
   const ledeText = lede[0].textContent;
+  assert.match(ledeText, /Browse existing decisions or record a new one/);
   assert.doesNotMatch(ledeText, /reasoning behind shipped work/);
   assert.doesNotMatch(ledeText, /reasoning/);
   for (const term of ["context", "alternatives", "owner", "release"]) assert.match(ledeText, new RegExp(term));

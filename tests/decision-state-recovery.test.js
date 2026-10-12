@@ -82,7 +82,7 @@ test("a read that failed says so once, and offers a labelled retry after the rea
 
   // Reading order: the way back, then the state, then the recovery it explains.
   const rendered = textOf(page.container);
-  assert.ok(rendered.indexOf("Back to Decisions") < rendered.indexOf("Decision couldn’t be loaded"));
+  assert.ok(rendered.indexOf("Back to Decision log") < rendered.indexOf("Decision couldn’t be loaded"));
   assert.ok(rendered.indexOf("trying again is safe") < rendered.indexOf("Retry loading this decision"));
 });
 
@@ -136,7 +136,7 @@ test("an id this browser does not have offers the route back and refuses to prom
 
   assert.match(textOf(page.panel), /Trying again will not find it/);
   assert.equal(page.back.getAttribute("href"), "/");
-  assert.match(textOf(page.back), /Back to Decisions/);
+  assert.match(textOf(page.back), /Back to Decision log/);
   assert.ok(tabSequence(page.document).includes(page.back));
 });
 
@@ -147,7 +147,7 @@ test("arriving with no id names the route back as the way on, and offers nothing
   assert.equal(page.panel.dataset.recoverable, "false");
   assert.equal(page.retry, null);
   assert.match(textOf(page.panel), /No decision was specified/);
-  assert.match(textOf(page.panel), /Back to Decisions/, "the state names the route it is pointing at");
+  assert.match(textOf(page.panel), /Back to Decision log/, "the state names the route it is pointing at");
   assert.equal(page.back.getAttribute("href"), "/");
 });
 

@@ -131,7 +131,7 @@ export const DEMOS = Object.freeze([
     separate: true,
   }),
   Object.freeze({
-    label: "Decisions",
+    label: "Decision log",
     href: "/",
     purpose: "record a decision, then link it to the release it shaped",
     // The only row that says where to start: a list with no order is no list.

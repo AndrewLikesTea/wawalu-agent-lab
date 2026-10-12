@@ -49,7 +49,7 @@ export const NAV_SETS = [
 
 export const SITE_NAV = [
   { href: "/index.html", label: "Home", set: "primary" },
-  { href: "/", label: "Decisions", fragment: "decisions-title", set: "primary", section: ["/decision.html", "/workspace.html"] },
+  { href: "/", label: "Decision log", fragment: "decisions-title", set: "primary", section: ["/decision.html", "/workspace.html"] },
   { href: "/releases.html", label: "Releases", set: "primary", section: ["/release.html"] },
   {
     href: "/evolution.html",

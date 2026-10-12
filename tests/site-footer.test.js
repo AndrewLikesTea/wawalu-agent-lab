@@ -487,8 +487,8 @@ test("the footer is a site map: every destination the navigation offers, each on
       assert.equal(link.getAttribute("href"), demo.href);
       assert.ok(stops.includes(link), `${demo.label} must be keyboard reachable`);
     }
-    const decisionsRow = items[DEMOS.findIndex((demo) => demo.label === "Decisions")];
-    assert.match(textOf(decisionsRow), /^Decisions — start here: /, "the list must say where to start");
+    const decisionsRow = items[DEMOS.findIndex((demo) => demo.label === "Decision log")];
+    assert.match(textOf(decisionsRow), /^Decision log — start here: /, "the list must say where to start");
     assert.match(textOf(items[0]), /^AI FinOps/, "the rows keep the navigation's order");
 
     // A site map, not an essay. The rule used to be a flat eight-word cap, which
@@ -854,12 +854,12 @@ test("the About Shiplog band names a different file for each surface that reads 
 // naming the one destination that has it in its name. Every row this issue
 // touched opens on what a visitor does there, like the rows around it.
 test("the directory says history only in the Personal AI history row, and each row opens on a verb", async () => {
-  const verbs = { "Personal AI history": "grade ", Decisions: "record ", Releases: "see " };
+  const verbs = { "Personal AI history": "grade ", "Decision log": "record ", Releases: "see " };
   for (const [label, verb] of Object.entries(verbs)) {
     const { purpose } = DEMOS.find((demo) => demo.label === label);
     assert.ok(purpose.startsWith(verb), `the ${label} row opens "${purpose}" instead of "${verb}…"`);
   }
-  assert.equal(DEMOS.find((demo) => demo.label === "Decisions").purpose,
+  assert.equal(DEMOS.find((demo) => demo.label === "Decision log").purpose,
     "record a decision, then link it to the release it shaped");
   // The Releases follow-up names its page in the directory's words, word for word.
   assert.equal(FOLLOW_UP_TOPICS.follow_up_releases,
@@ -881,9 +881,9 @@ test("the directory says history only in the Personal AI history row, and each r
 // AI FinOps. One answer about where to begin, on every page, as authored and as
 // painted once the footer entry has run. Only the marker moved.
 test("every page's directory says start here once, on Decisions, and AI FinOps still says what it does", async () => {
-  const decisions = DEMOS.find((demo) => demo.label === "Decisions");
+  const decisions = DEMOS.find((demo) => demo.label === "Decision log");
   const finops = DEMOS.find((demo) => demo.label === "AI FinOps");
-  assert.deepEqual(DEMOS.filter((demo) => demo.note).map((demo) => demo.label), ["Decisions"]);
+  assert.deepEqual(DEMOS.filter((demo) => demo.note).map((demo) => demo.label), ["Decision log"]);
   assert.equal(decisions.purpose, "record a decision, then link it to the release it shaped");
   assert.equal(finops.purpose, "score your provider export in this browser tab");
   const HREFS = ["/evolution.html", "/coach.html", "/personal-history.html", "/", "/releases.html",
@@ -899,7 +899,7 @@ test("every page's directory says start here once, on Decisions, and AI FinOps s
       `${where}: the directory's doors changed`);
     assert.equal((textOf(lists[0]).match(/start here/gi) ?? []).length, 1, `${where}: "start here" is not said exactly once`);
     const marked = rows.filter((row) => /start here/i.test(textOf(row)));
-    assert.equal(textOf(marked[0]), `Decisions — start here: ${decisions.purpose}`, `${where}: the marker is not on Decisions`);
+    assert.equal(textOf(marked[0]), `Decision log — start here: ${decisions.purpose}`, `${where}: the marker is not on Decisions`);
     assert.equal(textOf(rows[HREFS.indexOf("/evolution.html")]), `AI FinOps — ${finops.purpose}. ${SEPARATE_TOOL}`,
       `${where}: the AI FinOps row`);
     const summary = document.querySelectorAll("#site-footer-directory-summary");
@@ -908,7 +908,7 @@ test("every page's directory says start here once, on Decisions, and AI FinOps s
 
   for (const file of PAGES) {
     const html = await read(file);
-    assert.ok(html.includes(`<a href="/">Decisions</a> — start here: ${decisions.purpose}</li>`), `${file}: the authored Decisions row`);
+    assert.ok(html.includes(`<a href="/">Decision log</a> — start here: ${decisions.purpose}</li>`), `${file}: the authored Decisions row`);
     assert.ok(!html.includes("AI FinOps</a> — start here"), `${file} still starts a visitor at AI FinOps`);
     directory(parseHtml(html), `${file} as authored`);
 
@@ -986,7 +986,7 @@ test("the directory is headed by the lab, and every destination outside Shiplog 
 // add a fifth, and the sentence and this test move together or this fails.
 test("the About band names exactly the destinations the directory marks separate (#2746)", async () => {
   assert.deepEqual(SEPARATE_LABELS, ["AI FinOps", "Prompt coach", "Personal AI history", "Agent observatory"]);
-  assert.deepEqual(SHIPLOG_LABELS, ["Decisions", "Releases", "Social", "People", "Paint"]);
+  assert.deepEqual(SHIPLOG_LABELS, ["Decision log", "Releases", "Social", "People", "Paint"]);
   assert.equal(SEPARATE_SERIES, "AI FinOps, Prompt coach, Personal AI history, and Agent observatory");
 
   // Read off the sentence rather than beside it: whichever destinations the band

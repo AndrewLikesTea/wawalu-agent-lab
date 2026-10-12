@@ -252,7 +252,7 @@ test("the decision detail view keeps the section between the record header and i
   assert.ok(sections.indexOf("proof-relationship") < sections.indexOf("decision-context"));
   assert.match(container.textContent, /3 releases carry this decision\. Newest: v1\.4\.0 — planned/);
   // The return link stays the first thing in the container on every path.
-  assert.equal(tags(container, "A")[0].textContent, "← Back to Decisions");
+  assert.equal(tags(container, "A")[0].textContent, "← Back to Decision log");
   assert.equal(tags(container, "A")[1].href, "/release.html?id=r-1-4-0");
 });
 

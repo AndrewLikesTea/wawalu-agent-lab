@@ -489,7 +489,7 @@ test("each reviewed page marks its own destination, and only that one", async ()
     ["coach.html", "Prompt coach"],
     ["agents.html", "Agent observatory"],
     ["executive-briefing.html", "AI FinOps"],
-    ["decision.html", "Decisions"],
+    ["decision.html", "Decision log"],
   ];
   for (const [file, label] of reviewed) {
     const nav = parseHtml(await readFile(pageUrl(file), "utf8")).querySelector(".site-nav");
