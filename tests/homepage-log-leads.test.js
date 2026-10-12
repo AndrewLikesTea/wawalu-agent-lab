@@ -209,16 +209,50 @@ test("every in-page link on the painted front door still lands on a region that 
     "the log entry sends a reader further down this page and must stay pointing down");
 });
 
-test("the log's eyebrow no longer places the section further down the page", async (t) => {
+// #2827: a first-time visitor meets the promise before the form instructions.
+// The log's eyebrow ("the product this page carries") is deleted, not hidden,
+// and the promise moved up rather than being copied.
+test("the painted front door leads with the promise, then names the log", async (t) => {
   const { document } = await openFrontDoor(t);
-  const eyebrow = textOf(document.getElementById("shiplog-entry").querySelector(".eyebrow"));
-  assert.match(eyebrow, /^The decision and release log · /);
-  assert.doesNotMatch(eyebrow, /further down|below|later on/i,
-    "the section leads the page now, so its own kicker may not send a reader down to it");
+  const main = document.getElementById("main-content");
+  const headings = main.querySelectorAll("h1,h2,h3,h4");
+  assert.equal(headings[0].tagName, "H1");
+  assert.equal(textOf(headings[0]), "Know why it shipped. Decide what’s next.");
+  assert.equal(main.querySelectorAll("h1").length, 1);
+
+  const hero = document.getElementById("top");
+  const blocks = hero.childElements.filter((node) => node.getAttribute?.("class") !== "eyebrow");
+  const order = blocks.map((node) => node.getAttribute("id") || textOf(node).slice(0, 40));
+  const at = (prefix) => order.findIndex((label) => label.startsWith(prefix));
+  assert.equal(at("page-title"), 0, `the promise must open the hero: ${order.join(" | ")}`);
+  assert.match(textOf(blocks[1]),
+    /^Shiplog records decisions, tracks the releases they shape, and keeps the link between them\./);
+  assert.ok(at("home-log-title") > 1, `the log's name must follow the promise: ${order.join(" | ")}`);
+  assert.equal(textOf(document.getElementById("home-log-title")), "Decision log");
+  assert.match(textOf(blocks[at("home-log-title") + 1]), /^Browse existing decisions or record a new one/);
+  const demo = document.getElementById("core-demo-link");
+  assert.equal(textOf(demo), "Explore the decision and release log demo →");
+  assert.equal(demo.getAttribute("href"), "#record-history-title");
+  assert.equal(textOf(document.getElementById("record-history-title")), "Decision and release workspace");
+
+  assert.doesNotMatch(textOf(main), /the product this page carries/);
+  assert.equal(document.getElementById("shiplog-entry").childElements[0].getAttribute("id"), "repository-evidence",
+    "the log entry must open on its evidence, not on a kicker");
+  assert.equal(document.getElementById("shiplog-entry").getAttribute("aria-labelledby"), "home-log-title");
+  assert.ok(!document.getElementById("shiplog-entry-title"), "the old promise heading id is still on the page");
+
+  // No tab stop moved: the promise adds none, the hero still offers only the
+  // demo link, and the log entry's first stop still follows it directly.
+  const sequence = tabSequence(document);
+  const heroStops = sequence.filter((node) => ancestorIds(node).includes("top"));
+  assert.deepEqual(heroStops.map((node) => node.id), ["core-demo-link"]);
+  const demoAt = sequence.indexOf(demo);
+  assert.ok(!ancestorIds(sequence[demoAt - 1]).includes("main-content"), "a stop was added above the demo link");
+  assert.ok(ancestorIds(sequence[demoAt + 1]).includes("shiplog-entry"), "a stop was added after the demo link");
 
   // The directional sentence that is still true keeps its wording: the
   // recorder, the filters, the export, and the import did not move.
-  assert.match(textOf(document.getElementById("shiplog-entry")),
+  assert.match(textOf(hero),
     /Recording, searching, filtering, exporting, and importing the log are all further down this page\./);
 });
 

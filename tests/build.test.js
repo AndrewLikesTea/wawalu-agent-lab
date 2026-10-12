@@ -149,11 +149,18 @@ test("the homepage names the Decision log and explains browsing and recording", 
   const document = parseHtml(html);
   const hero = document.querySelector(".hero");
   assert.equal(document.querySelectorAll("h1").length, 1);
-  assert.equal(document.querySelector("h1").textContent.trim(), "Decision log");
-  // The introduction explains both things a visitor can do in the log.
+  // #2827: the promise is the page title; the log's name heads what a visitor
+  // can do in it, one level down.
+  assert.equal(document.querySelector("h1").textContent.trim(), "Know why it shipped. Decide what’s next.");
+  assert.equal(document.querySelectorAll("#home-log-title").length, 1);
+  assert.equal(document.getElementById("home-log-title").tagName, "H2");
+  assert.equal(document.getElementById("home-log-title").textContent.trim(), "Decision log");
+  // The introduction explains both things a visitor can do in the log. The
+  // paragraph before it is the promise's explanation.
   const lede = hero.querySelectorAll("p").filter((p) => !p.getAttribute("class"));
-  assert.equal(lede.length, 1);
-  const ledeText = lede[0].textContent;
+  assert.equal(lede.length, 2);
+  assert.match(lede[0].textContent, /^Shiplog records decisions, tracks the releases they shape/);
+  const ledeText = lede[1].textContent;
   assert.match(ledeText, /Browse existing decisions or record a new one/);
   assert.doesNotMatch(ledeText, /reasoning behind shipped work/);
   assert.doesNotMatch(ledeText, /reasoning/);
