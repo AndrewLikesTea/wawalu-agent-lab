@@ -601,13 +601,12 @@ test("the deployment record has one name everywhere the page names it", async (t
   // naming the compared-against record in those same words, in its lead, its
   // verdict and the heading of its evidence.
   assert.match(check, /^Deployment check /);
-  assert.match(check, /This compares the version this site is running with the version in the deployment record\./);
+  assert.match(check, /The deployment check compares the running site version with the deployment record version\./);
   assert.match(check, /the version the deployment record names\./);
   assert.match(check, /Evidence: what the running build answered, and the deployment record it was compared with/);
 
-  // "The running build" is now only ever the deployment the check reads a
-  // version from, never the record it is compared with.
-  assert.match(check, /It reads the running build when the page loads\./);
+  // "Running" only ever names the side the check reads a version from, never
+  // the record it is compared with.
   assert.doesNotMatch(record, /running build/i, "the record is named after the build again");
   for (const region of [record, check]) {
     assert.match(region, /[Dd]eployment record/, "a region reaches for a second name for the record");
@@ -649,9 +648,8 @@ test("the deployment proof renders one record heading without losing its verific
   assert.equal(textOf(page.document.querySelector("#deployment-status-title")), "Deployment check");
   assert.equal(
     textOf(page.document.querySelector("#deployment-status-proof")),
-    "This compares the version this site is running with the version in the deployment record."
-      + " A match means the page you are reading came from the build that record names."
-      + " It reads the running build when the page loads.",
+    "The deployment check compares the running site version with the deployment record version."
+      + " Confirmed: the running site is the recorded deployment.",
   );
 
   // What is compared is stated once. It opens the band, which is the place a
@@ -659,10 +657,11 @@ test("the deployment proof renders one record heading without losing its verific
   // reader reading the same comparison twice before reaching the answer.
   const check = textOf(page.document.querySelector("#deployment-status"));
   assert.equal(
-    check.match(/This compares the version this site is running with the version in the deployment record\./g)?.length,
+    check.match(/compares the running site version with the deployment record version\./g)?.length,
     1,
     "the deployment check states what it compares more than once",
   );
+  assert.equal((check.match(/\bcompares?\b/g) ?? []).length, 1, "a second sentence restates the comparison");
 });
 
 // (#2423) One fetch, one waiting sentence — the one the front door already
@@ -672,7 +671,7 @@ test("the deployment proof renders one record heading without losing its verific
 // made by the question one line above it, so a reader waiting on the probe read
 // the same thing twice in different words, and a reader following the front
 // door's link met a third wording of the wait they had just left.
-const WAITING_LINE = "Checking the running build now…";
+const WAITING_LINE = "Checking: the result appears here in a few seconds.";
 const DELETED_WAITING_LINE = "Retrieving the running build’s version…";
 
 test("the page waits in the site's one waiting sentence, before the check answers", async (t) => {
@@ -682,7 +681,7 @@ test("the page waits in the site's one waiting sentence, before the check answer
   // Once, and in the bytes as well as the paint: a second waiting sentence
   // would be a second account of one fetch, which is what was deleted.
   const markup = await readFile(RELEASES_PAGE, "utf8");
-  assert.equal((markup.match(/Checking the running build now…/g) ?? []).length, 1);
+  assert.equal(markup.split(WAITING_LINE).length - 1, 1);
   assert.equal(markup.includes(DELETED_WAITING_LINE), false);
   assert.equal(textOf(page.document.querySelector("#main-content")).includes(DELETED_WAITING_LINE), false);
 
@@ -701,7 +700,7 @@ test("the deployment check and the record it compares name themselves one way ea
   const check = textOf(doc.querySelector("#deployment-status"));
 
   assert.equal(textOf(doc.querySelector("#deployment-status-title")), "Deployment check");
-  assert.match(textOf(doc.querySelector("#deployment-status-proof")), /^This compares the version this site is running/);
+  assert.match(textOf(doc.querySelector("#deployment-status-proof")), /^The deployment check compares the running site version/);
   assert.equal(
     textOf(doc.querySelector("#deployment-copy")),
     "Copy the deployment check verdict and both versions",

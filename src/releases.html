@@ -158,10 +158,8 @@
            hold in their head until the verdict answered it; it now states the
            comparison and what a match would prove (#2512). It is static markup,
            not a slot: what this check proves is true before the probe answers
-           and stays true if it never does. The first two sentences are the
-           front door's, byte for byte; the third is this page's, because the
-           front door says the same thing in the boundary line under its own
-           block. The waiting line under it is the front door's, word for word
+           and stays true if it never does. Both sentences are the front
+           door's, byte for byte. The waiting line under it is the front door's, word for word
            (#2423), so a reader who follows the front door's link here meets the
            same words they left.
 
@@ -171,8 +169,7 @@
            each. Both sentences are DEPLOYMENT_OUTCOMES in
            src/deployment-status.js and the front door ships them byte for byte,
            so the two surfaces cannot word one outcome two ways. The mismatch
-           sentence names the public repository, which this page already links
-           from the record above and from its footer, rather than adding a link.
+           sentence points at the record above, in this same block.
 
            No link back to the record: it is the rest of this block. The row
            that used to carry one also carried the commit link, which the record
@@ -188,9 +185,9 @@
       <section class="release-followup-slot" id="deployment-status" aria-labelledby="deployment-status-title" tabindex="-1">
         <div class="release-followup" id="deployment-status-callout">
           <h3 class="release-followup-title" id="deployment-status-title">Deployment check</h3>
-          <p class="release-followup-lead" id="deployment-status-proof">This compares the version this site is running with the version in the deployment record. A match means the page you are reading came from the build that record names. It reads the running build when the page loads.</p>
-          <p class="release-followup-lead" id="deployment-outcomes">If the versions do not match, the page you are reading did not come from the build that record names. Open the public repository this site is built from to look up either version. If the check cannot complete, nothing here says which version this site is running. Reload the page to run it again.</p>
-          <p class="release-followup-lead" id="deployment-verdict" role="status" aria-describedby="deployment-checked-at">Checking the running build now…</p>
+          <p class="release-followup-lead" id="deployment-status-proof">The deployment check compares the running site version with the deployment record version. Confirmed: the running site is the recorded deployment.</p>
+          <p class="release-followup-lead" id="deployment-outcomes">Not a match: the running site is a different build from the recorded deployment. See the deployment record for the build that should be running. Did not complete: this page cannot say which version is running. Check again later.</p>
+          <p class="release-followup-lead" id="deployment-verdict" role="status" aria-describedby="deployment-checked-at">Checking: the result appears here in a few seconds.</p>
           <p class="detail-summary" id="deployment-checked-at" hidden></p>
           <!-- The check's own recovery (#2806), shown only while it could not
                complete, and re-running this probe alone: the record above, the

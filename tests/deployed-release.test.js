@@ -328,7 +328,7 @@ test("an unstamped build shows no record and withdraws the real marking", async 
 // with, which is what the question directly above it already says. One fetch,
 // one sentence, on both pages — and the record's name is asserted where the
 // band actually states it, in the settled verdict below.
-const WAITING_LINE = "Checking the running build now…";
+const WAITING_LINE = "Checking: the result appears here in a few seconds.";
 
 test("the check waits in the site's one waiting sentence, and announces the answer in place", async (t) => {
   // A probe that never answers: the state a visitor on a slow network meets,

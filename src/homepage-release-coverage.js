@@ -25,7 +25,7 @@
 //
 //   • still counting — what the document ships, because a figure in the served
 //     bytes is a figure nobody counted. It is the sentence the deployment check
-//     beside it ships ("Checking the running build now…") in the same register,
+//     beside it ships (its "Checking:" line) in the same register,
 //     not an em dash, an empty node, or a "0".
 //   • counted — the releases page's sentence, plus whose records it counted.
 //   • unread — the log refused the read. countReasoningKept over an empty log
