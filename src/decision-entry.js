@@ -71,7 +71,7 @@ export const DECISION_ENTRY_FIELDS = Object.freeze(["title", "context", "alterna
 // The label each field carries in the form, so the summary line can name the
 // field that is blocking the save in the words the visitor is looking at.
 export const DECISION_ENTRY_LABELS = Object.freeze({
-  title: "Title",
+  title: "Decision title",
   context: "Context",
   alternatives: "Alternatives",
   owner: "Owner",
@@ -95,7 +95,7 @@ const tooLong = (what, limit) => (length) =>
 export const DECISION_ENTRY_ERRORS = Object.freeze({
   title: Object.freeze({
     missing: "Give the decision a short title. It is what the history lists and what search matches.",
-    tooLong: tooLong("Title", DECISION_ENTRY_LIMITS.title),
+    tooLong: tooLong("Decision title", DECISION_ENTRY_LIMITS.title),
   }),
   context: Object.freeze({
     missing: "Write the problem, the constraints, and the reasoning. This is what a teammate reads six months from now.",

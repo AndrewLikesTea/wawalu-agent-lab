@@ -161,7 +161,7 @@ test("the form-level line names what is blocking the save and counts the rest", 
   // It takes the failures the validator produced, in that shape, too.
   assert.equal(
     decisionEntrySummary(validateDecisionEntry({ ...COMPLETE, title: "", owner: "" })),
-    "Title is blocking this save. 1 more field needs attention.",
+    "Decision title is blocking this save. 1 more field needs attention.",
   );
   // A headline, not a second copy of the field messages.
   for (const message of Object.values(DECISION_ENTRY_ERRORS).map((entry) => entry.missing)) {

@@ -2218,7 +2218,7 @@ export async function initDecisionLog(root = document, storage = localStorage, o
     // Focus the top of the form rather than leaving it on the button. It is the
     // page's own idiom — a failed submit sends focus to the first field that
     // needs attention — and it is the only announcement a screen reader gets
-    // that the press landed: the Title field is read back with the example text
+    // that the press landed: the Decision title field is read back with the example text
     // now in it, as editable text.
     const title = entryFields.get("title")?.control;
     title?.focus?.({ preventScroll: true });

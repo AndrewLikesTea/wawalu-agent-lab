@@ -167,7 +167,7 @@ test("an empty submit reports every field at once, writes nothing, and focuses t
   assert.equal(summary.hidden, false, "the form-level line is not shown");
   assert.equal(
     textOf(summary),
-    "Title is blocking this save. 3 more fields need attention.",
+    "Decision title is blocking this save. 3 more fields need attention.",
     "the form-level line does not name the blocking field and the remaining count",
   );
   // The live region ships in the markup and is never hidden, so the sentence
@@ -476,7 +476,7 @@ test("the whole entry works with the keyboard alone, failures included", async (
   assert.equal(document.activeElement, submitButton(page), "the record button is not reachable by keyboard");
   pressEnter(document);
   assert.equal(document.activeElement, byId(page, "title"), "a keyboard submit left focus on the button");
-  assert.match(textOf(byId(page, "decision-form-error")), /^Title is blocking this save\./);
+  assert.match(textOf(byId(page, "decision-form-error")), /^Decision title is blocking this save\./);
 
   // Now answer it from where focus already is, tabbing forward through the form.
   typeText(document, ENTRY.title);
