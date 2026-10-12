@@ -607,7 +607,7 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
    distinguishes the degraded connection even when colour is unavailable; the
    adjacent status text names the state in words. */
 .feed-connection[data-state="degraded"] .live-dot { border:2px solid #8a6d0a; border-radius:1px; background:#fff; box-shadow:none; transform:rotate(45deg); }
-.feed-status { display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin:0 0 12px; color:#74746e; font:650 11px/1.5 ui-monospace,monospace; }
+.feed-status { display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin:0 0 12px; color:#62625d; font:650 11px/1.5 ui-monospace,monospace; }
 .feed-status-summary,.feed-status-detail { margin:0; }
 .feed-status-label { margin-right:6px; color:#74746e; }
 .feed-status-value { color:#62625d; }
@@ -964,7 +964,7 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 /* Phone: the metadata row stops competing with the title for width, and the
    picker gives up its scroll cap so the page scrolls as one column. */
 @media(max-width:520px) { .decision-picker{max-height:none}.decision-picker-meta{gap:6px 10px} }
-@media(prefers-reduced-motion:reduce) { html{scroll-behavior:auto}.release-chevron{transition:none}.list-state-loading h3::before,.detail-loading-dot,.post-media[data-state="loading"],.profile-media[data-state="loading"],.detail-media[data-state="loading"],.skeleton-media,.skeleton-line,.skeleton-avatar{animation:none}.profile-tile{transition:none}.profile-tile:hover{transform:none}.site-footer-panel{animation:none} }
+@media(prefers-reduced-motion:reduce) { html{scroll-behavior:auto}.release-chevron{transition:none}.list-state-loading h3::before,.detail-loading-dot,:is(.post-media,.profile-media,.detail-media,.compose-preview-frame)[data-state=loading],.skeleton-media,.skeleton-line,.skeleton-avatar{animation:none}.profile-tile{transition:none}.profile-tile:hover{transform:none}.site-footer-panel{animation:none} }
 
 /* In-flow disclosure: no overlay, clipping, or script-dependent menu state.
    The tools sit on their own row with the summary pinned right, so opening
