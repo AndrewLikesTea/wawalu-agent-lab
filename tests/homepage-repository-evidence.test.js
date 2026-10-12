@@ -1,7 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { initDecisionLog, renderRepositoryEvidence, STORAGE_KEY } from "../src/app.js";
+import {
+  RELEASE_PAIR_LOADED, RELEASE_PAIR_UNAVAILABLE, initDecisionLog, renderRepositoryEvidence,
+  renderRepositoryReleasePair, repositoryReleasePair, STORAGE_KEY,
+} from "../src/app.js";
+import { BUILD_STAMP } from "../src/build-stamp.js";
 import { REPOSITORY_DECISIONS, SEED_DECISIONS, pullRequestUrl } from "../src/seed-records.js";
 import { loadPage, textOf, tabSequence } from "./support/browser.js";
 
@@ -80,4 +84,114 @@ test("every paragraph in the block carries the shared proof-copy class", async (
   for (const paragraph of paragraphs) {
     assert.equal(paragraph.getAttribute("class"), "release-followup-lead");
   }
+});
+
+/* ------------- the one decision and the release that shipped it ------------- */
+
+const SHA = "0123456789abcdef0123456789abcdef01234567";
+const stampFor = (subject, overrides = {}) => ({
+  schemaVersion: 1, commitSha: SHA, commitSubject: subject, builtAt: "2026-10-12T09:00:00.000Z", ...overrides,
+});
+const cited = REPOSITORY_DECISIONS.find((record) => record.repository.pullRequest === 2547);
+const pairFields = (target) => target.querySelectorAll("div")
+  .map((row) => [textOf(row.querySelector("dt")), textOf(row.querySelector("dd"))]);
+
+test("a build whose commit merged a repository decision's pull request renders the whole pair", async (t) => {
+  const page = await loadPage(home, { location: { search: "?source=repository" } });
+  t.after(() => page.restore());
+  const subject = "Agent: Mina — Mark every record row with whose record it is (#2547)";
+  await initDecisionLog(page.document, page.storage, { buildStamp: stampFor(subject) });
+  const status = page.document.getElementById("repository-release-pair-status");
+  const target = page.document.getElementById("repository-release-pair");
+  assert.equal(status.getAttribute("role"), "status");
+  assert.equal(textOf(status), RELEASE_PAIR_LOADED);
+  assert.equal(target.querySelectorAll("dl").length, 1);
+  assert.deepEqual(pairFields(target), [
+    ["Decision", cited.title],
+    ["Release", "Deployed build 0123456789ab"],
+    ["Status", "Accepted"],
+    ["Owner", cited.owner],
+    ["What shipped", `Commit 0123456789ab merged pull request #2547, “${subject}”, and this page was built from it.`],
+  ]);
+  const links = target.querySelectorAll("a");
+  assert.deepEqual(links.map((link) => link.getAttribute("href")), [
+    "/?source=repository#decision-shiplog-pr-2547",
+    "/releases.html#shipped-build",
+    `https://github.com/AndrewLikesTea/wawalu-agent-lab/commit/${SHA}`,
+  ]);
+  assert.deepEqual(links.map((link) => textOf(link)), [
+    `Read the full decision record: ${cited.title}`,
+    "Open the deployment record for build 0123456789ab on the Releases page",
+    "Open commit 0123456789ab, which merged pull request #2547, in the public repository",
+  ]);
+  for (const link of links) assert.ok(tabSequence(page.document).includes(link));
+  // The decision link lands on a row the repository-only history really draws.
+  const list = page.document.getElementById("decision-list");
+  assert.equal(list.querySelectorAll("article").filter((card) => card.id === "decision-shiplog-pr-2547").length, 1);
+});
+
+test("the pair is labelled as a real repository record, apart from the invented example", async (t) => {
+  const page = await loadPage(home);
+  t.after(() => page.restore());
+  const block = page.document.getElementById("repository-evidence");
+  const heading = page.document.getElementById("repository-release-pair-title");
+  assert.equal(heading.tagName, "H4");
+  assert.equal(page.document.getElementById("repository-release-pair").getAttribute("aria-labelledby"), heading.id);
+  assert.match(textOf(block), /Real repository record\. Read from this repository and the build this page came from, unlike the invented example below\./);
+  // Before the script runs the region claims nothing.
+  assert.equal(textOf(page.document.getElementById("repository-release-pair")), "");
+  assert.doesNotMatch(textOf(page.document.getElementById("repository-release-pair-status")), /shipped in|accepted|#\d/i);
+  // The invented example keeps its own caveat, word for word.
+  assert.match(textOf(page.document.getElementById("featured-decision")),
+    /Example records These invented records demonstrate Shiplog\. They use no customer or production data\./);
+});
+
+test("anything short of a proven link renders the unavailable sentence and no field values", async (t) => {
+  const page = await loadPage(home);
+  t.after(() => page.restore());
+  const target = page.document.getElementById("repository-release-pair");
+  const status = page.document.getElementById("repository-release-pair-status");
+  const subject = "Mark every record row (#2547)";
+  const cases = [
+    ["the committed build", REPOSITORY_DECISIONS, BUILD_STAMP],
+    ["no stamp", REPOSITORY_DECISIONS, null],
+    ["an unstamped build", REPOSITORY_DECISIONS, stampFor(subject, { commitSha: null })],
+    ["a subject with no pull request", REPOSITORY_DECISIONS, stampFor("Mark every record row")],
+    ["a decision with no linked release", REPOSITORY_DECISIONS, stampFor("Unrelated work (#9999)")],
+    ["no decisions", [], stampFor(subject)],
+    ["a decision missing its owner", [{ ...cited, owner: " " }], stampFor(subject)],
+    ["a decision with an unknown status", [{ ...cited, status: "shipped" }], stampFor(subject)],
+    ["two decisions citing one pull request", [cited, { ...cited, id: "twin" }], stampFor(subject)],
+  ];
+  // The committed stamp is a no-link case only while its subject cites no decision.
+  const committedPull = Number(/\(#(\d+)\)\s*$/.exec(BUILD_STAMP.commitSubject ?? "")?.[1]);
+  if (REPOSITORY_DECISIONS.some((record) => record.repository.pullRequest === committedPull)) cases.shift();
+  for (const [name, decisions, stamp] of cases) {
+    renderRepositoryReleasePair(page.document, repositoryReleasePair(decisions, stamp));
+    assert.equal(textOf(status), RELEASE_PAIR_UNAVAILABLE, name);
+    assert.equal(target.querySelectorAll("dd").length, 0, name);
+    assert.equal(target.querySelectorAll("a").length, 0, name);
+    assert.equal(textOf(target), "", name);
+  }
+  renderRepositoryReleasePair(page.document, repositoryReleasePair(REPOSITORY_DECISIONS, stampFor(subject)));
+  assert.equal(target.querySelectorAll("dd").length, 5);
+  renderRepositoryReleasePair(page.document, null);
+  assert.equal(target.querySelectorAll("dd").length, 0, "a stale pair is removed");
+  assert.equal(textOf(status), RELEASE_PAIR_UNAVAILABLE);
+});
+
+// The harness parses no markup, so escaping is pinned at the source: the
+// commit subject is repository text and reaches the page through textContent.
+// Narrow widths are the shared classes' job, so their wrapping rules are pinned.
+test("the pair renderer writes text, never markup, and wraps through shared classes", async () => {
+  const source = await readFile(new URL("../src/app.js", import.meta.url), "utf8");
+  const start = source.indexOf("export function renderRepositoryReleasePair");
+  const body = source.slice(start, source.indexOf("\nexport ", start + 1));
+  assert.ok(start > 0 && body.includes("textContent"));
+  assert.doesNotMatch(body, /innerHTML|insertAdjacentHTML|outerHTML/);
+  assert.match(body, /"hero-proof-facts"/);
+  const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
+  assert.match(css, /\.hero-proof-facts \{[^}]*grid-template-columns:repeat\(auto-fit,minmax\(150px,1fr\)\)/);
+  assert.match(css, /\.hero-proof-facts dd \{[^}]*overflow-wrap:anywhere/);
+  assert.match(css, /\.release-followup-lead \{[^}]*overflow-wrap:anywhere/);
 });
