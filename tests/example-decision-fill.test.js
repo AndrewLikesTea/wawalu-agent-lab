@@ -201,9 +201,29 @@ test("the control is reachable by Tab and fills from the keyboard alone", async 
   pressEnter(page.document);
   assert.deepEqual(fieldValues(page), exampleDecisionFormValues());
   // Focus lands on the top of the filled form, which is the only announcement a
-  // screen reader gets that the press landed: the Title field, read back with
+  // screen reader gets that the press landed: the Decision title field, read back with
   // the example text in it.
   assert.equal(page.document.activeElement.id, "title");
+});
+
+// --- the form names its object (#2794) --------------------------------------
+
+const formEyebrow = (page) => textOf(byId(page, "decision-form-title").parentNode.querySelector(".eyebrow"));
+const titleLabel = (page) => byId(page, "decision-form").querySelector('label[for="title"]');
+
+test("the form says it creates a decision, empty and after the example fill", async (t) => {
+  const page = await openHome(t);
+  const assertNamed = (state) => {
+    assert.equal(formEyebrow(page), "New decision", `${state}: the form's eyebrow`);
+    assert.equal(textOf(titleLabel(page)), "Decision title", `${state}: the title field's label`);
+    assert.equal(titleLabel(page).getAttribute("for"), "title", `${state}: the label lost its field`);
+    assert.equal(byId(page, "title").getAttribute("name"), "title", `${state}: the field was renamed`);
+  };
+
+  assertNamed("on first load");
+  fillControl(page).click();
+  assert.equal(byId(page, "title").value, exampleDecisionFormValues().title, "the fill did not land");
+  assertNamed("after the example fill");
 });
 
 // --- fill only --------------------------------------------------------------
@@ -332,7 +352,7 @@ test("a fill after a refused submit clears the messages it has just answered", a
   // Every required field empty: the recorder refuses and reports all of them.
   submitButton(page).click();
   assert.deepEqual(shownErrors(page), ["title", "context", "alternatives", "owner"]);
-  assert.match(textOf(byId(page, "decision-form-error")), /^Title is blocking this save\./);
+  assert.match(textOf(byId(page, "decision-form-error")), /^Decision title is blocking this save\./);
 
   fillControl(page).click();
   assert.deepEqual(shownErrors(page), [], "a message was left beside a field the fill answered");

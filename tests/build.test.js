@@ -52,7 +52,7 @@ test("product has a health endpoint and accessible title", async () => {
   assert.match(html, /<title>Shiplog · decision and release log<\/title>/);
   // The landmark the skip link targets — header and nav sit outside it.
   assert.match(html, /<main id="main-content" tabindex="-1">/);
-  assert.match(html, /<label for="title">Title<\/label>/);
+  assert.match(html, /<label for="title">Decision title<\/label>/);
   assert.match(html, /<label for="context">Context<\/label>/);
   assert.match(html, /<label for="owner">Owner<\/label>/);
   assert.match(html, /<label for="status">Status<\/label>/);
