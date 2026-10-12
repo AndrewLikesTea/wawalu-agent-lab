@@ -1103,13 +1103,12 @@ export function mountProfile(root, options = {}) {
   // hidden line is still text a screen reader can be walked through.
   const waiting = [
     feedPresence(elements.summary),
-    // Restored in front of the display-name caveat rather than at a remembered
-    // index (#2142): this paragraph ships under the grid now, with the
-    // connection line — which also leaves the document — above it, and an index
-    // counted from a panel that is missing a line lands this one past the
-    // caveat. The caveat is authored outside every branch rendered here, so it
-    // is the one sibling that is always there to stand in front of.
-    feedPresence(root.querySelector(".feed-create"), root.querySelector(".profile-role")),
+    // Restored after the display-name caveat, at the end of the paragraph the
+    // two share (#2819): the caveat qualifies the "Example post" sentence just
+    // above it, so nothing may come between them. An earlier anchor put this
+    // back in front of the caveat (#2142); with no anchor it returns to its
+    // slot, the paragraph's last.
+    feedPresence(root.querySelector(".feed-create")),
     // The identity line is the fourth: it says what the grid beside it is
     // showing, so a grid with nothing in it has nothing for it to say. It leaves
     // the document while the first load is open — absent rather than emptied,

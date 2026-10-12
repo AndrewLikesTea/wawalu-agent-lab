@@ -787,8 +787,10 @@ test("one profile header opens the results, above the line that orders them", as
     // paragraph in this panel, and still not in the hero.
     assert.ok(at(".profile-role") > at("#profile-grid"),
       "the display-name caveat is still read before the posts");
-    assert.equal(panel.childElements.at(-1).childElements.at(-1).className, "profile-role hint",
-      "something other than the caveat closes the results region");
+    // The caveat opens that closing paragraph, straight after the "Example post"
+    // sentence it qualifies; the publishing steps follow it (#2819).
+    assert.equal(panel.childElements.at(-1).childElements[0].className, "profile-role hint",
+      "something other than the caveat opens the paragraph that closes the results region");
     // And the hero it came from keeps no piece of it behind.
     const hero = document.querySelector(".hero-profile");
     assert.equal(hero.querySelectorAll(".profile-identity").length, 0);
@@ -978,12 +980,12 @@ function assertListLeadsInvitation(document, when) {
     assert.equal(block.querySelectorAll("a").length, 0,
       `${when}: a link stands between the heading that names the image posts and the image posts`);
   }
-  // And the invitation is under the grid, against the display-name caveat that
-  // closes the panel — the slot the presence anchor in src/profile.js restores
-  // it to, not the end of the panel and not the caveat's place.
+  // And the invitation is under the grid, straight after the display-name
+  // caveat, which itself stays against the "Example post" sentence it qualifies
+  // (#2819) — the slot src/profile.js restores the invitation to.
   assert.ok(at("#profile-grid") < at(".feed-create"),
     `${when}: the publishing invitation renders above the image posts`);
-  assert.equal(at(".profile-role"), at(".feed-create") + 1,
+  assert.equal(at(".feed-create"), at(".profile-role") + 1,
     `${when}: the invitation and the display-name caveat swapped places`);
 }
 
@@ -1302,6 +1304,38 @@ test("once People has drawn its tiles, the display-name caveat tells both cases 
     assert.doesNotMatch(caveat, /\bdemo\b/i, "the caveat calls the posts a demo");
 
     assert.match(caveat, /On any other post, whoever published it chose the name\./);
+  } finally {
+    page.restore();
+  }
+});
+
+// "On any other post" points back at the invented Example posts (#2819). With the
+// publishing steps between the two, a reader took "any other post" to mean any
+// post but the one they were about to publish. Asserted on the painted text, in
+// the states where the module has put the steps back.
+function assertCaveatFollowsProvenance(document, state) {
+  const text = textOf(document.querySelector("#main-content"));
+  const invented = "Their display names are invented.";
+  const other = "On any other post, whoever published it chose the name.";
+  const end = text.indexOf(invented) + invented.length;
+  const start = text.indexOf(other);
+  assert.ok(end >= invented.length && start > -1, `${state}: a caveat sentence is missing`);
+  const gap = text.slice(end, start);
+  assert.match(gap, /^\s*$/, `${state}: "${gap.slice(0, 40)}" sits between the Example post caveat and the display-name sentences`);
+  assert.doesNotMatch(gap, /To add yours|Anyone can read a published post/, `${state}: the publishing steps sit inside the caveat`);
+  assert.ok(text.indexOf("To add yours") > start, `${state}: the publishing steps no longer follow the caveat`);
+  assert.equal(text.split("Nobody owns or verifies a display name, and anyone can publish under any name.").length - 1, 1,
+    `${state}: the page does not say once that nobody owns a display name`);
+}
+
+test("the display-name sentences follow the Example post caveat with nothing between them", async () => {
+  const page = await people();
+  try {
+    const { document } = page;
+    await waitFor(() => drawnTiles(document).length > 0, "the grid drew a tile");
+    assertCaveatFollowsProvenance(document, "loaded");
+    chipFor(page, "Ari").click();
+    assertCaveatFollowsProvenance(document, "filtered-empty");
   } finally {
     page.restore();
   }
