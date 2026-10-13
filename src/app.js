@@ -571,10 +571,6 @@ function addedHalf(added) {
 // record some sets simply do not contain — a set of releases never contains one
 // — and "none from this repository" on a list of releases would answer a
 // question the reader did not ask and imply the class could appear there.
-//
-// It is also what keeps the release-coverage sentence (releaseCoverageLine) and
-// the releases page's reasoning figure byte-identical: both count releases, no
-// release is a repository record, so this clause never reaches them.
 function repositoryHalf(repository) {
   return `${repository} from this repository`;
 }
@@ -616,12 +612,8 @@ function countedRecordsNote(records) {
   return countedRecordsNoteFor(countRecordProvenance(records));
 }
 
-// The same sentence over a split that was counted somewhere else. The releases
-// page's reasoning figure (release-reasoning-proof.js) derives provenance from
-// the example-id set that badges its rows rather than from an `example` flag per
-// record, so it has the two halves and not the records; it names them in these
-// words rather than in a second set, because two wordings of one split is how
-// the site starts telling a reader two different things about the same records.
+// The same sentence over a split that was counted somewhere else, for a caller
+// that has the halves and not the records (the evaluation summary).
 export function countedRecordsNoteFor({ examples = 0, repository = 0, added = 0 } = {}) {
   if (repository === 0) return `Counted here: ${exampleHalf(examples)} and ${addedHalf(added)}.`;
   return `Counted here: ${exampleHalf(examples)}, ${repositoryHalf(repository)} and ${addedHalf(added)}.`;

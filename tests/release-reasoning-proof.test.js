@@ -172,7 +172,7 @@ test("the sentence carries both numbers in words, and says nothing at all over a
 
 // --- the attribution ---------------------------------------------------------
 
-test("all three provenance cases name both halves in the site's own wording", () => {
+test("all three provenance cases say whose releases were counted, outright", () => {
   const examplesOnly = countReasoningKept([KEPT, BARE], [QUEUE], new Set(["r-kept", "r-bare"]));
   const addedOnly = countReasoningKept([KEPT, BARE], [QUEUE], new Set());
   const mixed = countReasoningKept([KEPT, BARE], [QUEUE], new Set(["r-kept"]));
@@ -181,14 +181,28 @@ test("all three provenance cases name both halves in the site's own wording", ()
   assert.deepEqual([addedOnly.examples, addedOnly.added], [0, 2]);
   assert.deepEqual([mixed.examples, mixed.added], [1, 1]);
 
-  assert.equal(reasoningProvenanceNote(examplesOnly), "Counted here: 2 example records and none you added.");
-  assert.equal(reasoningProvenanceNote(addedOnly), "Counted here: no example records and 2 you added.");
-  assert.equal(reasoningProvenanceNote(mixed), "Counted here: 1 example record and 1 you added.");
+  assert.equal(reasoningProvenanceNote(examplesOnly),
+    "All 2 counted releases are example records, not ones you recorded.");
+  assert.equal(reasoningProvenanceNote(addedOnly),
+    "All 2 counted releases are recorded by you; none is an example record.");
+  assert.equal(reasoningProvenanceNote(mixed), "Of 2 counted releases, 1 is an example record and 1 you recorded.");
   // Both halves are always named, so an absence is stated rather than left out.
   for (const counts of [examplesOnly, addedOnly, mixed]) {
     assert.match(reasoningProvenanceNote(counts), /example record/);
-    assert.match(reasoningProvenanceNote(counts), /you added/);
+    assert.match(reasoningProvenanceNote(counts), /you recorded|recorded by you/);
   }
+});
+
+test("the attribution agrees in number at one release and at many (#2838)", () => {
+  const note = (total, examples) => reasoningProvenanceNote({ total, examples, added: total - examples });
+  assert.equal(note(1, 1), "All 1 counted release is an example record, not one you recorded.");
+  assert.equal(note(1, 0), "All 1 counted release is recorded by you; none is an example record.");
+  assert.equal(note(3, 2), "Of 3 counted releases, 2 are example records and 1 you recorded.");
+  assert.equal(note(3, 1), "Of 3 counted releases, 1 is an example record and 2 you recorded.");
+  // Nothing counted, nothing attributed: a log still loading or refused has no
+  // records to call examples or the visitor's own.
+  assert.equal(note(0, 0), "");
+  assert.equal(reasoningProvenanceNote(), "");
 });
 
 test("the attribution is over the records counted, not over the whole seed", () => {
@@ -212,7 +226,7 @@ test("the summary builder is pure and carries both counts, the rule, and the att
   assert.ok(summary.includes(reasoningKeptSentence(counts)), "the copied text does not carry the sentence on screen");
   assert.match(summary, /1 of 3 releases/);
   assert.ok(summary.includes(reasoningProvenanceNote(counts)), "the copied text carries no attribution");
-  assert.match(summary, /Counted here: 1 example record and 2 you added\./);
+  assert.match(summary, /Of 3 counted releases, 1 is an example record and 2 you recorded\./);
   // The rule it was counted under is the page's definition of the word, quoted
   // rather than summarised: a recipient who never saw the page gets one rule.
   assert.ok(summary.includes(COVERAGE_DEFINITION), "the copied text does not carry the counting rule");
@@ -242,7 +256,7 @@ test("the copied sentence carries its own provenance: figures, scope, caveat and
   assert.equal(lines[0], `Shiplog releases: ${reasoningKeptSentence(counts)}`);
   assert.match(lines[0], /1 of 3 releases/);
   // (b) which of the counted records were invented, and (c) what that means.
-  assert.equal(lines[2], "Counted here: 1 example record and 2 you added.");
+  assert.equal(lines[2], "Of 3 counted releases, 1 is an example record and 2 you recorded.");
   assert.equal(lines[3], REASONING_PROOF_SUMMARY_EXAMPLES);
   assert.match(lines[3], /invented to demonstrate Shiplog/);
   assert.match(lines[3], /no customer or production data/);
@@ -277,7 +291,7 @@ test("no figure in the copied sentence is derived, and none is absent from the p
     assert.ok(painted.includes(number), `the sentence states ${number}, which the page does not show`);
   }
   assert.match(claim(page), /1 of 3 releases/);
-  assert.match(provenance(page), /no example records and 3 you added/);
+  assert.match(provenance(page), /All 3 counted releases are recorded by you/);
 });
 
 const sentenceLines = (page) => Array.from(byId(page, "reasoning-proof-sentence").querySelectorAll("li"))
@@ -388,11 +402,36 @@ test("a log that could not be read shows a sentence with no figure in it rather 
   const lines = sentenceLines(page);
   assert.equal(lines[0], `Shiplog releases: ${NO_RELEASES_TO_COUNT}`);
   assert.doesNotMatch(lines[0], /\d/, "the empty log printed a figure into the copied sentence");
-  assert.equal(lines[2], "Counted here: no example records and none you added.");
+  // The no-figure summary as it shipped before #2838, less only the provenance
+  // line: a refused read has no records to call examples or the visitor's own.
   // The travelling half is unconditional: a recipient of this sentence is told
   // what it was counted over and where it came from whatever the log held.
-  assert.equal(lines[4], REASONING_PROOF_SUMMARY_SCOPE);
-  assert.equal(lines[5], REASONING_PROOF_SUMMARY_SOURCE);
+  assert.deepEqual(lines, [
+    `Shiplog releases: ${NO_RELEASES_TO_COUNT}`,
+    COVERAGE_DEFINITION,
+    REASONING_PROOF_SUMMARY_EXAMPLES,
+    REASONING_PROOF_SUMMARY_SCOPE,
+    REASONING_PROOF_SUMMARY_SOURCE,
+  ]);
+  assert.doesNotMatch(lines.join(" "), /counted releases?|you recorded|recorded by you/);
+});
+
+test("the refused log's copy block is unchanged apart from the provenance line (#2838)", async (t) => {
+  const page = await openPage(t, { refuse: true });
+  assert.equal(page.document.querySelectorAll(".release-toggle").length, 0, "the refused log still rendered rows");
+  // The preview stays up, the control stays pressable, and no availability or
+  // "unavailable" sentence is added in place of the withdrawn provenance.
+  assert.ok(!byId(page, "reasoning-proof-copyable").hidden, "the preview was hidden");
+  assert.equal(byId(page, "reasoning-proof-sentence").getAttribute("aria-busy"), "false");
+  assert.ok(!byId(page, "reasoning-proof-copy").disabled, "the copy control was disabled");
+  assert.equal(textOf(byId(page, "reasoning-proof-copy-availability")), "");
+  assert.equal(textOf(byId(page, "reasoning-proof-copy-status")), "");
+  assert.doesNotMatch(textOf(byId(page, "reasoning-proof")), /unavailable/i);
+  assert.equal(provenance(page), "");
+  // The retry beside the coverage count is the page's recovery, as before.
+  const retry = byId(page, "coverage-gap-retry");
+  assert.ok(!retry.hidden, "the retry withdrew");
+  assert.ok(!retry.disabled, "the retry was disabled");
 });
 
 test("the control keeps its label, its lifecycle and its unavailable explanation", async (t) => {
@@ -427,7 +466,7 @@ test("the block is a named region with the figure, the rule, the scope and the a
   assert.equal(byId(page, "reasoning-proof-title").tagName, "H2");
 
   assert.equal(claim(page), "1 of 3 releases in this release log links at least one decision the decision log holds.");
-  assert.equal(provenance(page), "Counted here: no example records and 3 you added.");
+  assert.equal(provenance(page), "All 3 counted releases are recorded by you; none is an example record.");
   assert.equal(textOf(byId(page, "coverage-gap-definition")), COVERAGE_DEFINITION);
   assert.equal(textOf(byId(page, "reasoning-proof-scope")), REASONING_PROOF_SCOPE);
   // The rule is stated where the number is, not left to the log's rows — and it
@@ -535,11 +574,11 @@ test("the three provenance cases reach the painted attribution", async (t) => {
   });
   assert.equal(examples.document.querySelectorAll(".release-toggle").length, 2, "the seeded examples never rendered");
   assert.equal(claim(examples), "1 of 2 releases in this release log links at least one decision the decision log holds.");
-  assert.equal(provenance(examples), "Counted here: 2 example records and none you added.");
+  assert.equal(provenance(examples), "All 2 counted releases are example records, not ones you recorded.");
 
   const added = await openPage(t, { releases: [KEPT, BARE] });
   assert.equal(added.document.querySelectorAll(".release-toggle").length, 2, "the stored releases never rendered");
-  assert.equal(provenance(added), "Counted here: no example records and 2 you added.");
+  assert.equal(provenance(added), "All 2 counted releases are recorded by you; none is an example record.");
 
   const mixed = await openPage(t, {
     releases: [KEPT],
@@ -547,7 +586,7 @@ test("the three provenance cases reach the painted attribution", async (t) => {
   });
   assert.equal(mixed.document.querySelectorAll(".release-toggle").length, 2, "the mixed log never rendered");
   assert.equal(claim(mixed), "1 of 2 releases in this release log links at least one decision the decision log holds.");
-  assert.equal(provenance(mixed), "Counted here: 1 example record and 1 you added.");
+  assert.equal(provenance(mixed), "Of 2 counted releases, 1 is an example record and 1 you recorded.");
 });
 
 test("a dangling link is not counted on the page either, and recovering the decision moves the figure", async (t) => {
@@ -566,7 +605,7 @@ test("a log that could not be read counts nothing rather than claiming a figure"
   const page = await openPage(t, { refuse: true });
   assert.equal(page.document.querySelectorAll(".release-toggle").length, 0, "the refused log still rendered rows");
   assert.equal(claim(page), NO_RELEASES_TO_COUNT);
-  assert.equal(provenance(page), "Counted here: no example records and none you added.");
+  assert.equal(provenance(page), "", "a refused read attributed records nobody saw");
   // A page that has stopped counting does not still say it is counting (#2645),
   // even when what it found was nothing.
   assert.doesNotMatch(textOf(byId(page, "reasoning-proof")), /Still counting/);
@@ -591,7 +630,7 @@ test("filtering the log moves the list's own count and leaves the figure alone",
   change(byId(page, "release-status"), "cancelled");
   assert.equal(page.document.querySelectorAll(".release-toggle").length, 0, "the status filter matched something");
   assert.equal(claim(page), before, "an empty view moved the figure");
-  assert.equal(provenance(page), "Counted here: no example records and 3 you added.");
+  assert.equal(provenance(page), "All 3 counted releases are recorded by you; none is an example record.");
   // The copy is what tells a reader that, so it is held to saying it.
   assert.match(REASONING_PROOF_SCOPE, /the search and the filters below do not change them/);
 });
@@ -625,7 +664,9 @@ test("the copy control hands the summary to the clipboard and says so", async (t
   assert.equal(written.length, 1);
   assert.equal(written[0], reasoningProofSummary(countReasoningKept([KEPT, DANGLING, BARE], [QUEUE, CACHE])));
   assert.match(written[0], /1 of 3 releases/);
-  assert.match(written[0], /Counted here: no example records and 3 you added\./);
+  // The provenance wording is the painted line, from the same function (#2838).
+  assert.ok(written[0].split("\n").includes(provenance(page)), "the copied text words the provenance differently");
+  assert.match(written[0], /All 3 counted releases are recorded by you; none is an example record\./);
   // The copied bytes carry the page's own lead sentence, both figures included,
   // so the clipboard and the screen cannot state different numbers (#2598).
   assert.ok(written[0].includes(claim(page)), "the copied text is not the sentence on screen");
