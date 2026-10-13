@@ -3,8 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Image posts published under one display name in the Shiplog Social feed" />
-    <title>People · Shiplog</title>
+    <meta name="description" content="Image posts published under one display name in Social, a Wawalu Lab showcase" />
+    <title>People · Wawalu Lab</title>
     <link rel="stylesheet" href="/styles.css" />
     <link rel="stylesheet" href="/social-states.css" />
   </head>
@@ -62,6 +62,11 @@
              to say, and this page already said it one time too many. -->
         <h1 id="page-title">People</h1>
         <p class="profile-lede" id="page-tagline">See the image posts from Social: every Social post that carries an image, shown one display name at a time.</p>
+        <!-- Whose showcase this is (#2864): the lab's, not Shiplog's, with the
+             route to Shiplog. It reads with the introduction, before the hero's
+             actions, so those actions still lead straight into the picker.
+             Its bytes are LAB_IDENTITY in src/page-title.js. -->
+        <p class="hint" id="lab-identity">A separate Wawalu Lab project, not part of <a href="/#decisions-title">Shiplog, the decision and release log</a>.</p>
         <!-- This page has no composer, so asking a person is its one action and
              it stays in the hero. Its caption stays with it: every other page
              that carries this label carries the line explaining it in the same

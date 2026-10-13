@@ -26,6 +26,26 @@ export function pageTitle(...segments) {
   return [...segments.map(clean).filter(Boolean), PRODUCT].join(SEPARATOR);
 }
 
+// The lab's own pages — Prompt coach, Social and its post page, People and Agent
+// observatory — are hosted beside Shiplog but are not part of it (#2864), so
+// their tabs end in the lab's name rather than the product's. Shiplog's own
+// pages keep pageTitle().
+export const LAB = "Wawalu Lab";
+
+export function labTitle(...segments) {
+  return [...segments.map(clean).filter(Boolean), LAB].join(SEPARATOR);
+}
+
+// The one sentence those pages carry near their top, with their route back to
+// Shiplog. Each page embeds these bytes in a paragraph with id="lab-identity" —
+// static, so it reads before any script runs — and
+// tests/lab-identity.test.js holds every page to them.
+export const LAB_IDENTITY_HREF = "/#decisions-title";
+export const LAB_IDENTITY = `A separate ${LAB} project, not part of <a href="${LAB_IDENTITY_HREF}">Shiplog, the decision and release log</a>.`;
+// The same words with no link, for a page whose first screen may not gain a
+// tab stop (Social's hero sits above its filters).
+export const LAB_IDENTITY_TEXT = LAB_IDENTITY.replace(/<[^>]+>/g, "");
+
 // Cuts `text` to at most `limit` characters, ending on a word boundary with an
 // ellipsis. Trailing punctuation goes with the cut word — `Down-route routine,…`
 // reads as a typo, `Down-route routine…` reads as an abbreviation.

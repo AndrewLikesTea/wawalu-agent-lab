@@ -124,11 +124,13 @@ test("the picker is read and reached before the name, the count, and the results
     assert.ok(at("#profile-author") < at("#profile-grid"));
 
     // The hero's actions — the route and its two direct asks (#2807) — lead
-    // directly into the display-name filters.
+    // directly into the display-name filters. Before them, one stop: the lab
+    // identity line's route to Shiplog, read with the introduction (#2864).
     const inMain = tabSequence(document).filter((element) => element.closest("#main-content"));
-    assert.deepEqual(inMain.slice(0, 3).map((element) => element.id),
+    assert.equal(inMain[0].parentNode.getAttribute("id"), "lab-identity");
+    assert.deepEqual(inMain.slice(1, 4).map((element) => element.id),
       ["ask-about-shiplog", "ask-about-shiplog-demo", "ask-about-shiplog-pilot"]);
-    assert.deepEqual(inMain.slice(3, 6).map((element) => element.dataset.author), ["Ari", "Bea", "Zed"]);
+    assert.deepEqual(inMain.slice(4, 7).map((element) => element.dataset.author), ["Ari", "Bea", "Zed"]);
     for (const chip of chips(page))
       assert.equal(chip.getAttribute("tabindex"), null, "the order is markup order, not a tabindex trick");
   } finally {
@@ -927,11 +929,12 @@ test("tabbing from the top reaches the picker, then the posts under the header",
     assert.ok(at(document.querySelector("#profile-order")) < at(walked[4]));
     assert.ok(at(walked[3 + tiles.length * 2]) < at(document.querySelector("#profile-paint-route")));
     // The primary action and the filter precede the results. None stands
-    // between the heading that names the results and the results.
+    // between the heading that names the results and the results. Ahead of
+    // them is the lab identity line's route to Shiplog (#2864).
     const inMain = tabSequence(document).filter((element) => element.closest("#main-content"));
     const beforePanel = inMain.filter((element) => !element.closest(".list-panel"));
     assert.deepEqual(beforePanel.map((element) => element.dataset?.author ?? element.getAttribute("href")),
-      ["#site-footer-panel", "#site-footer-intent-demo", "#site-footer-intent-pilot", "Ari", "Bea", "Zed", "/social.html?author=Zed"]);
+      ["/#decisions-title", "#site-footer-panel", "#site-footer-intent-demo", "#site-footer-intent-pilot", "Ari", "Bea", "Zed", "/social.html?author=Zed"]);
   } finally {
     page.restore();
   }

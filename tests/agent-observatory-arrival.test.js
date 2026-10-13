@@ -119,11 +119,13 @@ test("the served markup already says what the observatory shows, outside every r
   // "Ask about Shiplog" route (#2556). That line is about the follow-up form and
   // not about the observatory, so it does not compete with this sentence — but
   // it is a paragraph in the same block, so it has to be named to be excluded.
+  // So is the lab identity line (#2864): it says whose page this is, not what
+  // the observatory shows, and tests/lab-identity.test.js owns its wording.
   const hero = document.querySelector(".observatory-hero");
   const lead = hero.childElements.find((child) => child.querySelectorAll("#page-title").length === 1);
   assert.ok(lead, "the hero still leads with the page heading");
   const standing = lead.querySelectorAll("p").filter((node) => !node.classList.contains("eyebrow")
-    && node.getAttribute("id") !== "ask-about-shiplog-description");
+    && node.getAttribute("id") !== "ask-about-shiplog-description" && node.getAttribute("id") !== "lab-identity");
   assert.equal(standing.length, 1, "one standing sentence, not a set of competing ones");
   const description = textOf(standing[0]);
   assert.ok(description.length > 60, "a sentence about the page, not a label");

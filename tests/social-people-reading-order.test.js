@@ -45,7 +45,14 @@ for (const surface of surfaces) {
     if (surface.file === "social")
       assert.ok(order.indexOf(askRoute) > order.indexOf(document.querySelector(surface.state)),
         "the contact route is read before the feed it follows");
-    const stops = tabSequence(document).filter((node) => node.closest("#main-content"));
+    let stops = tabSequence(document).filter((node) => node.closest("#main-content"));
+    // People's introduction ends on the lab identity line, whose one link is
+    // the route to Shiplog (#2864); its hero action is the stop after it.
+    // Social's line carries no link, so its hero adds no stop.
+    if (surface.file === "profile") {
+      assert.equal(stops[0].parentNode.getAttribute("id"), "lab-identity");
+      stops = stops.slice(1);
+    }
     assert.equal(stops[0].id, surface.file === "social" ? "post-compose-open" : "ask-about-shiplog");
     assert.ok(stops.every((node) => !Number(node.getAttribute("tabindex"))), "no positive tabindex overrides reading order");
     if (surface.file === "social") {

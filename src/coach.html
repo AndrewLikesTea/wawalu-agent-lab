@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="Grade a prompt against a bundled rubric, in your browser tab. Nothing is uploaded, stored, or sent to a model." />
-    <title>Prompt coach · Shiplog</title>
+    <title>Prompt coach · Wawalu Lab</title>
     <link rel="stylesheet" href="/styles.css" />
     <!-- The coaching surface's styles live beside the rubric they present, in
          the AI FinOps stylesheet, and this page loads the same file rather than
@@ -63,11 +63,18 @@
            Personal AI history is offered once, in the "Also on this site" card
            below the grade, and not here: a second pitch in near-identical words
            read as two destinations to compare before the reader had used this
-           one. -->
+           one.
+
+           The line under the hero says whose tool this is (#2864): the lab's,
+           not Shiplog's, with the route to Shiplog. Its bytes are LAB_IDENTITY
+           in src/page-title.js. It sits outside the hero, which stays name then
+           purpose, and outside the entry body below, which the module replaces
+           on load, so it is painted text and not a pre-script fallback. -->
       <section class="coach-hero" aria-labelledby="page-title">
         <h1 id="page-title">Prompt coach</h1>
         <p id="page-tagline">Grade a prompt before you send it. Your pasted text stays in this browser. It is not sent to a model or stored.</p>
       </section>
+      <p class="hint" id="lab-identity">A separate Wawalu Lab project, not part of <a href="/#decisions-title">Shiplog, the decision and release log</a>.</p>
 
       <!-- Coach one prompt: the question a reader arrives with before they have
            any file to import. AI FinOps answers a different one, grading an

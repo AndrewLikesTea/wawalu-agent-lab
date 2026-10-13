@@ -287,7 +287,7 @@ test("social page is wired, labeled, and linked from the other pages", async () 
   assert.match(home, /href="\/social\.html"/);
   assert.match(releases, /href="\/social\.html"/);
 
-  assert.match(page, /<title>Social · Shiplog<\/title>/);
+  assert.match(page, /<title>Social · Wawalu Lab<\/title>/);
   assert.match(page, /id="post-feed"/);
   assert.match(page, /id="post-name-filter"/);
   assert.match(page, /id="post-time-filter"/);
