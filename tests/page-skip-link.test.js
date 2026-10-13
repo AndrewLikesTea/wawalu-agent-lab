@@ -376,9 +376,14 @@ test("the post page's loading tab order reaches Social without a placeholder Peo
   // One stop per row, including the row for the page the navigation files
   // inside another destination — see `filedUnder` in src/site-footer.js.
   const bandStops = DEMOS.map((demo) => demo.label);
+  // One stop of the page's own comes first: the lab identity line closing the
+  // standing frame, whose link is the route to Shiplog (#2864).
+  assert.equal(sequence[FRAME_STOPS].parentNode.getAttribute("id"), "lab-identity",
+    "the stop after the exits is not the lab identity line's route to Shiplog");
+  const FOOTER_FROM = FRAME_STOPS + 1;
   // The follow-up block's fields carry no text of their own, so they are named
   // by id: the optional question #2153 added, then the work email beneath it.
-  const afterExit = sequence.slice(FRAME_STOPS).map((stop) => textOf(stop) || stop.id);
+  const afterExit = sequence.slice(FOOTER_FROM).map((stop) => textOf(stop) || stop.id);
   // The band opens on the sentence that says who Shiplog is for, so its pointer
   // at the worked decision is the first footer stop, and the repository link
   // #2152 put in the shared block is the second. On this page the map is folded
@@ -403,13 +408,13 @@ test("the post page's loading tab order reaches Social without a placeholder Peo
     return false;
   };
   assert.deepEqual(
-    afterExit.filter((_, index) => !closed(sequence[FRAME_STOPS + index])).slice(0, 7),
+    afterExit.filter((_, index) => !closed(sequence[FOOTER_FROM + index])).slice(0, 7),
     [PITCH_LINK, SOURCE_LINK_LABEL, INTENT_STOP,
       "site-footer-message", "site-footer-email", "Request a follow-up", DIRECTORY_SUMMARY],
     "with the directory closed, the form must still be five stops from the exit",
   );
   assert.ok(
-    sequence.slice(FRAME_STOPS).every((stop) => stop.closest("#site-footer")),
+    sequence.slice(FOOTER_FROM).every((stop) => stop.closest("#site-footer")),
     "a control on the post page sits between the exit and the footer",
   );
 });

@@ -3,8 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="A post from Shiplog Social" />
-    <title>Social post · Shiplog</title>
+    <meta name="description" content="A post from Social, a Wawalu Lab showcase" />
+    <title>Social post · Wawalu Lab</title>
     <link rel="stylesheet" href="/styles.css" />
     <link rel="stylesheet" href="/social-states.css" />
   </head>
@@ -325,8 +325,14 @@
              loading state's tab order exactly what it was: a disclosure handle
              is a tab stop, and tests/page-skip-link.test.js holds this page to
              reaching the footer from the Social exit with no control of its own
-             in between. -->
+             in between other than the lab identity line's route to Shiplog. -->
         <div id="post-reporting"></div>
+        <!-- Whose page this is (#2864): Social is a lab showcase, not part of
+             Shiplog. It closes the standing frame, because the blocks above
+             #post-detail are pinned to the eyebrow, the h1 and the one-sentence
+             lead, and the routes out are pinned to lead straight into the
+             reporting handle. Its bytes are LAB_IDENTITY in src/page-title.js. -->
+        <p class="hint" id="lab-identity">A separate Wawalu Lab project, not part of <a href="/#decisions-title">Shiplog, the decision and release log</a>.</p>
         <!-- Social's composer paragraph does not ship here, and its id and its
              publish-consequence class are Social's alone. What this page carries
              is the two sentences above the reporting container: the part of that

@@ -21,7 +21,7 @@
 import { peopleImagePostsLabel } from "./social-links.js";
 import { captionFor, countLabel, profileHref } from "./profile.js";
 import { IMAGE_DESCRIPTION_LABEL, renderImageDescriptionText, renderImageUnavailable } from "./image-description.js";
-import { pageTitle } from "./page-title.js";
+import { labTitle } from "./page-title.js";
 import { postPermalink, renderPostCopyControl } from "./post-share.js";
 import { EXAMPLE_POST_LABEL, isExamplePost, normalizeImage } from "./social.js";
 
@@ -687,12 +687,12 @@ export function postPageHeading(post) {
   return displayName ? `${displayName}'s Social post` : "Social post";
 }
 
-// The heading, then the product. The heading already says "Social post", so a
+// The heading, then the lab. The heading already says "Social post", so a
 // "Social" surface segment only repeated it. src/post.html ships titled
-// "Social post · Shiplog", which is what a reader sees until this runs.
+// "Social post · Wawalu Lab", which is what a reader sees until this runs.
 //
 // Until a post loads, every state keeps the shipped fallback title. Once it
 // loads, the same display-name value rendered in the byline names the tab.
 export function postDetailTitle(post) {
-  return pageTitle(postPageHeading(post));
+  return labTitle(postPageHeading(post));
 }

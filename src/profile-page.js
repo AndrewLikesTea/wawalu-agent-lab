@@ -22,7 +22,7 @@ import {
 } from "/profile.js";
 import { readStoredAuthor } from "/social-identity.js";
 import { requestedProfileAuthor } from "/social-links.js";
-import { recordTitle } from "/page-title.js";
+import { labTitle } from "/page-title.js";
 
 const REFRESH_INTERVAL = 30_000;
 
@@ -44,8 +44,9 @@ async function fetchSeedPosts() {
 
 // The tab carries the stable destination name, the same word the heading and
 // the nav use, so it agrees with the global navigation for every display name.
+// It ends in the lab's name: People is a lab showcase, not part of Shiplog.
 function updateTitle() {
-  document.title = recordTitle("People");
+  document.title = labTitle("People");
 }
 
 async function init() {

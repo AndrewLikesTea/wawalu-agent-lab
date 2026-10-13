@@ -389,7 +389,7 @@ test("the loaded page is headed by the display name on the post", () => {
 test("missing or non-text display names use the generic fallback", () => {
   for (const author of [undefined, null, "", "   ", 42, {}]) {
     assert.equal(postPageHeading({ ...post, author }), "Social post");
-    assert.equal(postDetailTitle({ ...post, author }), "Social post · Shiplog");
+    assert.equal(postDetailTitle({ ...post, author }), "Social post · Wawalu Lab");
   }
 });
 
@@ -401,12 +401,12 @@ test("the permalink heading matches the phrase in the document title", () => {
 });
 
 test("the document title names the post and the product, saying Social once", () => {
-  assert.equal(postDetailTitle(post), "Mina Okafor's Social post · Shiplog");
-  assert.equal(postDetailTitle(null), "Social post · Shiplog");
-  assert.equal(postDetailTitle(null, "not-found"), "Social post · Shiplog");
-  assert.equal(postDetailTitle(null, "error"), "Social post · Shiplog");
+  assert.equal(postDetailTitle(post), "Mina Okafor's Social post · Wawalu Lab");
+  assert.equal(postDetailTitle(null), "Social post · Wawalu Lab");
+  assert.equal(postDetailTitle(null, "not-found"), "Social post · Wawalu Lab");
+  assert.equal(postDetailTitle(null, "error"), "Social post · Wawalu Lab");
   // A state name never overrides a post that actually loaded.
-  assert.equal(postDetailTitle(post, "error"), "Mina Okafor's Social post · Shiplog");
+  assert.equal(postDetailTitle(post, "error"), "Mina Okafor's Social post · Wawalu Lab");
 });
 
 test("the post page's two routes out sit after the site frame, and name where they go", async () => {

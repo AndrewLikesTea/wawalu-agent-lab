@@ -469,7 +469,7 @@ test("the page names itself, says what it does, and offers a follow-up", async (
   const navLabel = SITE_NAV.find((entry) => entry.href === "/coach.html").label;
   assert.equal(textOf(byId(document, "page-title")), "Prompt coach");
   assert.equal(textOf(byId(document, "page-title")), navLabel);
-  assert.match(await read("coach.html"), /<title>Prompt coach · Shiplog<\/title>/);
+  assert.match(await read("coach.html"), /<title>Prompt coach · Wawalu Lab<\/title>/);
 
   // Reading order inside the introduction, asserted on the elements rather than
   // on the markup: the page's name, then one sentence saying what it does and
