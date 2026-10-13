@@ -4,7 +4,8 @@
 // to each other and both to the code that does the reading.
 //
 // Three things are pinned, and the third is the one that keeps the copy honest:
-//   1. The two pages carry the pair byte for byte. One claim, one wording.
+//   1. The two pages carry the pair byte for byte, apart from the link's name
+//      for the example. One claim, one wording.
 //   2. Every provider named resolves to a result: it is a provider package in
 //      provider-export-package.js AND either a native shape the tabular
 //      importer normalizes or a published browser-compat contract the
@@ -28,10 +29,15 @@ const read = (name) => readFile(new URL(`../src/${name}`, import.meta.url), "utf
 
 const FORMAT_SENTENCE = "AI FinOps reads a provider export from OpenAI, Anthropic, "
   + "Azure OpenAI, Google Vertex AI, or AWS Bedrock, as CSV, TSV, JSON, or JSONL.";
-const NO_FILE_SENTENCE = "No export to hand? The "
-  + '<a href="/evolution.html#workspace-answer">bundled synthetic example</a> '
+// The link names the example in each page's own term: the front door calls its
+// sample data a bundled synthetic example everywhere, and the Prompt coach
+// keeps "bundled" and "synthetic" out of its copy (#2831). The rest is shared.
+const noFileSentence = (name) => "No export to hand? The "
+  + `<a href="/evolution.html#workspace-answer">${name}</a> `
   + "opens on a finished result, so you can read the whole analysis before you find a file.";
-const PAIR = `${FORMAT_SENTENCE} ${NO_FILE_SENTENCE}`;
+const pairFor = (name) => `${FORMAT_SENTENCE} ${noFileSentence(name)}`;
+const PAIR = pairFor("bundled synthetic example");
+const LINK_NAMES = Object.freeze({ "index.html": "bundled synthetic example", "coach.html": "example data" });
 
 // Provider id → the words the pair uses for it. Ids are the canonical enum the
 // packages and the adapters already share, so a provider that loses its reader
@@ -44,7 +50,8 @@ const NAMED = Object.freeze({
 test("the front door and the Prompt coach say the same thing about the file", async () => {
   const [index, coach] = await Promise.all([read("index.html"), read("coach.html")]);
   for (const [page, html] of [["index.html", index], ["coach.html", coach]]) {
-    assert.equal(html.includes(`<p>${PAIR}</p>`) || html.includes(`>${PAIR}</p>`), true,
+    const pair = pairFor(LINK_NAMES[page]);
+    assert.equal(html.includes(`<p>${pair}</p>`) || html.includes(`>${pair}</p>`), true,
       `${page} does not carry the intake sentence pair verbatim`);
   }
 });

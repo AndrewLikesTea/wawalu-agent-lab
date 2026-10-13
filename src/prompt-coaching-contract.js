@@ -258,7 +258,7 @@ export const COACHING_LOCAL_ONLY_BOUNDARY = Object.freeze([
   Object.freeze({
     id: "network",
     label: "Network submission",
-    claim: "No request is sent for coaching. The analysis runs in the browser from bundled static client-side code and the form has no action to submit to.",
+    claim: "No request is sent for coaching. The analysis runs in the browser from this page’s static client-side code and the form has no action to submit to.",
     verify: "No module reachable from the coaching page entry references fetch, XMLHttpRequest, sendBeacon, WebSocket, or EventSource; the workflow's flow tests fail on any request.",
   }),
   Object.freeze({
@@ -276,8 +276,8 @@ export const COACHING_LOCAL_ONLY_BOUNDARY = Object.freeze([
   Object.freeze({
     id: "integrations",
     label: "Live integrations",
-    claim: "No provider, billing, org-chart, or customer system is contacted or read. The samples below are synthetic text written for this preview.",
-    verify: "Coaching imports only the bundled rubric and classifier modules; the samples are constants in this file and no dataset, import, or workspace is read.",
+    claim: "No provider, billing, org-chart, or customer system is contacted or read. The samples below are example text written for this preview.",
+    verify: "Coaching imports only this page’s rubric and classifier modules; the samples are constants in this file and no dataset, import, or workspace is read.",
   }),
 ]);
 
