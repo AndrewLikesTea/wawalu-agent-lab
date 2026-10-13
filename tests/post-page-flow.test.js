@@ -374,10 +374,10 @@ const REPORT_ABOUT = "Report post opens a short form about that one post. Choose
 // review (#2626). One sentence carries both now, in the outcome a reader can
 // see: the post stays up.
 const REPORT_CONSEQUENCE = "The report goes only to the Wawalu team, who review each one. The post stays up unless the team decides after review to remove it.";
-// The two sentences the follow-up invitation gains with the post, each naming a
+// The guidance the follow-up invitation gains with the post, naming each
 // control the loaded state draws. Held byte for byte in
 // tests/post-follow-up-copy.test.js, which drives the form they sit above.
-const INVITATION_REPORT = "To ask the Wawalu team to review this post, select Report post.";
+const INVITATION_REPORT = "For concerns about this post, select Report post. The report goes to the Wawalu team for review.";
 const INVITATION_COPY = "Select Copy link to this post above, then paste the link into the Anything else we should know? field so the team knows which post you mean.";
 
 test("the permalink's reporting explanation is Social's, and none of it ships in the markup", async () => {
@@ -465,6 +465,13 @@ function assertReportingFollowsThePost(document, where, drawn) {
   assertFrameStands(document, where);
   const body = textOf(document.body);
   const wanted = drawn ? 1 : 0;
+
+  const invitation = textOf(document.querySelector(".site-footer-invitation"));
+  assert.ok(invitation.includes("not about this post. "), `${where}: follow-up topics exclude the post`);
+  assert.ok(invitation.includes("Nothing about the post is attached to the request automatically."),
+    `${where}: follow-up does not automatically send post details`);
+  assert.equal(invitation.includes(INVITATION_REPORT), drawn,
+    `${where}: the review route appears beside the follow-up explanation only with a post`);
 
   // The handle, found by its words over the whole page rather than by a
   // descendant selector this harness does not take.

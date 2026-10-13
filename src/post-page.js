@@ -27,14 +27,14 @@ const REPORT_DISCLOSURE_BODY = "Report post opens a short form about that one po
   + `${REPORT_EMAIL_NOTE} `
   + "The report goes only to the Wawalu team, who review each one. The post stays up unless the team decides after review to remove it.";
 
-// The two sentences of the follow-up invitation that tell a reader to select a
-// control, and the sentence they are threaded around. Both controls — Report
+// The guidance in the follow-up invitation that tells a reader to select a
+// control, and the sentence it is threaded around. Both controls — Report
 // post and Copy link to this post — are drawn only on the loaded post, so both
-// sentences are withheld until there is one. The third sentence ships in
+// instructions are withheld until there is one. The attachment sentence ships in
 // src/post.html and holds in every state; it is matched here to put the
 // reporting one before it and the copy one after it, which is the order the
 // paragraph has always read in.
-const INVITATION_REPORT = "To ask the Wawalu team to review this post, select Report post.";
+const INVITATION_REPORT = "For concerns about this post, select Report post. The report goes to the Wawalu team for review.";
 const INVITATION_ATTACHMENT = "Nothing about the post is attached to the request automatically.";
 const INVITATION_COPY = "Select Copy link to this post above, then paste the link into the Anything else we should know? field so the team knows which post you mean.";
 
