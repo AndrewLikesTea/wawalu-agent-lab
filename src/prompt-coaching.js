@@ -563,7 +563,7 @@ const BAND_RANGES = GRADES.map((grade, at) => `${grade.letter} = ${grade.minimum
 
 export const PROMPT_SCORE_EXPLANATION =
   `Overall scores range from ${PROMPT_LITERACY_RUBRIC.scale.minimum} to ${PROMPT_LITERACY_RUBRIC.scale.maximum}. `
-  + "Higher scores mean the prompt better satisfies the bundled rubric. "
+  + "Higher scores mean the prompt better satisfies the prompt rubric. "
   + `Letter grades: ${BAND_RANGES}. `
   + "Only a change of letter counts as a better result; points inside one band are movement, not progress.";
 

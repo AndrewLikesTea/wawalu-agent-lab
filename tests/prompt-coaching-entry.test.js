@@ -38,7 +38,7 @@ test("the journey answers the workflow's own question and validates against itse
 test("the promised value is immediate, private, client-side, and costs nothing", () => {
   const { value } = coachingEntryJourney();
   assert.match(value.arrivesWhen, /same page view/);
-  assert.match(value.computedBy, /rubric bundled with this page, run in this browser tab/);
+  assert.match(value.computedBy, /this page's prompt rubric, run in this browser tab/);
   assert.match(value.costsVisitor, /no sign-in/);
   assert.match(value.keeps, /^nothing\./);
   // The value claim may not promise anything the boundary says is not delivered.
@@ -89,7 +89,7 @@ test("the example is explicitly distinct from anything a visitor types", () => {
   assert.deepEqual(Object.keys(COACHING_INPUT_SOURCE_LABELS).sort(),
     Object.values(COACHING_INPUT_SOURCE).sort());
   assert.match(COACHING_INPUT_SOURCE_LABELS[COACHING_INPUT_SOURCE.bundledSample],
-    /result is for the bundled synthetic example\./);
+    /result is for the example prompt\./);
 });
 
 test("every state names exactly one next action, and the control that performs it", () => {

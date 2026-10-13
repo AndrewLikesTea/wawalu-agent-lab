@@ -29,7 +29,7 @@ import { applyCoachingPreview } from "./prompt-coaching-contract-view.js";
 import { applyCoachingSpecimen } from "./coaching-specimen-view.js";
 import { initCoachingSummaryCopy } from "./coaching-summary-view.js";
 
-const BUNDLED_EXAMPLE_FAILURE = "The bundled synthetic example could not be loaded. You can still paste and grade your own prompt.";
+const BUNDLED_EXAMPLE_FAILURE = "The example prompt could not be loaded. You can still paste and grade your own prompt.";
 const POSSIBLE_RESULTS_FAILURE = "Possible results could not be loaded. You can still paste and grade your own prompt.";
 
 /**
@@ -170,7 +170,7 @@ export function initPromptCoaching(doc = globalThis.document, {
     loadingClass: "prompt-coach-sample-lead",
     loader: loadBundledExample,
     failureCopy: BUNDLED_EXAMPLE_FAILURE,
-    retryLabel: "Retry the bundled synthetic example",
+    retryLabel: "Retry the example prompt",
   });
   // The preview is painted before the form is wired, and independently of it:
   // a reader deciding whether to type anything into the box needs the boundary

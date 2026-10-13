@@ -41,7 +41,7 @@ export const SUMMARY_TITLE = "Prompt coaching — did my revised prompt improve?
  * came from, so the boundary travels with it: someone reading it in a ticket
  * has to be able to tell that no prompt text went anywhere.
  */
-export const SUMMARY_BOUNDARY = "Both grades ran in this browser tab against a bundled rubric. "
+export const SUMMARY_BOUNDARY = "Both grades ran in this browser tab against the prompt rubric. "
   + "No prompt text was sent, stored, or included in this summary.";
 
 const line = (label, value) => `${label}: ${value}`;
