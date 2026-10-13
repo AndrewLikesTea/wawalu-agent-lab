@@ -162,7 +162,7 @@ export const COACHING_ENTRY_EXAMPLE = Object.freeze({
   modelTier: EXAMPLE_SAMPLE.modelTier,
   /** Applying the example sets the field AND the tier: a partial submission would grade something the example does not describe. */
   appliesModelTier: true,
-  attribution: "The Shiplog team wrote the example prompt for this page — not your prompt, not a customer's, and not anyone's real prompt.",
+  attribution: "This is an example prompt written for this page — not your prompt, not a customer's, and not anyone's real prompt.",
   distinct: Object.freeze({
     classifiedAs: COACHING_INPUT_SOURCE.bundledSample,
     visitorTextClassifiedAs: COACHING_INPUT_SOURCE.readerText,

@@ -241,7 +241,7 @@ test("while the example is loading, the heading says it is being graded, not tha
   // The sentence that separates the example from the visitor's own prompt is
   // the page's own, in both states, and this paint does not touch it.
   assert.match(textOf(page.document.querySelector(".prompt-coach-sample-static")),
-    /example prompt the Shiplog team wrote for this page, not your prompt/);
+    /example prompt written for this page, not your prompt/);
   page.restore();
   booted.restore();
 });
@@ -331,7 +331,7 @@ test("the destination reads as one page about one thing", async () => {
   // The example is named in plain words — "example prompt" — and says who wrote
   // it in the same breath.
   const sample = textOf(document.querySelector(".prompt-coach-sample-static"));
-  assert.match(sample, /example prompt the Shiplog team wrote/);
+  assert.match(sample, /example prompt written for this page/);
   assert.match(sample, /not your prompt/);
   assert.match(sample, /real prompt/);
 

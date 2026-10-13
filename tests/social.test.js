@@ -655,7 +655,7 @@ test("the feed says who wrote the posts, where the posts are", async (t) => {
   const intro = textOf(page.document.querySelector(".social-feed-intro"));
   assert.doesNotMatch(intro, /Display names|whoever published it/,
     "the intro says who wrote the posts a second time, four screens from a card");
-  assert.match(intro, /Posts labelled “Example post” are invented to demonstrate Shiplog and use no customer or production data\. Their display names are invented\.$/,
+  assert.match(intro, /Posts labelled “Example post” are invented to show how Social works; they use no customer or production data\. Their display names are invented\.$/,
     "the provenance sentence, with the demo-data claim inside it, must stay the intro's last words");
   // And it stops there (#2648). Who can read a published post is the composer's
   // sentence, stated at the press that makes one public; said here too it was a
@@ -764,7 +764,7 @@ test("who wrote the posts survives loading, populated, empty, and no-match", asy
 // It names that set by the marker its cards print rather than by position in the
 // feed, so "which ones?" is answered on the card and not left to the reader
 // (#2683) — which is also why the sentence no longer needs the word "here".
-const PROVENANCE_SENTENCE = "Posts labelled “Example post” are invented to demonstrate Shiplog and use no customer or production data. Their display names are invented.";
+const PROVENANCE_SENTENCE = "Posts labelled “Example post” are invented to show how Social works; they use no customer or production data. Their display names are invented.";
 const RETIRED_DATA_SENTENCE = "Posts use no customer or production data.";
 const PUBLISH_INSTRUCTION = "Do not include customer or production data.";
 // One sentence for the terms of publishing (#2648), in the bytes People's helper
@@ -1035,7 +1035,7 @@ test("Social, People, and a post permalink claim no customer data only for the i
     // now, said once per page in one wording, and what is left here is the
     // provenance claim alone.
     "profile.html": PROVENANCE_SENTENCE,
-    "post.html": "Posts labelled “Example post” are invented to demonstrate Shiplog and use no customer or production data.",
+    "post.html": "Posts labelled “Example post” are invented to show how Social works; they use no customer or production data.",
   };
   for (const [file, sentence] of Object.entries(scoped)) {
     const page = await loadPage(new URL(`../src/${file}`, import.meta.url), {});
