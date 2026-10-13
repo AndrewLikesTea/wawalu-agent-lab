@@ -180,12 +180,12 @@ test("a visitor who types nothing reads one complete result on arrival", async (
 
   // Whose text it is, beside the figures rather than under them.
   const attribution = textOf(document.querySelector(".prompt-coach-sample-attribution"));
-  assert.match(attribution, /result is for the bundled synthetic example\./);
+  assert.match(attribution, /result is for the example prompt\./);
 
   // And the heading over the figures says the grade exists, because by now it
   // does: it names the example in the page's own words and states its state.
   assert.equal(textOf(byId(document, "prompt-coach-sample-title")), FIRST_RUN_GRADED_TITLE);
-  assert.match(FIRST_RUN_GRADED_TITLE, /Bundled synthetic example/);
+  assert.match(FIRST_RUN_GRADED_TITLE, /^Example prompt/);
 
   // Supporting evidence stays disclosed rather than spent on a first read.
   const toggle = result.querySelector(".coaching-result-toggle");
@@ -223,11 +223,11 @@ test("while the example is loading, the heading says it is being graded, not tha
   // The loading state is the status line and nothing else: the sentence was
   // introduced into the live region by the entry, and the body holds no second
   // copy of it and no half-drawn result.
-  assert.match(textOf(status), /Loading the bundled synthetic example/, "the region must be in its loading state");
+  assert.match(textOf(status), /Loading the example prompt/, "the region must be in its loading state");
   assert.equal(textOf(body).trim(), "");
   assert.doesNotMatch(title(), /already graded/,
     "the heading claims a grade over a region that has not been graded yet");
-  assert.equal(title(), "Bundled synthetic example, grading now");
+  assert.equal(title(), "Example prompt, grading now");
   // And the invitation that stands while it loads is still standing: a visitor
   // with a prompt of their own never has to wait for the example.
   assert.match(textOf(status), /paste your own prompt below now/);
@@ -241,7 +241,7 @@ test("while the example is loading, the heading says it is being graded, not tha
   // The sentence that separates the example from the visitor's own prompt is
   // the page's own, in both states, and this paint does not touch it.
   assert.match(textOf(page.document.querySelector(".prompt-coach-sample-static")),
-    /bundled synthetic example written for this page, not your prompt/);
+    /example prompt the Shiplog team wrote for this page, not your prompt/);
   page.restore();
   booted.restore();
 });
@@ -328,10 +328,10 @@ test("the destination reads as one page about one thing", async () => {
   // Said once. A page that repeats the same promise four times teaches a
   // visitor to skip all four.
   assert.equal(document.querySelectorAll(".prompt-coaching-privacy").length, 0);
-  // The example is named the same way the rest of the site names one —
-  // "bundled synthetic example" — and says what it is made of in the same breath.
+  // The example is named in plain words — "example prompt" — and says who wrote
+  // it in the same breath.
   const sample = textOf(document.querySelector(".prompt-coach-sample-static"));
-  assert.match(sample, /bundled synthetic example/);
+  assert.match(sample, /example prompt the Shiplog team wrote/);
   assert.match(sample, /not your prompt/);
   assert.match(sample, /real prompt/);
 
@@ -659,7 +659,7 @@ test("each invitation names only what it reveals, and no two name the same thing
   const results = textOf(byId(document, "coaching-specimen-summary"));
 
   assert.equal(before, "See how the overall score is measured and what to do first.");
-  assert.equal(reads, "See the bundled synthetic example’s own text and the counts read from it.");
+  assert.equal(reads, "See the example prompt’s own text and the counts read from it.");
   assert.equal(results, "See all seven possible results — among them a graded prompt, a prompt that needs changes, and text the coach cannot grade — none taken from text you paste.");
   // The count is the number of cases the disclosure actually renders, so the
   // invitation cannot promise a different number of results than it shows.
@@ -678,7 +678,7 @@ test("each invitation names only what it reveals, and no two name the same thing
   // replaces the whole preview body on load — so the painted first block is
   // checked too: the invitation and what it opens must use the one name.
   const painted = textOf(byId(mounted, "prompt-coaching-preview-body"));
-  assert.match(painted, /the bundled synthetic example, written for this page/,
+  assert.match(painted, /the example prompt, written for this page/,
     "the disclosure's own first block must name the example its invitation promises");
   assert.doesNotMatch(painted, /comes from a bundled example/,
     "“bundled example” names the graded example here, never one of the possible results");
@@ -701,20 +701,19 @@ test("each invitation names only what it reveals, and no two name the same thing
   assert.doesNotMatch(results, /score|counts/i);
 
   // One name per concept, which "bundled example" used to break by naming two.
-  // The single prompt this page grades is the bundled synthetic example — the
-  // name every other surface on the site uses for a bundled demonstration — and
-  // the disclosure over its source text names it, so a reader knows which of
-  // the two bundled things they are opening. The demonstrations at the foot of
+  // The single prompt this page grades is the example prompt, and the
+  // disclosure over its source text names it, so a reader knows which of the
+  // two prewritten things they are opening. The demonstrations at the foot of
   // the page are the possible results, which is what the region already calls
   // itself in its own failure and retry copy. Neither invitation may borrow the
   // other's noun. Each still says it opens material this build wrote rather
   // than anything a reader typed, because that is owed to them before they
-  // open it: "bundled synthetic example" carries it on one, "none taken from
-  // text you paste" on the other.
-  assert.match(reads, /bundled synthetic example/,
-    "the disclosure over the read text must name which bundled thing it opens");
-  assert.doesNotMatch(results, /bundled/i,
-    "“bundled” names the graded example on this page, never the possible results");
+  // open it: "example prompt" carries it on one, "none taken from text you
+  // paste" on the other.
+  assert.match(reads, /example prompt/,
+    "the disclosure over the read text must name which prewritten thing it opens");
+  assert.doesNotMatch(results, /bundled|example prompt/i,
+    "“example prompt” names the graded example on this page, never the possible results");
   // And the third case is named as the page names it — text the coach cannot
   // grade. Never a refusal: the coach runs in this tab and declines nothing on
   // content grounds, so a reader who reads one would expect a rule that is not
@@ -788,7 +787,7 @@ test("the first screen names the result and the next action, before any script r
   assert.equal(textOf(sampleStatus), "",
     "a status node that ships populated is a status node that never announces");
   const sampleFallback = sampleStatus.dataset.loading;
-  assert.match(sampleFallback, /Loading the bundled synthetic example/);
+  assert.match(sampleFallback, /Loading the example prompt/);
   assert.match(sampleFallback, /paste your own prompt below now/);
   // And it is said once: no second copy of the sentence anywhere in the region.
   assert.equal(textOf(byId(document, "prompt-coach-sample-body")).trim(), "");
@@ -797,7 +796,7 @@ test("the first screen names the result and the next action, before any script r
   // state these bytes are read in. A reader whose script never runs is told the
   // example is being graded, and never that a grade they cannot see exists.
   const sampleTitle = textOf(byId(document, "prompt-coach-sample-title"));
-  assert.equal(sampleTitle, "Bundled synthetic example, grading now");
+  assert.equal(sampleTitle, "Example prompt, grading now");
   assert.doesNotMatch(sampleTitle, /already graded/,
     "the shipped heading claims a grade the shipped markup does not contain");
 });
@@ -805,13 +804,25 @@ test("the first screen names the result and the next action, before any script r
 test("one name per concept: the example, the grade button, and the clear button", async () => {
   const { document } = await openCoach();
 
-  // The site calls a bundled demonstration a "bundled synthetic example"
-  // everywhere else, so this page does too — not "supplied example" in one
-  // region and "our example" in the next.
+  // The prompt this page grades for a visitor is "the example prompt" in every
+  // region — not "supplied example" in one region and "our example" in the
+  // next — and the internal words "bundled" and "synthetic" are never read
+  // (#2831). The text is walked after the page boots, so script-drawn copy and
+  // closed disclosures count. The site footer is shared with every page and
+  // is not this page's copy, and `bundled_sample` is the source code a result
+  // prints as data, not a word of prose.
   const text = textOf(document.querySelector("main"));
+  const prose = text.replaceAll("bundled_sample", "");
   assert.doesNotMatch(text, /supplied example|our example/i,
-    "the bundled demonstration is a bundled synthetic example on every surface that names it");
-  assert.match(textOf(byId(document, "prompt-coaching-example")), /Grade the bundled synthetic example/);
+    "the graded demonstration is the example prompt on every surface that names it");
+  assert.deepEqual(prose.match(/.{0,40}(?:bundled|synthetic).{0,40}/gi) ?? [], [],
+    "the coach names its example in plain words, never as bundled or synthetic");
+  assert.match(textOf(byId(document, "prompt-coaching-example")), /Grade the example prompt/);
+  for (const id of ["prompt-coaching-question", "prompt-coach-sample-title", "prompt-coaching-preview-body"]) {
+    assert.match(textOf(byId(document, id)), /example prompt/i, `#${id} must name the example prompt`);
+  }
+  assert.match(textOf(document.querySelector(".prompt-coach-sample-static")), /example prompt/);
+  assert.match(byId(document, "prompt-coach-sample-status").dataset.loading, /example prompt/);
 
   // The clear control is referred to by its own label wherever copy points at
   // it, rather than by a name for the region it clears. The label is read after
@@ -843,7 +854,7 @@ test("sample and pasted prompt explain the same prompt score beside the result",
     const explanation = benchmark.querySelector(".coaching-result-score-explanation");
     // Written out, not imported: this is the copy a first-time visitor reads, so
     // the test has to disagree with the module when the wording changes.
-    const expected = "Overall scores range from 0 to 100. Higher scores mean the prompt better satisfies the bundled rubric. "
+    const expected = "Overall scores range from 0 to 100. Higher scores mean the prompt better satisfies the prompt rubric. "
       + "Letter grades: A = 90–100; B = 80–89; C = 70–79; D = 60–69; F = 0–59. "
       + "Only a change of letter counts as a better result; points inside one band are movement, not progress.";
     assert.equal(textOf(explanation), expected);
