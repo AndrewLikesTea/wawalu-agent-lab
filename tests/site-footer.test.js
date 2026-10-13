@@ -25,6 +25,8 @@ import {
   DEMOS, DIRECTORY_SUMMARY, FOLLOW_UP_REDIRECT, IDENTITY, INVITATION, PITCH, PITCH_HREF, PITCH_LINK,
   REPOSITORY_LINK_LABEL, SEPARATE_TOOL, siteFooterMarkup, SOURCE_LINK_LABEL,
 } from "../src/site-footer.js";
+import { initDecisionDetail } from "../src/decision-page.js";
+import { EXAMPLE_LABEL } from "../src/seed-records.js";
 import { REPOSITORY_URL } from "../src/repository-url.js";
 import { FOLLOW_UP_TOPICS, POST_FOLLOW_UP_TOPIC } from "../src/leads.js";
 import { FOLLOW_UP_PRIVACY, FOLLOW_UP_REPLY, FOLLOW_UP_USE } from "../src/lead-capture.js";
@@ -348,9 +350,8 @@ test("the footer names the log as the product before it names the other tools (#
 // they could do here and who runs it, but never whose problem Shiplog solves,
 // and the one page that shows it working was a row in the list like any other.
 test("the About block says who Shiplog is for, and reaches the worked decision in one click", async () => {
-  // The five surfaces #1734 names, plus the home page, which ships the same
-  // string from the same source rather than a variant of its own.
-  for (const file of ["releases.html", "social.html", "profile.html", "coach.html", "agents.html", "index.html"]) {
+  // Every shared-footer surface, including Prompt coach, Social, People and Agent observatory.
+  for (const file of PAGES) {
     const html = await read(file);
     const page = await loadPage(pageUrl(file));
     const { document } = page;
@@ -359,7 +360,7 @@ test("the About block says who Shiplog is for, and reaches the worked decision i
       assert.equal(pitches.length, 1, `${file}: one pitch, not two`);
       const [pitch] = pitches;
       assert.equal(pitch.tagName, "P");
-      assert.equal(textOf(pitch), `${PITCH} See ${PITCH_LINK}.`, `${file} sells Shiplog in its own words`);
+      assert.equal(textOf(pitch), `${PITCH} ${PITCH_LINK}.`, `${file} sells Shiplog in its own words`);
 
       // It names the audience and it points. It does not re-answer the question
       // the home page answers: no amount, no percentage, no recommended action.
@@ -372,16 +373,19 @@ test("the About block says who Shiplog is for, and reaches the worked decision i
         assert.doesNotMatch(textOf(pitch), claim, `${file}: the pitch claims ${claim}`);
       }
 
-      // One click to the worked decision, by the name the home page's own call
-      // to action uses for it, at the address the site forwards for that figure.
+      // One click to a Shiplog example that shows its linked release.
       const link = pitch.querySelectorAll("a")[0];
       assert.ok(Boolean(link), `${file}: the pitch must link the worked decision`);
       assert.equal(link.tagName, "A");
-      assert.equal(textOf(link), PITCH_LINK);
+      assert.equal(textOf(link), "See an example decision and the release it shaped");
+      assert.equal(link.getAttribute("href"), "/decision.html?id=demo-queue");
+      assert.doesNotMatch(textOf(document.querySelector("#site-footer")), /See the worked decision in AI FinOps/);
+      assert.ok(textOf(document.querySelector(".site-footer-identity")).includes(
+        "AI FinOps, Prompt coach, Personal AI history, and Agent observatory are separate tools hosted in the same lab, not part of Shiplog."));
       assert.equal(link.getAttribute("href"), PITCH_HREF);
       assert.equal(pitch.querySelectorAll("a").length, 1, `${file}: one pointer, not a second site map`);
       assert.ok(tabSequence(document).includes(link), `${file}: the pointer must be keyboard reachable`);
-      assert.ok(html.includes(`<a href="${PITCH_HREF}">`), `${file}: the pointer must carry the answer's fragment`);
+      assert.ok(html.includes(`<a href="${PITCH_HREF}">`), `${file}: the pointer must carry the decision URL`);
 
       // After the heading, before the list: it sells, then it directs. Asserted
       // on the document's own order, which is what a reader and a screen reader
@@ -410,6 +414,25 @@ test("the About block says who Shiplog is for, and reaches the worked decision i
   }
 });
 
+test("the shared footer's example decision displays its linked release", async (t) => {
+  const document = parseHtml(await read("coach.html"));
+  const href = document.querySelector(".site-footer-pitch").querySelector("a").getAttribute("href");
+  const target = new URL(href, "https://shiplog.test");
+  assert.equal(target.pathname, "/decision.html");
+  const page = await loadPage(pageUrl(target.pathname.slice(1)), {
+    location: { search: target.search },
+  });
+  t.after(() => page.restore());
+  await initDecisionDetail();
+  const detail = page.document.querySelector("#decision-detail");
+  assert.equal(detail.getAttribute("aria-busy"), "false");
+  assert.match(textOf(detail), /Adopt a durable job queue/);
+  assert.ok(textOf(detail).includes(EXAMPLE_LABEL));
+  const release = detail.querySelector('a[href="/release.html?id=demo-r-1-3-0"]');
+  assert.ok(release, "the destination decision must link to its release");
+  assert.match(textOf(release), /Throughput and latency/);
+});
+
 test("the pitch is one sentence and a pointer, in the words the site already uses", async () => {
   // Two sentences at most, and the first is the home page's framing said
   // shorter: the footer points, the home page explains. A footer that repeated
@@ -419,7 +442,7 @@ test("the pitch is one sentence and a pointer, in the words the site already use
   assert.doesNotMatch(PITCH, /powerful|seamless|unlock|leverage|central hub|best-in-class|simply/i, "the pitch uses filler");
 
   const hero = textOf(parseHtml(await read("index.html")).querySelector(".hero-finops"));
-  assert.ok(hero.includes(PITCH_LINK), "the pitch must name the worked decision the way the home page names it");
+  assert.equal(PITCH_LINK, "See an example decision and the release it shaped");
   assert.ok(!hero.includes(PITCH), "the pitch must not be the home page's hero sentence pasted into the footer");
   assert.ok(PITCH.split(/\s+/).length < hero.split(/\s+/).length, "the footer points, the home page explains");
 });
