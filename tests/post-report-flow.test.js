@@ -92,6 +92,11 @@ test("Social: the report form says what it does with the email address, beside t
   // Read out with the control, not merely sitting near it.
   assert.match(id("post-report-email").getAttribute("aria-describedby"), /\bpost-report-email-note\b/);
   assert.equal(notes[0].getAttribute("class"), "hint", "the note introduces a style the form does not already use");
+  // Social is not part of Shiplog (#2874): the note names the team alone, and
+  // only the Shiplog follow-up form keeps "the Wawalu team that operates Shiplog".
+  assert.match(textOf(notes[0]), /the Wawalu team uses it only/);
+  assert.equal(textOf(notes[0]).includes("Shiplog"), false, "the report note ties report emails to Shiplog");
+  assert.match(textOf(id("site-footer-note")), /the Wawalu team that operates Shiplog/);
 
   // The submit control keeps its label: the follow-up privacy invariant finds
   // forms by submit text, and "Request a follow-up" here would enrol a form
