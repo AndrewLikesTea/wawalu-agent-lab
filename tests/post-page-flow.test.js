@@ -1209,6 +1209,7 @@ test("the permalink offers reporting only once a post resolves", async () => {
     assert.deepEqual(reportControls(cold.document), { buttons: 0, labelled: 0, panels: 1 },
       "the wait offers a reporting control");
 
+    assert.equal(cold.document.querySelector("#post-report-guidance"), null);
     release();
     await waitFor(() => cold.document.documentElement.dataset.shiplogPostDetail === "ready", "the post arrived");
     const panel = cold.document.querySelector("#post-detail");
@@ -1234,6 +1235,7 @@ test("the permalink offers reporting only once a post resolves", async () => {
       assert.equal(page.panel.dataset.postState, state, `the page landed in ${page.panel.dataset.postState}, not ${state}`);
       assert.deepEqual(reportControls(page.document), { buttons: 0, labelled: 0, panels: 1 },
         `${state}: a reporting control with no post to report`);
+      assert.equal(page.document.querySelector("#post-report-guidance"), null);
       assertReportingRouteReads(page.document, state, false);
     } finally {
       page.restore();
@@ -1248,6 +1250,10 @@ test("single post: shared report preselection, validation, retained draft, retry
   try {
     const button = document.querySelector(".post-report-button");
     assert.equal(button.dataset.postId, SEED_POST.id);
+    const guidance = document.querySelector("#post-report-guidance");
+    assert.equal(button.getAttribute("aria-describedby"), guidance.id);
+    assert.match(textOf(guidance), /Concerned about this post\?.*attached automatically/);
+    assert.equal(button.parentNode, guidance.parentNode);
     assert.match(button.getAttribute("aria-label"), /^Report post by Mina Okafor, /);
     button.click();
     assert.equal(document.activeElement.id, "post-report-title");

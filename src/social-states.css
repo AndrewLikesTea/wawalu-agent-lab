@@ -59,6 +59,7 @@
 
 /* The shared post region holds keyboard focus while Retry is pending. */
 #post-detail:focus-visible { outline:3px solid var(--focus-ring); outline-offset:6px; border-radius:8px; }
+.detail-report-guidance { flex-basis:100%; margin:0; min-width:0; overflow-wrap:anywhere; }
 
 /* Content precedes the People action; long names still fit narrow cards/exits. */
 .post-card > .post-people { margin-top:10px; }

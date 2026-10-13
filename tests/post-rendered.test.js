@@ -88,22 +88,46 @@ test("standalone post: rendered states, keyboard recovery and media at phone and
       assert.ok(order.indexOf("detail-caption") < order.indexOf("detail-figure"));
       assert.ok(await page.locator(".detail-figure").evaluate((el) => Boolean(
         el.compareDocumentPosition(document.querySelector(".share-control")) & Node.DOCUMENT_POSITION_FOLLOWING)));
-      // Measure painted caption contrast against the nearest opaque background.
-      const colors = await caption.evaluate((el) => {
-        let parent = el, background;
-        while (parent) {
-          background = getComputedStyle(parent).backgroundColor;
-          if (background !== "rgba(0, 0, 0, 0)") break;
-          parent = parent.parentElement;
-        }
-        return [getComputedStyle(el).color, background];
-      });
-      const [a, b] = colors.map((color) => luminance(color.match(/[\d.]+/g).slice(0, 3).map(Number)));
-      assert.ok((Math.max(a, b) + .05) / (Math.min(a, b) + .05) >= 4.5);
-      await page.locator(".post-report-button").focus();
+      // Measure rendered text and focus colors against the painted background.
+      const contrast = async (locator, property = "color", minimum = 4.5) => {
+        const colors = await locator.evaluate((el, property) => {
+          let parent = el, background;
+          while (parent) {
+            background = getComputedStyle(parent).backgroundColor;
+            if (background !== "rgba(0, 0, 0, 0)") break;
+            parent = parent.parentElement;
+          }
+          return [getComputedStyle(el)[property], background];
+        }, property);
+        const [a, b] = colors.map((color) => luminance(color.match(/[\d.]+/g).slice(0, 3).map(Number)));
+        assert.ok((Math.max(a, b) + .05) / (Math.min(a, b) + .05) >= minimum, `${property}: ${colors}`);
+      };
+      await contrast(caption);
+      await contrast(page.locator("#post-report-guidance"));
+      await contrast(page.locator(".post-report-button"));
+      await page.locator(".share-button").focus();
+      await page.keyboard.press("Tab");
       await focusRing(".post-report-button");
+      await contrast(page.locator(".post-report-button"), "outlineColor", 3);
       await page.keyboard.press("Enter");
       assert.ok(await page.locator("#post-report-panel").isVisible());
+      await focusRing("#post-report-title");
+      await page.keyboard.press("Tab");
+      await focusRing("#post-report-reason-0");
+      await page.keyboard.press("Escape");
+      await focusRing(".post-report-button");
+      await page.keyboard.press("Space");
+      const sent = [];
+      await page.route("**/api/post-reports", async (route) => {
+        sent.push(route.request().postDataJSON());
+        await route.fulfill({ json: { status: "received" } });
+      });
+      await page.locator("#post-report-reason-2").check();
+      await page.locator("#post-report-email").fill("reader@example.org");
+      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+      await page.locator("#post-report-submit").click();
+      await page.locator("#post-report-form").waitFor({ state: "hidden" });
+      assert.deepEqual(sent, [{ post_id: post.id, reason: "spam", context: "", email: "reader@example.org" }]);
       await page.locator("#post-report-close").focus();
       await page.keyboard.press("Space");
       await focusRing(".post-report-button");
