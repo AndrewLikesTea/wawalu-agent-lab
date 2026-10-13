@@ -93,8 +93,8 @@ export const IDENTITY = "Shiplog is a decision and release log: it records a dec
 
 // Who Shiplog is for, and the page that shows it working; the tests say why.
 export const PITCH = "Shiplog is for engineering teams that have to explain why something shipped.";
-export const PITCH_LINK = "the worked decision in AI FinOps";
-export const PITCH_HREF = "/evolution.html#workspace-answer";
+export const PITCH_LINK = "See an example decision and the release it shaped";
+export const PITCH_HREF = "/decision.html?id=demo-queue";
 
 /**
  * Every door the navigation offers, and what each one is for.
@@ -247,7 +247,7 @@ export function siteFooterMarkup(indent = "    ", {
     '  <div class="site-footer-inner">',
     '    <h2 class="site-footer-title" id="site-footer-title">About Shiplog</h2>',
     `    <p class="site-footer-identity">${IDENTITY}</p>`,
-    `    <p class="site-footer-identity site-footer-pitch">${PITCH} See <a href="${PITCH_HREF}">${PITCH_LINK}</a>.</p>`,
+    `    <p class="site-footer-identity site-footer-pitch">${PITCH} <a href="${PITCH_HREF}">${PITCH_LINK}</a>.</p>`,
     `    <p class="site-footer-identity"><a id="site-footer-source" href="${REPOSITORY_URL}">${SOURCE_LINK_LABEL}</a></p>`,
     // Beside the provenance link, in the band's standalone-link treatment: a
     // 44px tap target with the band's ring, off rules both stylesheets carry.
