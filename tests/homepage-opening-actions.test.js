@@ -20,8 +20,8 @@ for (const enhanced of [true, false]) {
       assert.ok(document.activeElement === initialFocus, "initialization must not steal focus");
       email.value = "reader@example.com";
       for (const [id, intent, label, topic] of [
-        ["ask-about-shiplog", "demo", "Request a demonstration", "A product demonstration"],
-        ["discuss-pilot", "pilot", "Discuss a pilot", "A pilot evaluation"],
+        ["ask-about-shiplog", "demo", "Request a Shiplog demonstration", "A product demonstration"],
+        ["discuss-pilot", "pilot", "Discuss a Shiplog pilot", "A pilot evaluation"],
       ]) {
         const link = document.getElementById(id);
         assert.ok(link.closest("#shiplog-entry"));

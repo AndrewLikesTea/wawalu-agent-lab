@@ -40,7 +40,7 @@ import { OFFER } from "../src/site-footer.js";
 import { importPageModule } from "./support/page-module.js";
 import { loadPage, parseHtml, pressEnter, tabSequence, textOf } from "./support/browser.js";
 
-const HOME_LABEL = "Request a demonstration";
+const HOME_LABEL = "Request a Shiplog demonstration";
 // Since #2623 this line describes two controls that DO the errand rather than
 // one that names it, so it says what activating either one does — the shape the
 // other five pages already use — instead of instructing a reader to go and use
