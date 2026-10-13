@@ -466,6 +466,15 @@ function assertReportingFollowsThePost(document, where, drawn) {
   const body = textOf(document.body);
   const wanted = drawn ? 1 : 0;
 
+  // #2865: in no state may the follow-up form read as the reporting channel, or
+  // a report promise an outcome the team has not decided.
+  for (const sentence of body.split(/(?<=[.?!])/)) {
+    assert.equal(/follow-up/i.test(sentence) && /report/i.test(sentence), false,
+      `${where}: a sentence ties the follow-up form to reporting: ${sentence}`);
+  }
+  assert.doesNotMatch(body, /will be removed|we('|’)ll confirm|we will confirm|you will (get|receive) a (reply|confirmation)/i,
+    `${where}: the page promises removal, a reply or a confirmation`);
+
   // The handle, found by its words over the whole page rather than by a
   // descendant selector this harness does not take.
   const handles = document.querySelectorAll("summary").filter((node) => textOf(node) === REPORT_SUMMARY);
