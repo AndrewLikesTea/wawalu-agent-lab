@@ -203,8 +203,14 @@ async function init() {
     });
     if (post) {
       const when = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(post.createdAt));
+      const guidance = document.createElement("p");
+      guidance.id = "post-report-guidance";
+      guidance.className = "hint detail-report-guidance";
+      guidance.textContent = "Concerned about this post? Report post sends it to the Wawalu team for review. This post is attached automatically.";
+      const reportButton = renderReportButton(post, when, (selected, opener) => report.open(selected, opener));
+      reportButton.setAttribute("aria-describedby", guidance.id);
       container.querySelector(".share-control").append(
-        renderReportButton(post, when, (selected, opener) => report.open(selected, opener)),
+        reportButton, guidance,
       );
     }
     nameControls(Boolean(post));
