@@ -370,8 +370,10 @@ test("Social and People preserve guidance explaining the other surface", async (
     // page's said twice. The feed's name comes out before counting, so the
     // destination is still pinned to exactly one mention and no other repetition
     // gets in. Social's own description has no "the People feed" to remove, so
-    // nothing about that half changes.
-    const named = description.split(`the ${other} feed`).join("");
+    // nothing about that half changes. The shared example-post caveat (#2872)
+    // says posts are "invented to show how Social works": that names the project
+    // the examples belong to, not a destination, so it comes out too.
+    const named = description.split(`the ${other} feed`).join("").split("how Social works").join("");
     const mentions = named.split(other).length - 1;
     assert.equal(mentions, 1, `${file}: the description must name ${other} exactly once, not ${mentions} times`);
     // Sentence-initial on both, now that the tagline above carries the rule the

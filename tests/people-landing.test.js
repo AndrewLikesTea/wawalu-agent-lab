@@ -1555,7 +1555,7 @@ test("People claims no result before its first image post, and the loaded page i
 // render PUBLISHED_POST_REACH now, and People renders it in the helper below,
 // beside the rest of what publishing costs. What is left here is Social's bytes
 // for the provenance, word for word.
-const PEOPLE_PROVENANCE = "Posts labelled “Example post” are invented to demonstrate Shiplog and use no customer or production data. Their display names are invented.";
+const PEOPLE_PROVENANCE = "Posts labelled “Example post” are invented to show how Social works; they use no customer or production data. Their display names are invented.";
 const RETIRED_DATA_SENTENCE = "Posts use no customer or production data.";
 const PUBLISH_INSTRUCTION = "Do not include customer or production data.";
 // The four second-person sentences Social's composer used to stack, retired from

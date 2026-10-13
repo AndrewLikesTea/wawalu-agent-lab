@@ -529,7 +529,7 @@ test("both destinations ship as constants, and only the People link's target nar
 // paragraph below the post, outside #post-provenance so the swap below cannot
 // take it away. What is left here is Social's bytes for the provenance, word for
 // word, and People's.
-const STANDING_SENTENCE = "Posts labelled “Example post” are invented to demonstrate Shiplog and use no customer or production data.";
+const STANDING_SENTENCE = "Posts labelled “Example post” are invented to show how Social works; they use no customer or production data.";
 
 // Every state the panel can be in, named the way a reader would name it.
 const PANEL_STATES = [

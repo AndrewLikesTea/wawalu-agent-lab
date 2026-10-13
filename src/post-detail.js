@@ -390,7 +390,7 @@ export const POST_LOADED_DESCRIPTION = "This post shows the display name used to
 // What this one post is, once the lookup has read it (#2607).
 //
 // Social and People may hedge — "Posts labelled 'Example post' are invented to
-// demonstrate Shiplog…" — because they show a list, and the badge on each card
+// show how Social works…" — because they show a list, and the badge on each card
 // says which of them the sentence is about. A permalink holds exactly one post,
 // so the same hedge was the page declining to answer the only provenance
 // question it has, to the one reader who cannot look at a neighbouring card to
@@ -406,7 +406,7 @@ export const POST_LOADED_DESCRIPTION = "This post shows the display name used to
 // fact a reader forwarded somebody's real post is owed — and calling that post an
 // example would be the one thing this page must never say about it.
 export const POST_EXAMPLE_PROVENANCE =
-  "This is an example post, invented to demonstrate Shiplog, and it uses no customer or production data.";
+  "This is an example post, invented to show how Social works, and it uses no customer or production data.";
 export const POST_PUBLISHED_PROVENANCE = "A visitor published this post on Social, and anyone can read it.";
 
 // isExamplePost() is the one rule for the question, so this sentence and the
