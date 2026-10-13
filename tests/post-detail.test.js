@@ -1051,3 +1051,31 @@ test("the copied link drops the provenance the arriving link carried", async () 
   assert.equal(copied.includes("author="), false);
   assert.equal(copied.includes("from="), false);
 });
+
+
+test("the image description is an accessible caption associated with its figure", () => {
+  const container = createElement("div");
+  renderPostDetail(container, post);
+  const figure = tags(container, "FIGURE")[0];
+  const caption = tags(figure, "FIGCAPTION")[0];
+  assert.equal(caption.getAttribute("aria-hidden"), null);
+  assert.equal(figure.getAttribute("aria-describedby"), caption.id);
+  assert.equal(first(caption, "detail-image-description-text").textContent, post.image.alt);
+});
+
+test("an already failed image is removed before returning the rendered post", () => {
+  const original = document.createElement;
+  document.createElement = (tag) => {
+    const node = original(tag);
+    if (tag === "img") { node.complete = true; node.naturalWidth = 0; }
+    return node;
+  };
+  try {
+    const container = createElement("div");
+    renderPostDetail(container, post);
+    assert.equal(tags(container, "IMG").length, 0);
+    assert.equal(first(container, "detail-media").dataset.state, "error");
+    assert.equal(first(container, "detail-media-fallback").hidden, false);
+    assert.match(first(container, "detail-media-fallback").textContent, /blue focus ring/);
+  } finally { document.createElement = original; }
+});

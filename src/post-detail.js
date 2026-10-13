@@ -262,7 +262,7 @@ function renderImageDescription(description) {
     labelClassName: "detail-image-description-label",
     textClassName: "detail-image-description-text",
   });
-  caption.setAttribute("aria-hidden", "true");
+  caption.id = "post-image-description";
   return caption;
 }
 
@@ -334,9 +334,8 @@ function renderMedia(image, description) {
   };
   img.addEventListener("load", () => settle("ready"), { once: true });
   img.addEventListener("error", () => settle("error"), { once: true });
-  if (img.complete) settle(img.naturalWidth > 0 ? "ready" : "error");
-
   frame.append(img, fallback);
+  if (img.complete) settle(img.naturalWidth > 0 ? "ready" : "error");
   return frame;
 }
 
@@ -640,11 +639,12 @@ export function renderPostDetail(container, post, options = {}) {
     // itself, so it is still the identical string the alt attribute holds.
     const stored = typeof image.alt === "string" && image.alt.trim() !== "";
     figure.append(renderMedia(image, description));
-    // The description is the figure's visible caption, directly under the
-    // image. It is announced once, through alt, which holds the identical
-    // string, so the caption is aria-hidden and nothing points at it with
-    // aria-describedby — either way round it would be read twice.
-    if (stored) figure.append(renderImageDescription(description));
+    // Keep the caption available in reading order and explicitly associate it
+    // with the figure. Alt still describes the image when navigated directly.
+    if (stored) {
+      figure.append(renderImageDescription(description));
+      figure.setAttribute("aria-describedby", "post-image-description");
+    }
     article.append(figure);
   }
 
