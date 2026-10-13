@@ -396,6 +396,11 @@ test("the permalink's reporting explanation is Social's, and none of it ships in
   assert.equal(REPORT_ABOUT, note, `Social reworded the note the permalink quotes: ${note}`);
   assert.equal(REPORT_SUMMARY, handle, `Social renamed the words the permalink's handle carries: ${handle}`);
   assert.ok(REPORT_ABOUT.includes(REPORT_CONSEQUENCE), "the permalink's explanation reworded the shared consequence");
+  // Social is not part of Shiplog (#2874), so the team a report email goes to
+  // is named without it — on Social, here, and beside the form's field.
+  assert.ok(REPORT_EMAIL_NOTE.includes("the Wawalu team uses it only to contact you about this report"),
+    `the report note no longer names who uses the address: ${REPORT_EMAIL_NOTE}`);
+  assert.equal(note.includes("Shiplog"), false, `Social's report note ties report emails to Shiplog: ${note}`);
   // Social keeps the route that belongs to a page with the button on it. This
   // page must not ship it: it names a control that is not here, about "a post"
   // rather than the one being read.

@@ -2798,7 +2798,12 @@ test("the stated count and the dead end's total are what the wire actually yield
 // on any device or browser" — true, and Social's own phrasing of a fact the
 // other two pages each phrased their own way. The subject is the published post
 // rather than Social, because the same sentence has to hold on a permalink.
-const STORAGE_SCOPE = "Publishing stores this post with the Wawalu team that operates Shiplog."
+//
+// THE OPERATOR, NOT THE PRODUCT (#2874). The clause said "the Wawalu team that
+// operates Shiplog", on a page whose identity line says Social is not part of
+// Shiplog. It names the team alone now; only the Shiplog follow-up form keeps
+// the longer name, because that form is about Shiplog.
+const STORAGE_SCOPE = "Publishing stores this post with the Wawalu team."
   + ` ${PUBLISHED_POST_REACH}`;
 // The wordings this replaced, which may not come back beside it.
 const RETIRED_SCOPE = [
@@ -2827,11 +2832,16 @@ test("the composer says where a published post is stored before anything is type
   // rendered text, so a second copy pasted beside the feed fails here too.
   const main = textOf(document.querySelector("#main-content"));
   for (const fact of [
-    "stores this post with the Wawalu team that operates Shiplog",
+    "stores this post with the Wawalu team.",
     PUBLISHED_POST_REACH,
   ]) {
     assert.equal(main.split(fact).length - 1, 1, `Social does not state this exactly once: ${fact}`);
   }
+  // Social is not part of Shiplog, so where its posts go is not Shiplog either;
+  // the follow-up form below the page still names the team by the product.
+  assert.equal(textOf(scope).includes("Shiplog"), false, "the storage block ties Social posts to Shiplog");
+  assert.match(textOf(id("site-footer-note")), /the Wawalu team that operates Shiplog/,
+    "the Shiplog follow-up form lost its name for the team");
   // And neither fact is said a second way. The block cost four sentences to
   // leave two facts; a later change that re-adds one of these is the defect.
   for (const retired of RETIRED_SCOPE) {

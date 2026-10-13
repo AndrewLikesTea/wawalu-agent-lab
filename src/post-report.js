@@ -39,7 +39,7 @@ export const REPORT_SENT_NOTE = "Send report sends this post, your reason, your 
 // stores the row and answers with an id and a status — nothing in this
 // repository sends the reporter mail, so the follow-up form's "a person replies
 // … usually within two working days" would be false here.
-export const REPORT_EMAIL_NOTE = "Your email address is required, and the Wawalu team that operates Shiplog uses it only to contact you about this report. It is not published with the post, and whoever published the post never sees it. The team sends no automatic confirmation.";
+export const REPORT_EMAIL_NOTE = "Your email address is required, and the Wawalu team uses it only to contact you about this report. It is not published with the post, and whoever published the post never sees it. The team sends no automatic confirmation.";
 export const REPORT_RECEIVED = "Report sent. The Wawalu team will review this post, and it stays up while they do.";
 export const REPORT_NOT_SENT = "Your report was not sent.";
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
