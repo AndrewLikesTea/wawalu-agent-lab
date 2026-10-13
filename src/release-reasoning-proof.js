@@ -27,7 +27,6 @@
 // The counting, the sentences and the clipboard text are pure and exported. The
 // words are the product here; the control below is only what hands them over.
 
-import { countedRecordsNoteFor } from "./app.js";
 import { indexById, resolveRelease } from "./releases.js";
 import { copyText } from "./share-link.js";
 
@@ -211,16 +210,29 @@ export function reasoningKeptSentence({ total = 0, preserved = 0 } = {}) {
 }
 
 /**
- * Whose records the figure counted, in the site's own wording.
+ * Whose records the figure counted (#2838).
  *
- * countedRecordsNoteFor is the home page's sentence for exactly this job —
- * "which records a counted figure counted" — imported rather than reworded so
- * the two figures name their halves identically, including at zero: "no example
- * records" is a fact a reader can act on, and dropping a half would leave them
- * unable to tell an absence from something the page declined to say.
+ * "Counted here: 4 example records and none you added" made a reader do the sum
+ * to learn the figure was entirely invented, so the all-example and all-yours
+ * cases say so outright. `examples` / `added` come from countReasoningKept,
+ * which reads the same `exampleIds` set that badges a row "Example record".
+ *
+ * Empty when nothing was counted: a log still loading, or one that could not be
+ * read, has no records to attribute, and "no example records" there would be a
+ * claim about records nobody saw. The page, the home page and the clipboard all
+ * read this one function, so they cannot word it two ways.
  */
-export function reasoningProvenanceNote(counts = {}) {
-  return countedRecordsNoteFor(counts);
+export function reasoningProvenanceNote({ total = 0, examples = 0, added = 0 } = {}) {
+  if (total === 0) return "";
+  const releases = (n) => `${n} counted ${n === 1 ? "release" : "releases"}`;
+  if (added === 0) {
+    return total === 1
+      ? `All ${releases(1)} is an example record, not one you recorded.`
+      : `All ${releases(total)} are example records, not ones you recorded.`;
+  }
+  if (examples === 0) return `All ${releases(total)} ${total === 1 ? "is" : "are"} recorded by you; none is an example record.`;
+  return `Of ${releases(total)}, ${examples} ${examples === 1 ? "is an example record" : "are example records"} `
+    + `and ${added} you recorded.`;
 }
 
 /**
@@ -255,7 +267,7 @@ export function reasoningProofSummaryLines(counts = {}) {
     REASONING_PROOF_SUMMARY_EXAMPLES,
     REASONING_PROOF_SUMMARY_SCOPE,
     REASONING_PROOF_SUMMARY_SOURCE,
-  ];
+  ].filter(Boolean);
 }
 
 /** The clipboard payload: the same lines, one per line. */

@@ -93,7 +93,7 @@ test("the two lines are the releases page's sentence and the site's provenance n
     reasoningKeptSentence({ total: 3, preserved: 1 }));
   assert.equal(lines.claim,
     "1 of 3 releases in this release log links at least one decision the decision log holds.");
-  assert.equal(lines.provenance, "Counted here: 1 example record and 2 you added.");
+  assert.equal(lines.provenance, "Of 3 counted releases, 1 is an example record and 2 you recorded.");
 });
 
 test("a different log produces different numbers, with no figure carried over", () => {
@@ -271,7 +271,7 @@ test("the figures are painted from the loaded log, and a different log moves the
   assert.equal(three.document.documentElement.dataset.shiplog, "ready", "the log never rendered");
   assert.equal(claimOf(three),
     "1 of 3 releases in this release log links at least one decision the decision log holds.");
-  assert.equal(provenanceOf(three), "Counted here: no example records and 3 you added.");
+  assert.equal(provenanceOf(three), "All 3 counted releases are recorded by you; none is an example record.");
 
   // Change the records, and both numbers follow. Nothing is hard-coded.
   const two = await openHome(t, {
@@ -280,7 +280,7 @@ test("the figures are painted from the loaded log, and a different log moves the
   });
   assert.equal(claimOf(two),
     "2 of 2 releases in this release log link at least one decision the decision log holds.");
-  assert.equal(provenanceOf(two), "Counted here: no example records and 2 you added.");
+  assert.equal(provenanceOf(two), "All 2 counted releases are recorded by you; none is an example record.");
 });
 
 test("the denominator is every release loaded, so a filter does not move it", async (t) => {
@@ -318,7 +318,7 @@ test("recording a release moves the figures without a reload", async (t) => {
   // The decision log grew, so the dangling half of the rule is what moved: the
   // sentence is re-derived on every data change rather than read once at boot.
   assert.match(claimOf(page), /of 1 release in this release log/);
-  assert.equal(provenanceOf(page), "Counted here: no example records and 1 you added.");
+  assert.equal(provenanceOf(page), "All 1 counted release is recorded by you; none is an example record.");
 });
 
 test("an unreadable log says so here instead of reporting zero releases", async (t) => {
@@ -332,6 +332,74 @@ test("an unreadable log says so here instead of reporting zero releases", async 
 });
 
 /* --------------------------- the two pages agree -------------------------- */
+
+test("a fresh browser counts only examples on both pages, and a recorded release splits them (#2838)", async (t) => {
+  const seed = { decisions: [QUEUE], releases: [KEPT, BARE] };
+  const opened = [];
+  // Restored newest first: each page's restore puts back the globals it found.
+  t.after(() => { for (const page of opened.reverse()) page.restore(); });
+  const bootReleases = async (storage) => {
+    const page = await loadPage(RELEASES_PAGE, { storage });
+    opened.push(page);
+    initReleasesPage(page.document, page.storage, {
+      seed,
+      location: { pathname: "/releases.html", origin: "https://labs.wawalu.org", search: "", hash: "" },
+      history: { replaceState() {} },
+      readHealth: async () => { throw new Error("no network in tests"); },
+    });
+    return page;
+  };
+  const bootHome = async (storage) => {
+    const page = await loadPage(HOME_PAGE, { storage, location: { pathname: "/", search: "", hash: "" } });
+    opened.push(page);
+    await initDecisionLog(page.document, page.storage, {
+      seed,
+      location: { pathname: "/", search: "", hash: "" },
+      history: { replaceState() {} },
+      clipboard: { writeText: async () => {} },
+    });
+    return page;
+  };
+  const onReleases = (page, id) => textOf(page.document.getElementById(id));
+
+  const releases = await bootReleases({});
+  const home = await bootHome({});
+  const allExamples = "All 2 counted releases are example records, not ones you recorded.";
+  assert.equal(onReleases(releases, "reasoning-proof-provenance"), allExamples);
+  assert.equal(provenanceOf(home), allExamples);
+  // The numbers and their rule are untouched.
+  const figure = "1 of 2 releases in this release log links at least one decision the decision log holds.";
+  assert.equal(onReleases(releases, "reasoning-proof-claim"), figure);
+  assert.equal(claimOf(home), figure);
+
+  // Record one on Releases, through its own form.
+  for (const [id, value] of Object.entries({
+    "release-version": "v1.3.0",
+    "release-owner": "Tess",
+    "release-released-on": "2026-05-20",
+    "release-description": "The queue work, shipped.",
+  })) {
+    const control = releases.document.getElementById(id);
+    control.focus();
+    control.value = "";
+    typeText(releases.document, value);
+  }
+  releases.document.getElementById("release-form").querySelector('button[type="submit"]').click();
+  const split = "Of 3 counted releases, 2 are example records and 1 you recorded.";
+  assert.equal(onReleases(releases, "reasoning-proof-provenance"), split);
+  // The copy preview words it the same, because it is the same function.
+  const preview = releases.document.getElementById("reasoning-proof-sentence")
+    .querySelectorAll("li").map((item) => item.textContent);
+  assert.ok(preview.includes(split), "the copy preview words the provenance differently");
+
+  // The home page in the same browser reads the stored release and says the same.
+  const after = await bootHome({
+    [STORAGE_KEY]: releases.storage.getItem(STORAGE_KEY) ?? "[]",
+    [RELEASE_STORAGE_KEY]: releases.storage.getItem(RELEASE_STORAGE_KEY),
+  });
+  assert.equal(provenanceOf(after), split);
+  assert.equal(claimOf(after), onReleases(releases, "reasoning-proof-claim"));
+});
 
 test("the home page and the releases page count one browser's log identically", async (t) => {
   const storage = {
