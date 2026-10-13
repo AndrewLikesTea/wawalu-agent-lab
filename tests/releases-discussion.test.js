@@ -27,7 +27,7 @@ async function setup(t, hash = '') {
   return { ...page, view, calls, navigate(hash) { view.location.hash = hash; listeners.hashchange(); } };
 }
 
-for (const [intent, label] of [['demo', 'Request a demonstration'], ['pilot', 'Discuss a pilot']]) {
+for (const [intent, label] of [['demo', 'Request a Shiplog demonstration'], ['pilot', 'Discuss a Shiplog pilot']]) {
   for (const keyboard of [false, true]) {
     test(`${label}: ${keyboard ? 'Enter' : 'click'} selects, focuses and submits the existing topic`, async (t) => {
       const { document, calls, view } = await setup(t);

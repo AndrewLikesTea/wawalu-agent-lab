@@ -108,6 +108,26 @@ for (const [file, purpose] of PAGES) {
   }
 }
 
+// One name per action on every page that offers it (#2844): any link or button
+// that moves to the follow-up form and names a demonstration or a pilot says it
+// with the shared pair, never "Request a demonstration" or "Discuss a pilot
+// evaluation". post.html offers neither and must keep it that way or match.
+const TARGETS_FORM = (node) => ["href", "data-target"]
+  .some((name) => (node.getAttribute(name) ?? "").startsWith("#site-footer"));
+for (const [file, offers] of [["social.html", true], ["profile.html", true], ["post.html", false],
+  ["index.html", true], ["releases.html", true], ["coach.html", true]]) {
+  test(`${file}: demonstration and pilot actions use the one shared pair`, async (t) => {
+    const page = await loadPage(new URL(`../src/${file}`, import.meta.url));
+    t.after(() => page.restore());
+    const labels = [...page.document.querySelectorAll("a"), ...page.document.querySelectorAll("button")]
+      .filter(TARGETS_FORM).map(textOf).filter((text) => /demonstration|pilot/i.test(text));
+    for (const label of labels) {
+      assert.ok(Object.values(ASK_ABOUT_SHIPLOG_ACTIONS).includes(label), `${file}: variant action label "${label}"`);
+    }
+    assert.deepEqual([...new Set(labels)].sort(), offers ? Object.values(ASK_ABOUT_SHIPLOG_ACTIONS).sort() : []);
+  });
+}
+
 test("choosing the other action replaces the first choice", async (t) => {
   const page = await loadPage(new URL("../src/coach.html", import.meta.url));
   t.after(() => page.restore());
