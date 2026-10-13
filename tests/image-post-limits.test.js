@@ -6,10 +6,8 @@
 // unbroken token, a 200-character description, a 60-character unbroken display
 // name, and portrait, landscape and very narrow (40x1200) images.
 //
-// Description semantics, chosen once for all three surfaces: the image's alt is
-// the description, and the visible figcaption holding the same string is
-// aria-hidden. A screen reader hears it once, through alt; nothing points at the
-// caption with aria-describedby, which would read it a second time.
+// Every image retains its description as alt. Compact tiles hide the duplicate
+// caption; the standalone post exposes and associates its visible caption.
 //
 // Layout is CSS-asserted only. The harness models no layout and nothing on these
 // pages reads matchMedia, so a 390px shim would only assert itself; what is
@@ -130,14 +128,16 @@ for (const surface of SURFACES) {
       assert.equal(img.width, shape.width);
       assert.equal(img.height, shape.height);
 
-      // Announced once: alt holds the description, the caption is aria-hidden.
+      // Direct image navigation retains alt; the permalink also exposes its caption.
       const caption = byClass(container, description)[0];
       assert.equal(caption.tagName, "FIGCAPTION");
-      assert.equal(caption.getAttribute("aria-hidden"), "true");
+      assert.equal(caption.getAttribute("aria-hidden"), surface.name === "the post page" ? null : "true");
       assert.equal(img.alt, DESCRIPTION);
       for (const node of order) {
         const ids = (node.getAttribute?.("aria-describedby") ?? "").split(/\s+/);
-        assert.equal(ids.includes(caption.id ?? "\u0000"), false, "the caption is pointed at, and read twice");
+        assert.equal(ids.includes(caption.id ?? "\u0000"),
+          surface.name === "the post page" && node.tagName === "FIGURE",
+          "only the standalone figure explicitly references its caption");
       }
       assert.equal(img.getAttribute("aria-describedby"), null);
 

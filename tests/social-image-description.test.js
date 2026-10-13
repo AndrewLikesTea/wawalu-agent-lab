@@ -545,13 +545,12 @@ for (const surface of SURFACES) {
     assert.equal(visible.textContent, IMAGE.alt);
     assert.equal(visible.textContent, img.alt);
 
-    // The figure's visible caption (#2814), announced once: alt carries the
-    // sentence, so the caption is aria-hidden and nothing points at it with
-    // aria-describedby — either would read it a second time.
+    // The permalink exposes its caption in reading order; compact feed tiles
+    // continue to announce the same text through the image alt.
     const note = byClass(container, surface.note)[0];
     assert.equal(note.tagName, "FIGCAPTION");
     assert.equal(byClass(tags(container, "FIGURE")[0], surface.note).length, 1, "the caption is the figure's");
-    assert.equal(note.getAttribute("aria-hidden"), "true");
+    assert.equal(note.getAttribute("aria-hidden"), surface.name === "the shared post page" ? null : "true");
     assert.equal(img.getAttribute("aria-describedby"), null, "the description would be read twice");
     // The captions role, reused. No surface grew a type of its own for this.
     assert.equal(byClass(container, surface.note)[0].classes.includes("description-note"),
