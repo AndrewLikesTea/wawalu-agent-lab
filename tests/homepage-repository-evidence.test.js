@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import {
-  RELEASE_PAIR_LOADED, RELEASE_PAIR_UNAVAILABLE, initDecisionLog, renderRepositoryEvidence,
+  RELEASE_PAIR_LOADED, RELEASE_PAIR_UNAVAILABLE, REPOSITORY_EVIDENCE_FAILED, initDecisionLog, renderRepositoryEvidence,
   renderRepositoryReleasePair, repositoryReleasePair, STORAGE_KEY,
 } from "../src/app.js";
 import { BUILD_STAMP } from "../src/build-stamp.js";
@@ -66,6 +66,47 @@ test("evidence excludes unmarked examples and missing or malformed PR citations"
   assert.equal(target.querySelectorAll("a").length, 1);
   renderRepositoryEvidence(page.document, []);
   assert.equal(target.querySelectorAll("a").length, 0, "stale evidence is removed");
+});
+
+const EVIDENCE_LOADING = "Loading the decisions this repository recorded about its own development…";
+const EVIDENCE_CAVEAT = "These decisions document this repository’s own development. This is neither an invented example nor a customer result.";
+
+test("evidence loading state says it is loading, below the unchanged caveat", async (t) => {
+  const page = await loadPage(home);
+  t.after(() => page.restore());
+  const block = page.document.getElementById("repository-evidence");
+  const target = page.document.getElementById("repository-evidence-records");
+  assert.equal(textOf(target), EVIDENCE_LOADING);
+  assert.doesNotMatch(textOf(target), /unavailable|could not|failed|error/i);
+  assert.equal(textOf(block.querySelectorAll("p")[0]), EVIDENCE_CAVEAT);
+});
+
+test("evidence failure state says the decisions could not be loaded and names the browse link", async (t) => {
+  const page = await loadPage(home);
+  t.after(() => page.restore());
+  const block = page.document.getElementById("repository-evidence");
+  const target = page.document.getElementById("repository-evidence-records");
+  const links = block.querySelectorAll("a").length;
+  renderRepositoryEvidence(page.document, [null]);
+  assert.equal(textOf(target), REPOSITORY_EVIDENCE_FAILED);
+  assert.equal(textOf(target),
+    "The repository-backed decisions could not be loaded. Browse all repository-backed Shiplog decisions instead.");
+  assert.ok(textOf(block).includes("Browse all repository-backed Shiplog decisions"));
+  assert.equal(block.querySelectorAll("a").length, links, "no link is added");
+  assert.equal(textOf(block.querySelectorAll("p")[0]), EVIDENCE_CAVEAT);
+});
+
+test("evidence loaded state shows the record and neither status sentence", async (t) => {
+  const page = await loadPage(home);
+  t.after(() => page.restore());
+  const block = page.document.getElementById("repository-evidence");
+  const target = page.document.getElementById("repository-evidence-records");
+  await initDecisionLog(page.document, page.storage);
+  assert.equal(target.querySelectorAll("a").length, 1);
+  assert.ok(!textOf(block).includes(EVIDENCE_LOADING));
+  assert.ok(!textOf(block).includes(REPOSITORY_EVIDENCE_FAILED));
+  assert.doesNotMatch(textOf(target), /unavailable|could not/i);
+  assert.equal(textOf(block.querySelectorAll("p")[0]), EVIDENCE_CAVEAT);
 });
 
 // Wrapping, width and the focus ring come from `.release-followup-lead` and the
