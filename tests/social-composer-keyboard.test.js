@@ -292,7 +292,10 @@ const RENDERED_ORDER = [
   "#post-name-filter", "#post-time-filter", "#post-filter-clear", "#feed-summary",
   "#feed-state", "#post-feed", ".social-feed-intro", "#feed-source-note",
   "#post-report-route", "#post-compose-panel", "#post-form-title", "#post-body",
-  "#ask-about-shiplog", "#ask-about-shiplog-description", "#post-report-about",
+  // #2883: the Shiplog asks follow the reporting explanation, so "How
+  // reporting works" in #post-report-route lands on its own answer, not a pitch.
+  "#post-report-about", "#ask-about-shiplog", "#ask-about-shiplog-description",
+  "#ask-about-shiplog-demo", "#ask-about-shiplog-pilot",
 ];
 
 // Every tab stop inside the page body ahead of the display-name filter, named.
@@ -338,6 +341,17 @@ test("the composer is read after the feed and before the contact route, and adds
   const named = RENDERED_ORDER.map((selector, position) => [selector, indices[position]])
     .sort((a, b) => a[1] - b[1]).map(([selector]) => selector);
   assert.deepEqual(named, RENDERED_ORDER, `rendered reading order is ${named.join(" ")}`);
+
+  // The same criterion as text: from "How reporting works" to the sentence it
+  // links to, no Shiplog demonstration or pilot ask is read (#2883), and every
+  // one of the three Shiplog asks is read after the feed and the composer.
+  const text = textOf(document.querySelector("#main-content"));
+  const route = text.indexOf("How reporting works");
+  const answer = text.indexOf("Report post opens a short form");
+  assert.ok(route >= 0 && answer > route, "the reporting route or its answer is missing");
+  assert.doesNotMatch(text.slice(route, answer), /Shiplog demonstration|Shiplog pilot|Ask about Shiplog/);
+  for (const ask of ["Ask about Shiplog", "Request a Shiplog demonstration", "Discuss a Shiplog pilot"])
+    assert.ok(text.indexOf(ask) > answer, `${ask} is read before the reporting explanation`);
 
   // "After the feed region" means after the cards, not merely after the element
   // that holds them: the last card's own index is what the criterion is about.

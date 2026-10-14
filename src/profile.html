@@ -63,25 +63,12 @@
         <h1 id="page-title">People</h1>
         <p class="profile-lede" id="page-tagline">See the image posts from Social: every Social post that carries an image, shown one display name at a time.</p>
         <!-- Whose showcase this is (#2864): the lab's, not Shiplog's, with the
-             route to Shiplog. It reads with the introduction, before the hero's
-             actions, so those actions still lead straight into the picker.
+             route to Shiplog. It reads with the introduction, so the picker follows
+             it directly.
              Its bytes are LAB_IDENTITY in src/page-title.js. -->
         <p class="hint" id="lab-identity">A separate lab tool, not part of <a href="/#decisions-title">Shiplog, the decision and release log</a>.</p>
-        <!-- This page has no composer, so asking a person is its one action and
-             it stays in the hero. Its caption stays with it: every other page
-             that carries this label carries the line explaining it in the same
-             row, and a caption stranded below the grid describes a control that
-             is nowhere near it. The caption is a hint, not a paragraph of
-             guidance, so it costs the picker below one short line. -->
-        <div class="hero-actions">
-          <a class="text-link" id="ask-about-shiplog" href="#site-footer-panel" aria-describedby="ask-about-shiplog-description">Ask about Shiplog</a>
-          <p class="hint" id="ask-about-shiplog-description">Ask about Shiplog moves you to the follow-up form at the foot of this page, which asks for a work email address, what you want to discuss and an optional note.</p>
-          <a class="text-link" id="ask-about-shiplog-demo" data-follow-up-intent="demo" href="#site-footer-intent-demo">Request a Shiplog demonstration</a>
-          <a class="text-link" id="ask-about-shiplog-pilot" data-follow-up-intent="pilot" href="#site-footer-intent-pilot">Discuss a Shiplog pilot</a>
-        </div>
-
         <!-- The picker comes before the answer, in the markup and not merely in
-             the layout: it follows the primary action, and a
+             the layout: it follows the introduction, and a
              reader who arrives from Social's "Open People" pointer sees whose
              posts they are about to read, and who else has any, before they read
              a name, a count, or a grid. It used to sit below all of them, so the
@@ -486,6 +473,17 @@
           </p>
         </div>
       </section>
+      <!-- The Shiplog asks close the page, after the filter, the image posts and
+           the publishing paths (#2883). They used to be the hero's actions, so
+           the first stops on a lab tool were requests for a Shiplog sale. The
+           caption stays in the label's row: a caption stranded away from its
+           control describes something nowhere near it. -->
+      <div class="hero-actions">
+        <a class="text-link" id="ask-about-shiplog" href="#site-footer-panel" aria-describedby="ask-about-shiplog-description">Ask about Shiplog</a>
+        <p class="hint" id="ask-about-shiplog-description">Ask about Shiplog moves you to the follow-up form at the foot of this page, which asks for a work email address, what you want to discuss and an optional note.</p>
+        <a class="text-link" id="ask-about-shiplog-demo" data-follow-up-intent="demo" href="#site-footer-intent-demo">Request a Shiplog demonstration</a>
+        <a class="text-link" id="ask-about-shiplog-pilot" data-follow-up-intent="pilot" href="#site-footer-intent-pilot">Discuss a Shiplog pilot</a>
+      </div>
       </main>
     </div>
     <footer class="site-footer" id="site-footer" aria-labelledby="site-footer-title">
