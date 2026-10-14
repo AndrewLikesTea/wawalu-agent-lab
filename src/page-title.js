@@ -39,9 +39,11 @@ export function labTitle(...segments) {
 // The one sentence those pages carry near their top, with their route back to
 // Shiplog. Each page embeds these bytes in a paragraph with id="lab-identity" —
 // static, so it reads before any script runs — and
-// tests/lab-identity.test.js holds every page to them.
+// tests/lab-identity.test.js holds every page to them. "Separate lab tool" is
+// the footer's mark for the same pages (#2881): one name for the concept. The
+// lab's name is already in the tab title.
 export const LAB_IDENTITY_HREF = "/#decisions-title";
-export const LAB_IDENTITY = `A separate ${LAB} project, not part of <a href="${LAB_IDENTITY_HREF}">Shiplog, the decision and release log</a>.`;
+export const LAB_IDENTITY = `A separate lab tool, not part of <a href="${LAB_IDENTITY_HREF}">Shiplog, the decision and release log</a>.`;
 // The same words with no link, for a page whose first screen may not gain a
 // tab stop (Social's hero sits above its filters).
 export const LAB_IDENTITY_TEXT = LAB_IDENTITY.replace(/<[^>]+>/g, "");

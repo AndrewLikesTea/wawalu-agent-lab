@@ -87,8 +87,8 @@ export const ASSETS_HREF = "/#shiplog-evaluation-brief";
  * from outside. Between them they claim no customer, usage, funding, or result.
  */
 export const IDENTITY = "Shiplog is a decision and release log: it records a decision, tracks the release "
-  + "it shaped, and keeps the two linked. AI FinOps, Prompt coach, Personal AI history, and Agent "
-  + "observatory are separate tools hosted in the same lab, not part of Shiplog. Shiplog is a "
+  + "it shaped, and keeps the two linked. Every destination except Home, Decision log, and Releases is a "
+  + "separate lab tool, not part of Shiplog. Shiplog is a "
   + "demonstration product, built and operated by Wawalu at labs.wawalu.org.";
 
 // Who Shiplog is for, and the page that shows it working; the tests say why.
@@ -112,7 +112,7 @@ export const PITCH_HREF = "/decision.html?id=demo-queue";
  * act turns on: where Paint's PNG goes, what order People's posts come in. AI
  * FinOps keeps "in this browser tab", a promise about where an export is read.
  *
- * `separate` renders SEPARATE_TOOL: IDENTITY says these four are not Shiplog.
+ * `separate` renders SEPARATE_TOOL on each row IDENTITY says is not Shiplog.
  *
  * `filedUnder` marks the one row the navigation has no door for: src/site-nav.js
  * files /personal-history.html inside Prompt coach's section, so the header
@@ -138,13 +138,13 @@ export const DEMOS = Object.freeze([
     note: "start here:",
   }),
   Object.freeze({ label: "Releases", href: "/releases.html", purpose: "see every release and its linked decisions" }),
-  Object.freeze({ label: "Social", href: "/social.html", purpose: "read short posts about shipped work, or publish one" }),
-  Object.freeze({ label: "People", href: "/profile.html", purpose: "pick a display name, see its image posts, newest first" }),
-  Object.freeze({ label: "Paint", href: "/paint/", purpose: "crop or draw an image, export a PNG, publish it on Social" }),
+  Object.freeze({ label: "Social", href: "/social.html", purpose: "read short posts about shipped work, or publish one", separate: true }),
+  Object.freeze({ label: "People", href: "/profile.html", purpose: "pick a display name, see its image posts, newest first", separate: true }),
+  Object.freeze({ label: "Paint", href: "/paint/", purpose: "crop or draw an image, export a PNG, publish it on Social", separate: true }),
   Object.freeze({ label: "Agent observatory", href: "/agents.html", purpose: "watch a synthetic engineering team build and review work", separate: true }),
 ]);
 
-export const SEPARATE_TOOL = "Separate tool in the lab.";
+export const SEPARATE_TOOL = "Separate lab tool.";
 
 /**
  * Default introduction above the form. The post page supplies its own
