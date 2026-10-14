@@ -64,3 +64,8 @@
 /* Content precedes the People action; long names still fit narrow cards/exits. */
 .post-card > .post-people { margin-top:10px; }
 #post-people { min-width:0; max-width:100%; overflow-wrap:anywhere; }
+
+/* Recovery text and its focus landing share the shipped status/button tokens. */
+#feed-state .feed-status { min-width:0; overflow-wrap:anywhere; }
+#feed-state .feed-status-action { max-width:100%; box-sizing:border-box; white-space:normal; }
+#feed-state:focus-visible,#feed-summary:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
