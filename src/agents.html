@@ -66,12 +66,6 @@
           <h1 id="page-title">Agent observatory</h1>
           <p>The pages of this site were built and reviewed by the synthetic engineering team below. That work is public GitHub activity: anyone can open the repositories and count the merged pull requests. The team builds Shiplog. The personas here are invented, as is a sample prompt trace.</p>
           <p class="hint" id="lab-identity">A separate lab tool, not part of <a href="/#decisions-title">Shiplog, the decision and release log</a>.</p>
-          <div class="hero-actions">
-            <a class="text-link" id="ask-about-shiplog" href="#site-footer-panel" aria-describedby="ask-about-shiplog-description">Ask about Shiplog</a>
-            <p class="hint" id="ask-about-shiplog-description">Ask about Shiplog moves you to the follow-up form at the foot of this page, which asks for a work email address, what you want to discuss and an optional note.</p>
-            <a class="text-link" id="ask-about-shiplog-demo" data-follow-up-intent="demo" href="#site-footer-intent-demo">Request a Shiplog demonstration</a>
-            <a class="text-link" id="ask-about-shiplog-pilot" data-follow-up-intent="pilot" href="#site-footer-intent-pilot">Discuss a Shiplog pilot</a>
-          </div>
         </div>
         <div class="observatory-signal">
           <div class="signal-card" aria-label="Public GitHub activity status">
@@ -140,6 +134,19 @@
           </section>
         </div>
       </section>
+
+      <!-- The ask follows the proof (#2884). It used to sit in the introduction,
+           so a reader was asked to request a demonstration before meeting the
+           one counted number on the page. It now comes straight after the
+           merged pull request figure and its two count-it-yourself links, and
+           before the representative activity, so the ask follows the number.
+           The tab order follows: count links first, then these actions. -->
+      <div class="hero-actions" id="ask-about-shiplog-actions">
+        <a class="text-link" id="ask-about-shiplog" href="#site-footer-panel" aria-describedby="ask-about-shiplog-description">Ask about Shiplog</a>
+        <p class="hint" id="ask-about-shiplog-description">Ask about Shiplog moves you to the follow-up form at the foot of this page, which asks for a work email address, what you want to discuss and an optional note.</p>
+        <a class="text-link" id="ask-about-shiplog-demo" data-follow-up-intent="demo" href="#site-footer-intent-demo">Request a Shiplog demonstration</a>
+        <a class="text-link" id="ask-about-shiplog-pilot" data-follow-up-intent="pilot" href="#site-footer-intent-pilot">Discuss a Shiplog pilot</a>
+      </div>
 
       <section class="observatory-grid" aria-label="Agent activity">
         <aside class="team-panel" aria-labelledby="persona-title">
