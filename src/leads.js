@@ -1,3 +1,4 @@
+import { PAGE_TOOLS } from "./follow-up-tools.js";
 import { isFollowUpIntent, MAX_FOLLOW_UP_MESSAGE_LENGTH } from "./lead-capture.js";
 
 export { MAX_FOLLOW_UP_MESSAGE_LENGTH };
@@ -117,10 +118,16 @@ export function createMemoryLeadStore() {
       else if (intent !== null) submissions.get(key).intent = intent;
       return { created, intent: submissions.get(key).intent };
     },
+    async captureTool(email, purpose, createdAt, topic, message, tool) {
+      const key = `${purpose}:${email}:${tool}`;
+      const created = !submissions.has(key);
+      submissions.set(key, { topic, message, tool });
+      return { created, tool };
+    },
     has: (email, purpose = "field_notes") => submissions.has(`${purpose}:${email}`),
     // What was stored, not merely that something was: a test that can only ask
     // "is this address here?" cannot tell a carried message from a dropped one.
-    read: (email, purpose = "field_notes") => submissions.get(`${purpose}:${email}`) ?? null,
+    read: (email, purpose = "field_notes", tool = "shiplog") => submissions.get(`${purpose}:${email}${tool === "shiplog" ? "" : `:${tool}`}`) ?? null,
   };
 }
 
@@ -152,6 +159,14 @@ export function createMemoryLeadStore() {
  */
 export function createD1LeadStore(db) {
   return {
+    async captureTool(email, purpose, createdAt, topic, message, tool) {
+      const [existing, written] = await db.batch([
+        db.prepare("SELECT 1 FROM tool_interest_requests WHERE email = ? AND purpose = ? AND tool = ?").bind(email, purpose, tool),
+        db.prepare("INSERT INTO tool_interest_requests (email, purpose, created_at, topic, message, tool) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (email, purpose, tool) DO UPDATE SET message = excluded.message RETURNING tool")
+          .bind(email, purpose, createdAt, topic, message, tool),
+      ]);
+      return { created: existing.results.length === 0, tool: written.results[0].tool };
+    },
     async capture(email, purpose, createdAt, topic = null, message = null, intent = null) {
       if (intent === null) {
         const result = await db.prepare(
@@ -204,6 +219,7 @@ export async function handleLeadRequest(request, {
     ...expectedKeys,
     ...(isObject && FOLLOW_UP_MESSAGE_PURPOSES.includes(input.purpose) ? ["message"] : []),
     ...(asksIntent ? ["intent"] : []),
+    ...(isObject && PAGE_TOOLS[input.purpose] && input.topic !== POST_FOLLOW_UP_TOPIC ? ["tool"] : []),
   ];
   if (!isObject || !keys.every((key) => allowedKeys.includes(key)) || !expectedKeys.every((key) => keys.includes(key))) {
     return json({ error: { code: "invalid_request", message: "Body contains unsupported or missing fields.", request_id: requestId } }, 400, requestId);
@@ -234,15 +250,24 @@ export async function handleLeadRequest(request, {
     return json({ error: { code: "invalid_message", message: `Your message must be ${MAX_FOLLOW_UP_MESSAGE_LENGTH} characters or fewer.`, request_id: requestId } }, 422, requestId);
   }
 
-  if (asksIntent && !isFollowUpIntent(input.intent)) {
+  const separateTool = input.tool !== undefined && input.tool !== "shiplog";
+  if (input.tool !== undefined && input.tool !== "shiplog" && input.tool !== PAGE_TOOLS[input.purpose]) {
+    return json({ error: { code: "invalid_tool", message: "Choose a tool offered on this page.", request_id: requestId } }, 422, requestId);
+  }
+  if (asksIntent && (separateTool ? input.intent !== "question" : !isFollowUpIntent(input.intent))) {
     return json({ error: { code: "invalid_intent", message: "Choose one of the listed things to discuss.", request_id: requestId } }, 422, requestId);
   }
 
   try {
+    if (separateTool) {
+      const stored = await store.captureTool(email, input.purpose, now(), expectedTopic, message ?? null, input.tool);
+      return json({ captured: true, created: stored.created, purpose: input.purpose, tool: stored.tool }, stored.created ? 201 : 200, requestId);
+    }
     const stored = await store.capture(email, input.purpose, now(), expectedTopic ?? null, message ?? null,
       asksIntent ? input.intent : null);
     // `intent` is what the row holds after the write, read back by the store.
     const body = { captured: true, created: stored.created, purpose: input.purpose };
+    if (input.tool === "shiplog") body.tool = "shiplog";
     if (asksIntent) body.intent = isFollowUpIntent(stored.intent) ? stored.intent : null;
     return json(body, stored.created ? 201 : 200, requestId);
   } catch {

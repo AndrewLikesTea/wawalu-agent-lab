@@ -1520,7 +1520,7 @@ test("a failed request offers its retry in place: named, keyboard-reachable, ann
     assert.equal(calls.length, 2, "retry must re-attempt the same submission");
     assert.deepEqual(JSON.parse(calls[1].options.body), JSON.parse(calls[0].options.body));
     assert.deepEqual(JSON.parse(calls[1].options.body), {
-      email: TYPED_EMAIL, purpose: "follow_up_social", topic: FOLLOW_UP_TOPICS.follow_up_social, intent: "pilot",
+      email: TYPED_EMAIL, purpose: "follow_up_social", topic: FOLLOW_UP_TOPICS.follow_up_social, intent: "pilot", tool: "shiplog",
     });
     assert.deepEqual(focused, [], "and the retry must not move focus either");
   } finally {

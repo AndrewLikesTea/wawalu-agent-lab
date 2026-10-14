@@ -1,3 +1,4 @@
+const toolPayload = file => ["social.html", "profile.html", "agents.html"].includes(file) ? { tool: "shiplog" } : {};
 // The third state of a follow-up form: it landed.
 //
 // Both panels had a pending state and a failure state, and a success that was
@@ -141,9 +142,9 @@ test("Coach, Releases, Social, People, and Agents send one bounded request and s
       const payload = JSON.parse(calls[0].options.body);
       const topic = FOLLOW_UP_TOPICS[requestType];
       assert.deepEqual(payload, topic
-        ? { email: LONG_EMAIL, purpose: requestType, topic, intent: "pilot" }
+        ? { email: LONG_EMAIL, purpose: requestType, topic, intent: "pilot", ...toolPayload(file) }
         : { email: LONG_EMAIL, purpose: requestType, intent: "pilot" }, `${file}: bounded payload`);
-      assert.deepEqual(Object.keys(payload), topic ? ["email", "purpose", "topic", "intent"] : ["email", "purpose", "intent"],
+      assert.deepEqual(Object.keys(payload), topic ? ["email", "purpose", "topic", "intent", ...Object.keys(toolPayload(file))] : ["email", "purpose", "intent"],
         `${file}: only fixed routing context can accompany the email`);
       assert.doesNotMatch(calls[0].options.body, new RegExp(pageContent, "i"), `${file}: page content stays local`);
       assert.equal(byId(page.document, "site-footer-form").dataset.state, "success", `${file}: success state`);

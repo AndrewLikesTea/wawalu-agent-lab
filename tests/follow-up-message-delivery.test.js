@@ -1,3 +1,4 @@
+const toolPayload = file => ["social.html", "profile.html", "agents.html"].includes(file) ? { tool: "shiplog" } : {};
 // The text typed in "Anything else we should know?" — from the field to the row
 // and back into the receipt, on every page and topic that renders the field.
 //
@@ -184,7 +185,7 @@ for (const [file, purpose, topic, question] of ASKS) {
     // offers. Before the list was widened this was a 400 and an error state.
     assert.equal(byId(document, "site-footer-form").dataset.state, "success",
       textOf(byId(document, "site-footer-status")));
-    assert.deepEqual(calls, [{ email: EMAIL, purpose, topic, message: question, intent: "pilot" }]);
+    assert.deepEqual(calls, [{ email: EMAIL, purpose, topic, message: question, intent: "pilot", ...toolPayload(file) }]);
     // The three things the delivered request has to carry, in the row.
     assert.deepEqual(rows(db), [{ email: EMAIL, purpose, topic, message: question, intent: "pilot" }]);
 
@@ -215,7 +216,7 @@ for (const [file, purpose, topic, question] of ASKS) {
 
     assert.equal(byId(document, "site-footer-form").dataset.state, "success",
       textOf(byId(document, "site-footer-status")));
-    assert.deepEqual(Object.keys(calls[0]), ["email", "purpose", "topic", "intent"]);
+    assert.deepEqual(Object.keys(calls[0]), ["email", "purpose", "topic", "intent", ...Object.keys(toolPayload(file))]);
     assert.deepEqual(rows(db), [{ email: EMAIL, purpose, topic, message: null, intent: "demo" }]);
     // A receipt may not name a message that was never sent.
     const receipt = textOf(byId(document, "site-footer-confirmation"));

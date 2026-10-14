@@ -1,3 +1,4 @@
+import { FOLLOW_UP_TOOLS, toolFieldLines, toolInvitation } from "./follow-up-tools.js";
 // One site footer: one identity paragraph, one way to reach a person, on every
 // page of the site.
 //
@@ -349,6 +350,7 @@ function contactFormLines(followUpType, followUpTopic, askMessage = false, offer
     ...(followUpTopic ? [
       `        <p class="site-footer-note" id="site-footer-topic-note">This request is sent about the ${followUpTopic}.</p>`,
     ] : []),
+    ...(followUpTopic && !followUpTopic.startsWith("Social post") ? toolFieldLines(followUpType).map(line => `        ${line}`) : []),
     ...(askMessage ? [...intentFieldLines(), ...messageFieldLines()] : []),
     '        <div class="site-footer-field">',
     '          <label for="site-footer-email">Work email for your follow-up</label>',
@@ -395,6 +397,8 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
   const message = form.elements.message ?? null;
   const messageError = root.querySelector("#site-footer-message-error");
   const counter = root.querySelector("#site-footer-message-counter");
+  const toolRadios = [...root.querySelectorAll('input[name="tool"]')];
+  const selectedTool = () => toolRadios.find(radio => radio.checked)?.value ?? "shiplog";
   const intentGroup = root.querySelector("#site-footer-intent");
   const intentError = root.querySelector(`#${INTENT_ERROR_ID}`);
   const intents = intentGroup ? [...intentGroup.querySelectorAll('input[name="intent"]')] : [];
@@ -454,6 +458,17 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
     guidance.textContent = sentence;
     guidance.hidden = !sentence;
   }
+  const invitation = root.querySelector(".site-footer-invitation");
+  const shiplogInvitation = invitation?.textContent;
+  for (const radio of toolRadios) radio.addEventListener("change", () => {
+    const separate = selectedTool() !== "shiplog";
+    invitation.textContent = separate ? toolInvitation(selectedTool()) : shiplogInvitation;
+    intentGroup.hidden = separate;
+    for (const intent of intents) intent.disabled = separate;
+    root.querySelector("#site-footer-tool-selection").textContent = `Request about: ${FOLLOW_UP_TOOLS[selectedTool()]}.`;
+    setIntentError(null);
+    showNoteGuidance(separate ? "" : intents.find(r => r.checked)?.value);
+  });
   for (const radio of intents) {
     radio.addEventListener("change", () => {
       setIntentError(null);
@@ -541,7 +556,12 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
     // One request in flight, one request per receipt, including implicit Enter
     // submission and activation of the focusable aria-disabled button.
     if (form.dataset.requestState === "success" || form.dataset.requestState === "submitting") return;
-    const invalid = emailFieldError(email.value, looksLikeEmail(email.value), CONTACT_COPY);
+    const toolName = FOLLOW_UP_TOOLS[selectedTool()];
+    const invalid = emailFieldError(email.value, looksLikeEmail(email.value), {
+      ...CONTACT_COPY,
+      emptyEmail: `Enter your work email to request a ${toolName} follow-up.`,
+      invalidEmail: `Enter a valid work email address to request a ${toolName} follow-up.`,
+    });
     if (invalid) {
       // Whatever was typed stays; the field is never cleared to "help".
       form.dataset.requestState = "idle";
@@ -566,7 +586,7 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
     // A required radio group is refused here, not by the browser: the form is
     // `novalidate`, and the request would only come back as `invalid_intent`.
     const chosen = intents.find((radio) => radio.checked);
-    if (intentGroup && !chosen) {
+    if (intentGroup && selectedTool() === "shiplog" && !chosen) {
       form.dataset.requestState = "idle";
       form.dataset.state = "invalid";
       setFieldError(null);
@@ -600,7 +620,8 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
       // request this form sent before it existed.
       const note = message?.value.trim() || null;
       const body = await postLeadEmail(request, email.value, form.dataset.followUpType || "follow_up", CONTACT_COPY, topic, note,
-        chosen?.value ?? null);
+        selectedTool() === "shiplog" ? chosen?.value ?? null : "question",
+        toolRadios.length ? selectedTool() : null);
       form.dataset.requestState = "success";
       form.dataset.state = "success";
       setRecoveryVisible(false);
@@ -608,7 +629,8 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
       // The form is replaced from here, so the control that would send again is
       // gone before the `finally` below could bring it back. The intent named is
       // the endpoint's stored one, never the radio still checked above.
-      confirmation.show(address, topic, Boolean(note), body.intent ? FOLLOW_UP_INTENTS[body.intent] : "");
+      confirmation.show(address, topic, Boolean(note), body.intent ? FOLLOW_UP_INTENTS[body.intent] : "",
+        toolRadios.length ? FOLLOW_UP_TOOLS[body.tool ?? "shiplog"] : "");
     } catch (error) {
       // Copy this repository owns, never a string an intermediary supplied, and
       // never a claim that the address was lost when that is not known.

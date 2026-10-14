@@ -82,6 +82,7 @@ export function initAskAboutShiplog(root = document) {
   if (!link || !panel || link.hasAttribute("data-buyer-intent")) return null;
   panel.setAttribute("tabindex", "-1");
   const onClick = () => {
+    root.querySelector("#site-footer-tool-shiplog")?.click();
     panel.focus?.({ preventScroll: true });
     panel.scrollIntoView?.({ block: "start" });
   };
@@ -118,6 +119,7 @@ export function initAskAboutShiplogActions(root = document) {
       // A sent request is replaced by its receipt; reopen it through its own
       // control first, as the home page's topic pair does.
       if (root.querySelector("#site-footer-form")?.hidden) root.querySelector("#site-footer-again")?.click();
+      root.querySelector("#site-footer-tool-shiplog")?.click();
       const radio = root.querySelector(`#site-footer-intent-${link.getAttribute("data-follow-up-intent")}`);
       if (!radio) return;
       if (!radio.checked) radio.click();

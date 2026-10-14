@@ -119,11 +119,13 @@ export function createFollowUpConfirmation({ form, status, submit, email, onReop
    * sentence appears only where the field does. `storedIntent` is the label for
    * the intent the endpoint read back, so it too is empty unless one is known.
    */
-  function show(value, submittedTopic = "", messageProvided = false, storedIntent = "") {
+  function show(value, submittedTopic = "", messageProvided = false, storedIntent = "", storedTool = "") {
     address.textContent = value;
-    topic.textContent = submittedTopic ? `${TOPIC_LEAD}${submittedTopic}. ` : "";
+    topic.textContent = (storedTool ? `Request about: ${storedTool}. ` : "") + (submittedTopic ? `${TOPIC_LEAD}${submittedTopic}. ` : "");
     intent.textContent = storedIntent ? `${INTENT_LEAD}${storedIntent}. ` : "";
-    explanation.textContent = storedIntent
+    explanation.textContent = storedTool && storedTool !== "Shiplog"
+      ? `Your choice of ${storedTool}${messageProvided ? " and the message you entered have" : " has"} been saved. The Wawalu team may review the request and reply; a reply is not guaranteed.`
+      : storedIntent
       ? (messageProvided ? CONFIRMATION_INTENT_MESSAGE_DETAIL : CONFIRMATION_INTENT_DETAIL)
       : messageProvided ? CONFIRMATION_MESSAGE_DETAIL : CONFIRMATION_DETAIL;
     if (!region.parentNode) form.parentNode.insertBefore(region, form);

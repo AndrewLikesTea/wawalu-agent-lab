@@ -1,3 +1,4 @@
+const toolPayload = file => ["social.html", "profile.html", "agents.html"].includes(file) ? { tool: "shiplog" } : {};
 // The pages whose follow-up request has a fixed topic and no way to choose one,
 // and that therefore say in prose what the request is about.
 //
@@ -61,7 +62,11 @@ const MESSAGE_FIELD = "INPUT#site-footer-message";
 const INTENT_FIELDS = ["availability_pricing", "demo", "pilot", "security_data"]
   .map((value) => `INPUT#site-footer-intent-${value}`);
 const withMessage = (baseline) => [...INTENT_FIELDS, MESSAGE_FIELD, ...baseline];
-const expectedStops = (file, baseline) => (ASKS_MESSAGE.has(file) ? withMessage(baseline) : baseline);
+const expectedStops = (file, baseline) => [
+  ...({"social.html":"social", "profile.html":"people", "agents.html":"agents"}[file] ?
+    ["INPUT#site-footer-tool-shiplog", `INPUT#site-footer-tool-${{"social.html":"social", "profile.html":"people", "agents.html":"agents"}[file]}`] : []),
+  ...(ASKS_MESSAGE.has(file) ? withMessage(baseline) : baseline),
+];
 
 const SENTENCE_LEAD = "This request is sent about the ";
 const TYPED_EMAIL = "director@example.com";
@@ -158,7 +163,7 @@ for (const file of STATED) {
       // request carried, and what the shared map holds are one string.
       assert.equal(named, payload.topic, `${file}: the sentence names a topic the request did not send`);
       assert.equal(named, expected, `${file}: the sentence has drifted from the shared topic list`);
-      assert.deepEqual(payload, { email: TYPED_EMAIL, purpose, topic: expected, ...(ASKS_MESSAGE.has(file) && { intent: "pilot" }) },
+      assert.deepEqual(payload, { email: TYPED_EMAIL, purpose, topic: expected, ...(ASKS_MESSAGE.has(file) && { intent: "pilot" }), ...toolPayload(file) },
         `${file}: the fixed topic and the chosen intent are all that accompany the address`);
 
       // And the receipt reads back the same string, so a visitor can check the

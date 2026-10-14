@@ -286,7 +286,7 @@ test("the question is optional: left empty it sends the request it always sent",
     await settled(document);
 
     assert.equal(byId(document, "site-footer-form").dataset.state, "success");
-    assert.deepEqual(Object.keys(JSON.parse(calls[0].options.body)), ["email", "purpose", "topic", "intent"]);
+    assert.deepEqual(Object.keys(JSON.parse(calls[0].options.body)), ["email", "purpose", "topic", "intent", "tool"]);
     assert.doesNotMatch(shownText(document, "site-footer-confirmation"), /the message you entered/,
       "a receipt may not name a message the request did not carry");
   } finally {
@@ -494,6 +494,7 @@ for (const [file, purpose, topic] of REVIEWED) {
       // The pages that ask what to discuss send the choice too (#2365).
       assert.deepEqual(JSON.parse(calls[0].options.body), {
         email: TYPED_EMAIL, purpose, topic, ...(ASKS_MESSAGE.has(file) && { intent: "pilot" }),
+        ...(["social.html", "profile.html", "agents.html"].includes(file) && { tool: "shiplog" }),
       });
 
       // node:sqlite hands back null-prototype rows; the values are what matter.

@@ -26,7 +26,7 @@ const TIMEOUT_MS = 10000;
  * same questions in the same order: what to type, what a rejection means, and
  * what is and is not known when nothing answered.
  */
-const UNREADABLE_CODES = ["invalid_request", "invalid_purpose", "invalid_json", "unsupported_media_type", "method_not_allowed", "invalid_message", "invalid_topic", "invalid_intent"];
+const UNREADABLE_CODES = ["invalid_request", "invalid_purpose", "invalid_json", "unsupported_media_type", "method_not_allowed", "invalid_message", "invalid_topic", "invalid_intent", "invalid_tool"];
 
 // One limit for both halves: src/leads.js imports it rather than repeating it.
 export const MAX_FOLLOW_UP_MESSAGE_LENGTH = 200;
@@ -177,11 +177,11 @@ export function resolveFailure(response, body, copy) {
 }
 
 // Sends the address, routing label, optional fixed topic, message and intent.
-export async function postLeadEmail(request, email, purpose, copy, topic = null, message = null, intent = null) {
+export async function postLeadEmail(request, email, purpose, copy, topic = null, message = null, intent = null, tool = null) {
   const response = await request(ENDPOINT, {
     method: "POST",
     headers: { "content-type": "application/json", accept: "application/json" },
-    body: JSON.stringify({ email, purpose, ...(topic && { topic }), ...(message && { message }), ...(intent && { intent }) }),
+    body: JSON.stringify({ email, purpose, ...(topic && { topic }), ...(message && { message }), ...(intent && { intent }), ...(tool && { tool }) }),
     // Without this a hung request strands the visitor on "Submitting…"
     // with the control disabled and no way to recover.
     signal: globalThis.AbortSignal?.timeout?.(TIMEOUT_MS),
@@ -201,7 +201,8 @@ export async function postLeadEmail(request, email, purpose, copy, topic = null,
   if (!confirmed && legacy === null) throw new SubmissionError(copy.unconfirmed, "unconfirmed");
   // The intent the row holds after the write, never the one this call sent: a
   // resubmission updates the row, and a receipt may name only what was stored.
-  return { captured: true, created: confirmed ? body.created : legacy, purpose, intent: isFollowUpIntent(body?.intent) ? body.intent : null };
+  if (tool && tool !== "shiplog" && body?.tool !== tool) throw new SubmissionError(copy.unconfirmed, "unconfirmed");
+  return { tool: body?.tool ?? null, captured: true, created: confirmed ? body.created : legacy, purpose, intent: isFollowUpIntent(body?.intent) ? body.intent : null };
 }
 
 // The browser's own shape check, for forms that cannot lean on the control's

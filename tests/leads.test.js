@@ -439,6 +439,10 @@ test("the endpoint still returns every response the published contract documents
     ["invalid_intent", () => handleLeadRequest(request({
       email: "mina@example.com", purpose: "follow_up_coach", topic: FOLLOW_UP_TOPICS.follow_up_coach,
     }), { store: createMemoryLeadStore() })],
+    ["invalid_tool", () => handleLeadRequest(request({
+      email: "mina@example.com", purpose: "follow_up_social", topic: FOLLOW_UP_TOPICS.follow_up_social,
+      tool: "people", intent: "question",
+    }), { store: createMemoryLeadStore() })],
     ["storage_error", () => handleLeadRequest(request({ email: "mina@example.com", purpose: "field_notes" }), {
       store: { capture: async () => { throw new Error("database password"); } },
     })],
