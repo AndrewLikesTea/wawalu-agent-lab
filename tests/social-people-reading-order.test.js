@@ -7,9 +7,10 @@ const surfaces = [
   // The composer closes the reading order on Social (#2709): the feed and its
   // caveats are read first, then the panel for adding a post, then the route
   // off the page. #ask-about-shiplog used to sit above the panel, at the foot of
-  // the feed panel.
-  { file: "social", sequence: ["#page-title", "#post-compose-open", "#feed-title", "#post-name-filter", "#post-time-filter", "#feed-state", "#post-feed", ".social-feed-intro", "#feed-source-note", "#post-report-route", "#post-compose-panel", "#ask-about-shiplog"], guidance: ".social-feed-intro", state: "#feed-state", label: "Posts are loading." },
-  { file: "profile", sequence: ["#page-title", "#ask-about-shiplog", "#profile-author-label", "#profile-author", "#grid-title", "#profile-feed-status", "#profile-grid", ".profile-lede.hint", ".profile-role", ".feed-create"], guidance: ".profile-lede.hint", state: "#profile-feed-status", label: "Image posts are loading." },
+  // the feed panel. Since #2883 it follows the reporting explanation too, on
+  // both pages, so the Shiplog asks come after all of the tool's own content.
+  { file: "social", sequence: ["#page-title", "#post-compose-open", "#feed-title", "#post-name-filter", "#post-time-filter", "#feed-state", "#post-feed", ".social-feed-intro", "#feed-source-note", "#post-report-route", "#post-compose-panel", "#post-report-about", "#ask-about-shiplog"], guidance: ".social-feed-intro", state: "#feed-state", label: "Posts are loading." },
+  { file: "profile", sequence: ["#page-title", "#profile-author-label", "#profile-author", "#grid-title", "#profile-feed-status", "#profile-grid", ".profile-lede.hint", ".profile-role", ".feed-create", "#ask-about-shiplog"], guidance: ".profile-lede.hint", state: "#profile-feed-status", label: "Image posts are loading." },
 ];
 
 for (const surface of surfaces) {
@@ -32,28 +33,33 @@ for (const surface of surfaces) {
     assert.equal(document.querySelector(surface.state).hidden, false);
     assert.equal(document.querySelector(surface.guidance).classList.contains("hint"), true);
     // The follow-up label keeps the caption that says what it costs, wherever
-    // the label sits: on Social the hero holds one action and the contact route
-    // closes the page below the composer, People has no composer so the route is
-    // its hero action. Either way the two are one unit, in one container, in
-    // order.
+    // the label sits: on both pages the contact route closes the page, below
+    // the tool's own content (#2883). Either way the two are one unit, in one
+    // container, in order.
     const askRoute = document.querySelector("#ask-about-shiplog");
     const askCaption = document.querySelector("#ask-about-shiplog-description");
     assert.ok(askCaption.parentNode === askRoute.parentNode,
       "the follow-up caption drifted out of the row its label sits in");
     assert.ok(order.indexOf(askCaption) > order.indexOf(askRoute),
       "the caption is read before the label it explains");
-    if (surface.file === "social")
-      assert.ok(order.indexOf(askRoute) > order.indexOf(document.querySelector(surface.state)),
-        "the contact route is read before the feed it follows");
+    assert.ok(order.indexOf(askRoute) > order.indexOf(document.querySelector(surface.state)),
+      "the contact route is read before the feed it follows");
     let stops = tabSequence(document).filter((node) => node.closest("#main-content"));
+    // #2883: no Shiplog ask is a stop until the tool's own stops are done —
+    // the route and its two direct asks are the last three in <main>.
+    assert.deepEqual(stops.slice(-3).map((node) => node.id),
+      ["ask-about-shiplog", "ask-about-shiplog-demo", "ask-about-shiplog-pilot"]);
     // People's introduction ends on the lab identity line, whose one link is
-    // the route to Shiplog (#2864); its hero action is the stop after it.
+    // the route to Shiplog (#2864); the picker is the stop after it.
     // Social's line carries no link, so its hero adds no stop.
     if (surface.file === "profile") {
       assert.equal(stops[0].parentNode.getAttribute("id"), "lab-identity");
       stops = stops.slice(1);
     }
-    assert.equal(stops[0].id, surface.file === "social" ? "post-compose-open" : "ask-about-shiplog");
+    // People's picker is drawn by its module, which this first paint has not
+    // run; tests/people-landing.test.js walks the hydrated stops.
+    if (surface.file === "social") assert.equal(stops[0].id, "post-compose-open");
+    else assert.equal(String(stops[0].id).startsWith("ask-about-shiplog"), false);
     assert.ok(stops.every((node) => !Number(node.getAttribute("tabindex"))), "no positive tabindex overrides reading order");
     if (surface.file === "social") {
       assert.deepEqual(stops.slice(0, 4).map((node) => node.id), ["post-compose-open", "post-name-filter", "post-time-filter", "post-filter-clear"]);

@@ -18,11 +18,12 @@ import {
 // page where the route belongs to no region: it used to close the feed panel's
 // supporting block, and since #2709 the composer is read after the feed, so the
 // route closes the page below the composer instead. Its container is
-// <main> itself, which carries no class — hence the null.
+// <main> itself, which carries no class — hence the null. Since #2883 People's
+// row closes the page too, after the image posts, so its region is <main>.
 const pages = [
   ["coach", "follow_up_coach", "#ask-about-shiplog-actions", "hero-actions"],
   ["social", "follow_up_social", "#main-content", null],
-  ["profile", "follow_up_people", ".hero-profile", "hero-actions"],
+  ["profile", "follow_up_people", "#main-content", "hero-actions"],
   ["agents", "follow_up_agents", ".observatory-hero", "hero-actions"],
 ];
 

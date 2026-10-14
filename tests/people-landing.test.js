@@ -106,6 +106,34 @@ const spokenRegions = (document) => [
   textOf(document.querySelector("#profile-grid")),
 ];
 
+// #2883. Rendered text, after real tiles: the authored markup pre-renders
+// copy, so a check made before the grid draws describes a page nobody reads.
+test("the Shiplog asks are read after the filter, the image posts and the publishing paths", async () => {
+  const page = await people();
+  try {
+    const { document } = page;
+    await waitFor(() => drawnTiles(document).length > 0, "the grid drew real tiles");
+    const text = textOf(document.querySelector("#main-content"));
+    // The heading's words follow the selection, so it is read off the heading.
+    const heading = textOf(document.querySelector("#grid-title")).trim();
+    assert.match(heading, /image posts/i);
+    const toolEnd = text.indexOf("Publish a post on Social");
+    for (const tool of ["Filter image posts by display name", heading, "Publish a post on Social"])
+      assert.ok(text.indexOf(tool) >= 0, `${tool} is not on the page`);
+    for (const ask of ["Ask about Shiplog", "Request a Shiplog demonstration", "Discuss a Shiplog pilot"]) {
+      const at = text.indexOf(ask);
+      assert.ok(at > text.indexOf("Filter image posts by display name"), `${ask} is read before the filter`);
+      assert.ok(at > text.indexOf(heading), `${ask} is read before the Image posts heading`);
+      assert.ok(at > toolEnd, `${ask} is read before the publishing paths`);
+    }
+    // The follow-up form is still reachable from the page: the route lands on it.
+    assert.equal(document.querySelector("#ask-about-shiplog").getAttribute("href"), "#site-footer-panel");
+    assert.equal(document.querySelectorAll("#site-footer-panel").length, 1);
+  } finally {
+    page.restore();
+  }
+});
+
 test("the picker is read and reached before the name, the count, and the results", async () => {
   const page = await people();
   try {
@@ -123,14 +151,15 @@ test("the picker is read and reached before the name, the count, and the results
     assert.ok(at("#profile-author") < at("#profile-summary"));
     assert.ok(at("#profile-author") < at("#profile-grid"));
 
-    // The hero's actions — the route and its two direct asks (#2807) — lead
-    // directly into the display-name filters. Before them, one stop: the lab
-    // identity line's route to Shiplog, read with the introduction (#2864).
+    // The introduction leads directly into the display-name filters. Before
+    // them, one stop: the lab identity line's route to Shiplog, read with the
+    // introduction (#2864). The Shiplog asks (#2807) close the page instead
+    // (#2883): they are the last stops in <main>, after every tool control.
     const inMain = tabSequence(document).filter((element) => element.closest("#main-content"));
     assert.equal(inMain[0].parentNode.getAttribute("id"), "lab-identity");
-    assert.deepEqual(inMain.slice(1, 4).map((element) => element.id),
+    assert.deepEqual(inMain.slice(1, 4).map((element) => element.dataset.author), ["Ari", "Bea", "Zed"]);
+    assert.deepEqual(inMain.slice(-3).map((element) => element.id),
       ["ask-about-shiplog", "ask-about-shiplog-demo", "ask-about-shiplog-pilot"]);
-    assert.deepEqual(inMain.slice(4, 7).map((element) => element.dataset.author), ["Ari", "Bea", "Zed"]);
     for (const chip of chips(page))
       assert.equal(chip.getAttribute("tabindex"), null, "the order is markup order, not a tabindex trick");
   } finally {
@@ -882,14 +911,16 @@ test("tabbing from the top reaches the picker, then the posts under the header",
     const { document } = page;
     // Walked, not read off the markup: every stop is a real focus move made by
     // the page harness that boots the shipped markup with the shipped module.
-    // The last of the hero's three actions (#2807); the picker follows it.
-    document.querySelector("#ask-about-shiplog-pilot").focus();
+    // The introduction's one link, the lab identity line's route to Shiplog
+    // (#2864); the picker follows it.
+    document.querySelectorAll("a").find((node) => node.parentNode?.getAttribute("id") === "lab-identity").focus();
     const tiles = drawnTiles(document);
     const walked = [];
-    // Two stops per post: the tile, then its Report post button (#2343).
-    for (let step = 0; step < 4 + tiles.length * 2 + 3; step += 1) walked.push(pressTab(document));
+    // Two stops per post: the tile, then its Report post button (#2343). Three
+    // more after the publishing paths: the Shiplog asks that close the page.
+    for (let step = 0; step < 4 + tiles.length * 2 + 6; step += 1) walked.push(pressTab(document));
     assert.deepEqual(walked.slice(0, 3).map((node) => node.dataset?.author), ["Ari", "Bea", "Zed"],
-      "the display-name picker must follow the primary action");
+      "the display-name picker must follow the introduction");
     // Then the way out of the filter the reader has just set: the selected
     // display name's whole feed on Social (#2193). It is the last stop in the
     // filter region and comes before the heading that names the results, so a
@@ -917,6 +948,9 @@ test("tabbing from the top reaches the picker, then the posts under the header",
     assert.equal(walked[4 + tiles.length * 2].getAttribute("href"), "/social.html");
     assert.equal(walked[5 + tiles.length * 2].getAttribute("id"), "profile-paint-route");
     assert.equal(walked[6 + tiles.length * 2].getAttribute("id"), "profile-publish-route");
+    // #2883: the Shiplog asks come only after the tool's own content ends.
+    assert.deepEqual(walked.slice(7 + tiles.length * 2).map((node) => node.getAttribute("id")),
+      ["ask-about-shiplog", "ask-about-shiplog-demo", "ask-about-shiplog-pilot"]);
 
     // And the visual order the tab order is supposed to match: every one of
     // those stops comes after the heading, the posts come after the label, and
@@ -928,13 +962,14 @@ test("tabbing from the top reaches the picker, then the posts under the header",
     assert.ok(at(document.querySelector("#profile-social-route")) < at(document.querySelector("#grid-title")));
     assert.ok(at(document.querySelector("#profile-order")) < at(walked[4]));
     assert.ok(at(walked[3 + tiles.length * 2]) < at(document.querySelector("#profile-paint-route")));
-    // The primary action and the filter precede the results. None stands
-    // between the heading that names the results and the results. Ahead of
-    // them is the lab identity line's route to Shiplog (#2864).
+    // The filter precedes the results. None stands between the heading that
+    // names the results and the results. Ahead of them is the lab identity
+    // line's route to Shiplog (#2864); the Shiplog asks are the only stops
+    // outside the panel that follow it (#2883).
     const inMain = tabSequence(document).filter((element) => element.closest("#main-content"));
-    const beforePanel = inMain.filter((element) => !element.closest(".list-panel"));
-    assert.deepEqual(beforePanel.map((element) => element.dataset?.author ?? element.getAttribute("href")),
-      ["/#decisions-title", "#site-footer-panel", "#site-footer-intent-demo", "#site-footer-intent-pilot", "Ari", "Bea", "Zed", "/social.html?author=Zed"]);
+    const outsidePanel = inMain.filter((element) => !element.closest(".list-panel"));
+    assert.deepEqual(outsidePanel.map((element) => element.dataset?.author ?? element.getAttribute("href")),
+      ["/#decisions-title", "Ari", "Bea", "Zed", "/social.html?author=Zed", "#site-footer-panel", "#site-footer-intent-demo", "#site-footer-intent-pilot"]);
   } finally {
     page.restore();
   }

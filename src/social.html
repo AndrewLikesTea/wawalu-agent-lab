@@ -839,24 +839,6 @@
           </form>
         </div>
       </section>
-      <!-- The contact route closes the page instead of opening the hero:
-           writing a post is what this page is for, and the hero carries that
-           one action. It keeps its own caption beside it, the way the other
-           five pages do — a label that travels without the line explaining it
-           leaves a reader guessing what it costs — and the two stay in one
-           container, which is the invariant
-           tests/social-people-reading-order.test.js holds.
-           It sits here rather than at the foot of the feed panel because the
-           composer is read before it now (#2709). Page level, beside the
-           reporting explanation below: both are routes off the end of this
-           page rather than part of the feed, and the route adds no tab stop
-           above the filters by moving — it never had one there. -->
-      <a class="text-link" id="ask-about-shiplog" href="#site-footer-panel" aria-describedby="ask-about-shiplog-description">Ask about Shiplog</a>
-      <p class="hint" id="ask-about-shiplog-description">Ask about Shiplog moves you to the follow-up form at the foot of this page, which asks for a work email address, what you want to discuss and an optional note.</p>
-      <div class="hero-actions" id="ask-about-shiplog-intents">
-        <a class="text-link" id="ask-about-shiplog-demo" data-follow-up-intent="demo" href="#site-footer-intent-demo">Request a Shiplog demonstration</a>
-        <a class="text-link" id="ask-about-shiplog-pilot" data-follow-up-intent="pilot" href="#site-footer-intent-pilot">Discuss a Shiplog pilot</a>
-      </div>
       <!-- What reporting does and does not do, said before anyone presses the
            button, and the only place on this page that says it (#2471). It
            promises review, never removal. No "How reporting works" lead-in:
@@ -874,6 +856,19 @@
            itself (#2745): a reader deciding whether to report reads the same
            answer as a reader already typing. -->
       <p class="hint" id="post-report-about">Report post opens a short form about that one post. Choose a reason, add a note if you want to, and give your email address. Your email address is required, and the Wawalu team uses it only to contact you about this report. It is not published with the post, and whoever published the post never sees it. The team sends no automatic confirmation. The report goes only to the Wawalu team, who review each one. The post stays up unless the team decides after review to remove it.</p>
+      <!-- The contact route closes the page. The feed, the composer and the
+           reporting explanation are this tool's own content, and the Shiplog
+           asks follow all of them (#2883). They used to sit between the
+           composer's Close control and the reporting explanation, so the
+           "How reporting works" link landed past a sales pitch. The label keeps
+           its caption beside it in one container, the invariant
+           tests/social-people-reading-order.test.js holds. -->
+      <a class="text-link" id="ask-about-shiplog" href="#site-footer-panel" aria-describedby="ask-about-shiplog-description">Ask about Shiplog</a>
+      <p class="hint" id="ask-about-shiplog-description">Ask about Shiplog moves you to the follow-up form at the foot of this page, which asks for a work email address, what you want to discuss and an optional note.</p>
+      <div class="hero-actions" id="ask-about-shiplog-intents">
+        <a class="text-link" id="ask-about-shiplog-demo" data-follow-up-intent="demo" href="#site-footer-intent-demo">Request a Shiplog demonstration</a>
+        <a class="text-link" id="ask-about-shiplog-pilot" data-follow-up-intent="pilot" href="#site-footer-intent-pilot">Discuss a Shiplog pilot</a>
+      </div>
       </main>
     </div>
     <footer class="site-footer" id="site-footer" aria-labelledby="site-footer-title">
