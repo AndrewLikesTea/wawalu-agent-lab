@@ -88,7 +88,7 @@
         <article class="hero-proof" id="repository-evidence" aria-labelledby="repository-evidence-title">
           <h3 id="repository-evidence-title">Repository-backed product evidence</h3>
           <p class="release-followup-lead">These decisions document this repository’s own development. This is neither an invented example nor a customer result.</p>
-          <div id="repository-evidence-records"><p class="release-followup-lead">Repository-backed decisions are unavailable until the log loads.</p></div>
+          <div id="repository-evidence-records" data-state="loading" role="status"><p class="release-followup-lead">Loading repository-backed decisions.</p></div>
           <p class="release-followup-lead"><a class="text-link" href="/?source=repository#record-history">Browse all repository-backed Shiplog decisions</a></p>
           <!-- THE ONE REAL PAIR (#2805). Derived in renderRepositoryReleasePair
                (app.js), never authored here: the deployed build is paired with a
@@ -1415,7 +1415,7 @@
     <script type="module" src="/security-boundaries.js"></script>
     <script type="module" src="/shiplog-evaluation-brief.js"></script>
     <script type="module" src="/shiplog-pilot-scorecard.js"></script>
-    <script type="module" src="/app.js"></script>
+    <script type="module" src="/homepage-bootstrap.js"></script>
     <script type="module" src="/shiplog-export-page.js"></script>
     <script type="module" src="/shiplog-import-page.js"></script>
     <script type="module" src="/public-merges-view.js"></script>

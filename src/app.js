@@ -1414,6 +1414,7 @@ export function renderRepositoryEvidence(root, decisions = SEED_DECISIONS) {
     && record.repository.pullRequest > 0 && record.title?.trim()
     && Number.isFinite(Date.parse(record.createdAt)));
   target.replaceChildren();
+  target.dataset.state = "loaded";
   const record = records[0];
   if (!record) {
     const empty = root.createElement("p");

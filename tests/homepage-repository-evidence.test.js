@@ -5,11 +5,60 @@ import {
   RELEASE_PAIR_LOADED, RELEASE_PAIR_UNAVAILABLE, initDecisionLog, renderRepositoryEvidence,
   renderRepositoryReleasePair, repositoryReleasePair, STORAGE_KEY,
 } from "../src/app.js";
+import { bootHomepage } from "../src/homepage-bootstrap.js";
 import { BUILD_STAMP } from "../src/build-stamp.js";
 import { REPOSITORY_DECISIONS, SEED_DECISIONS, pullRequestUrl } from "../src/seed-records.js";
 import { loadPage, textOf, tabSequence } from "./support/browser.js";
 
 const home = new URL(`../${process.env.SHIPLOG_E2E_BUILD_ROOT || "src"}/index.html`, import.meta.url);
+
+const disclaimer = "These decisions document this repository’s own development. This is neither an invented example nor a customer result.";
+
+function assertDisclaimer(block) {
+  const copy = block.querySelector("p");
+  assert.equal(textOf(copy), disclaimer);
+  assert.ok(block.children.indexOf(copy) < block.children.indexOf(block.querySelector("#repository-evidence-records")));
+  assert.equal(copy.hidden, false);
+}
+
+test("homepage shows loading copy while the app is pending", async (t) => {
+  const page = await loadPage(home);
+  t.after(() => page.restore());
+  let finish;
+  const pending = bootHomepage(page.document, () => new Promise((resolve) => { finish = resolve; }));
+  const block = page.document.getElementById("repository-evidence");
+  const target = block.querySelector("#repository-evidence-records");
+  assert.equal(textOf(target), "Loading repository-backed decisions.");
+  assert.doesNotMatch(textOf(target), /unavailable|failed|could not/i);
+  assertDisclaimer(block);
+  const html = await readFile(home, "utf8");
+  assert.match(html, /src="\/homepage-bootstrap\.js"/);
+  finish();
+  await pending;
+});
+
+test("failed app load gives the existing browse route; a successful retry removes failure copy", async (t) => {
+  const page = await loadPage(home);
+  t.after(() => page.restore());
+  const fail = () => Promise.reject(new Error("Module could not load"));
+  await bootHomepage(page.document, fail);
+  const block = page.document.getElementById("repository-evidence");
+  const target = block.querySelector("#repository-evidence-records");
+  assert.equal(textOf(target), "Repository-backed decisions could not be loaded. Use the ‘Browse all repository-backed Shiplog decisions’ link below to try again.");
+  assert.doesNotMatch(textOf(target), /Loading repository-backed decisions/);
+  const browse = block.querySelector("a");
+  assert.equal(textOf(browse), "Browse all repository-backed Shiplog decisions");
+  assert.equal(browse.getAttribute("href"), "/?source=repository#record-history");
+  assert.ok(tabSequence(page.document).includes(browse));
+  assertDisclaimer(block);
+  await bootHomepage(page.document, () => initDecisionLog(page.document, page.storage));
+  assert.equal(target.querySelectorAll("a").length, 1);
+  assert.doesNotMatch(textOf(target), /Loading repository-backed decisions|could not be loaded|unavailable/i);
+  assertDisclaimer(block);
+  const loaded = textOf(target);
+  await bootHomepage(page.document, fail);
+  assert.equal(textOf(target), loaded, "a later failure must not overwrite loaded evidence");
+});
 
 test("homepage renders canonical repository evidence near the opening proposition", async (t) => {
   const page = await loadPage(home, { storage: { [STORAGE_KEY]: JSON.stringify([
@@ -20,7 +69,8 @@ test("homepage renders canonical repository evidence near the opening propositio
   const block = page.document.getElementById("repository-evidence");
   assert.equal(textOf(block.querySelector("h3")), "Repository-backed product evidence");
   assert.equal(block.getAttribute("aria-labelledby"), block.querySelector("h3").id);
-  assert.match(textOf(block), /neither an invented example nor a customer result/);
+  assertDisclaimer(block);
+  assert.doesNotMatch(textOf(block.querySelector("#repository-evidence-records")), /Loading repository-backed decisions|could not be loaded|unavailable/i);
   assert.doesNotMatch(textOf(block), /Customer success invented locally|saved|adoption|performance improvement/i);
   const links = block.querySelectorAll("a");
   // Pinned to the rule the renderer states — the newest repository decision —
