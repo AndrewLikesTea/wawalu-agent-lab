@@ -47,15 +47,17 @@ const PAGES = [
 const pageUrl = (file) => new URL(`../src/${file}`, import.meta.url);
 const read = (file) => readFile(pageUrl(file), "utf8");
 
-// The destinations the directory marks "Separate tool in the lab.", in the
-// directory's own order, and the series the About band has to list them as:
-// an Oxford-comma list, the shape every other series in this copy takes. Both
-// are derived from DEMOS so the two statements cannot drift apart — adding or
-// removing a `separate` row rewrites the sentence this file demands.
+// The destinations the directory marks "Separate lab tool.", in the directory's
+// own order, and the ones it leaves unmarked as Shiplog's own. Since #2881 the
+// About band names the short list — Home, then Shiplog's unmarked rows, as an
+// Oxford-comma series — as the only exceptions. Both are derived from DEMOS so
+// the two statements cannot drift apart: marking or unmarking a row rewrites
+// the sentence this file demands.
 const SEPARATE_LABELS = DEMOS.filter((demo) => demo.separate).map((demo) => demo.label);
-const SEPARATE_SERIES = `${SEPARATE_LABELS.slice(0, -1).join(", ")}, and ${SEPARATE_LABELS.at(-1)}`;
-// The destinations the footer presents as Shiplog's own; the band must name none.
 const SHIPLOG_LABELS = DEMOS.filter((demo) => !demo.separate).map((demo) => demo.label);
+const EXCEPTIONS = ["Home", ...SHIPLOG_LABELS];
+const EXCEPTION_SERIES = `${EXCEPTIONS.slice(0, -1).join(", ")}, and ${EXCEPTIONS.at(-1)}`;
+const SEPARATE_SENTENCE = `Every destination except ${EXCEPTION_SERIES} is a separate lab tool, not part of Shiplog.`;
 
 const TYPED_EMAIL = "director@example.com";
 
@@ -331,13 +333,13 @@ test("the footer names the log as the product before it names the other tools (#
       assert.ok(opening.includes(act), `the definition must say the log "${act}"`);
     assert.ok(!opening.includes("On this site you can"), "the errand list must not be the opening sentence");
 
-    // The separate tools are named, and named as separate from the product —
-    // the boundary the home page's own directory draws, in the footer's words.
-    // Every one of them, by the rule below: the sentence is built from the rows
-    // the directory marks, so naming three of four cannot pass here (#2746).
-    assert.ok(tools.startsWith(`${SEPARATE_SERIES} are separate tools`),
-      `the second sentence must demote every tool the directory marks separate: ${tools}`);
-    assert.match(tools, /hosted in the same lab, not part of Shiplog$/,
+    // Everything but the product is named as separate from it — the boundary
+    // the home page's own directory draws, in the footer's words. The exceptions
+    // are built from the rows the directory leaves unmarked, so the band cannot
+    // exempt a row the directory marks, or miss one it does not (#2746, #2881).
+    assert.equal(`${tools}.`, SEPARATE_SENTENCE,
+      `the second sentence must demote every destination the directory marks separate: ${tools}`);
+    assert.match(tools, /is a separate lab tool, not part of Shiplog$/,
       "the second sentence must say the tools are not the product");
 
     // And the band still points at the product's own audience, not an AI bill.
@@ -384,7 +386,7 @@ test("the About block says who Shiplog is for, and reaches the worked decision i
       assert.equal(link.getAttribute("href"), "/decision.html?id=demo-queue");
       assert.doesNotMatch(textOf(document.querySelector("#site-footer")), /See the worked decision in AI FinOps/);
       assert.ok(textOf(document.querySelector(".site-footer-identity")).includes(
-        "AI FinOps, Prompt coach, Personal AI history, and Agent observatory are separate tools hosted in the same lab, not part of Shiplog."));
+        "Every destination except Home, Decision log, and Releases is a separate lab tool, not part of Shiplog."));
       assert.equal(link.getAttribute("href"), PITCH_HREF);
       assert.equal(pitch.querySelectorAll("a").length, 1, `${file}: one pointer, not a second site map`);
       assert.ok(tabSequence(document).includes(link), `${file}: the pointer must be keyboard reachable`);
@@ -714,7 +716,7 @@ test("Social's description, its directory row and its follow-up topic all say sh
   // Every page's directory, as authored: the source row, and never the old words.
   for (const file of PAGES) {
     const html = await read(file);
-    assert.ok(html.includes(`<a href="/social.html">Social</a> — ${PURPOSE}</li>`), `${file}: the directory's Social row`);
+    assert.ok(html.includes(`<a href="/social.html">Social</a> — ${PURPOSE}. ${SEPARATE_TOOL}</li>`), `${file}: the directory's Social row`);
     assert.equal(html.includes(RETIRED), false, `${file} still says "${RETIRED}"`);
   }
 
@@ -828,10 +830,10 @@ test("a page the navigation files under a destination still gets a door of its o
     for (const file of PAGES) {
       const html = await read(file);
       assert.ok(html.includes(
-        '<li><a href="/personal-history.html">Personal AI history</a> — grade your assistant export in this browser tab. Separate tool in the lab.</li>'),
+        '<li><a href="/personal-history.html">Personal AI history</a> — grade your assistant export in this browser tab. Separate lab tool.</li>'),
       `${file} is missing the "Personal AI history" row`);
       assert.ok(html.includes(
-        '<li><a href="/coach.html">Prompt coach</a> — grade a prompt, then revise and grade again. Separate tool in the lab.</li>'),
+        '<li><a href="/coach.html">Prompt coach</a> — grade a prompt, then revise and grade again. Separate lab tool.</li>'),
       `${file}: the Prompt coach row still carries more than the coach`);
     }
   } finally {
@@ -956,13 +958,16 @@ test("every page's directory says start here once, on Decisions, and AI FinOps s
 // their own rendered text — one wording, SEPARATE_TOOL, so no page can soften it
 // into "also on Shiplog". The count clause and the list are untouched: nothing was
 // added, removed, or reordered, because the contradiction was in the labels.
+// #2881: Social, People and Paint said "not part of Shiplog" in their own headers
+// and went unmarked here, beside Decision log and Releases. They carry the mark
+// now, and the mark and the band share one phrase: "separate lab tool".
 test("the directory is headed by the lab, and every destination outside Shiplog says so", async () => {
-  const SEPARATE = ["AI FinOps", "Prompt coach", "Personal AI history", "Agent observatory"];
+  const SEPARATE = ["AI FinOps", "Prompt coach", "Personal AI history", "Social", "People", "Paint", "Agent observatory"];
   assert.deepEqual(DEMOS.filter((demo) => demo.separate).map((demo) => demo.label), SEPARATE,
     "the rows the About band excludes from Shiplog are the rows that must carry the mark");
   // The band's own sentence is what the mark has to agree with, in its words.
-  assert.match(IDENTITY, /separate tools hosted in the same lab, not part of Shiplog/);
-  assert.equal(SEPARATE_TOOL, "Separate tool in the lab.");
+  assert.match(IDENTITY, /is a separate lab tool, not part of Shiplog/);
+  assert.equal(SEPARATE_TOOL, "Separate lab tool.");
   assert.doesNotMatch(DIRECTORY_SUMMARY, /Shiplog/,
     "the heading still puts the nine destinations on Shiplog, which the band denies");
   assert.match(DIRECTORY_SUMMARY, /^Where else to go in the lab — all \d+ destinations$/);
@@ -985,8 +990,10 @@ test("the directory is headed by the lab, and every destination outside Shiplog 
           `${where}: the ${demo.label} row calls a Shiplog surface a separate tool`);
       }
     }
-    assert.equal((textOf(document.querySelector(".site-footer-demos")).match(/Separate tool/g) ?? []).length,
-      SEPARATE.length, `${where}: the mark is not on exactly the four destinations`);
+    assert.equal((textOf(document.querySelector(".site-footer-demos")).match(/Separate lab tool/g) ?? []).length,
+      SEPARATE.length, `${where}: the mark is not on exactly the seven destinations`);
+    assert.doesNotMatch(textOf(document.querySelector("#site-footer")), /tool in the lab|Wawalu Lab project/,
+      `${where}: the footer still uses a retired name for a separate lab tool`);
   };
 
   for (const file of PAGES) {
@@ -1009,24 +1016,27 @@ test("the directory is headed by the lab, and every destination outside Shiplog 
 // People and Paint behind "More lab tools", which says of them the opposite of
 // what their own rows say. The marks are the single answer, and the other two
 // surfaces are pinned to them here rather than to a string: promote a tool or
-// add a fifth, and the sentence and this test move together or this fails.
-test("the About band names exactly the destinations the directory marks separate (#2746)", async () => {
-  assert.deepEqual(SEPARATE_LABELS, ["AI FinOps", "Prompt coach", "Personal AI history", "Agent observatory"]);
-  assert.deepEqual(SHIPLOG_LABELS, ["Decision log", "Releases", "Social", "People", "Paint"]);
-  assert.equal(SEPARATE_SERIES, "AI FinOps, Prompt coach, Personal AI history, and Agent observatory");
+// add one, and the sentence and this test move together or this fails.
+// #2881: the band now names the exceptions, not the tools — the unmarked rows.
+test("the About band exempts exactly the destinations the directory leaves unmarked (#2746, #2881)", async () => {
+  assert.deepEqual(SEPARATE_LABELS,
+    ["AI FinOps", "Prompt coach", "Personal AI history", "Social", "People", "Paint", "Agent observatory"]);
+  assert.deepEqual(SHIPLOG_LABELS, ["Decision log", "Releases"]);
+  assert.equal(EXCEPTION_SERIES, "Home, Decision log, and Releases");
 
   // Read off the sentence rather than beside it: whichever destinations the band
-  // names are the set it is claiming sit outside the product.
+  // names are the set it is claiming are the product.
   const namedIn = (text) => DEMOS.map((demo) => demo.label).filter((label) => text.includes(label));
 
   const band = (document, where) => {
     const paragraph = document.querySelector(".site-footer-identity");
     const identity = textOf(paragraph);
-    assert.deepEqual(namedIn(identity), SEPARATE_LABELS,
-      `${where}: the band's separate tools are not the destinations the directory marks`);
-    for (const label of SHIPLOG_LABELS) {
+    assert.ok(identity.includes(SEPARATE_SENTENCE), `${where}: the band's exceptions are not the rows the directory leaves unmarked`);
+    assert.deepEqual(namedIn(identity), SHIPLOG_LABELS,
+      `${where}: the band exempts a destination the directory marks separate`);
+    for (const label of SEPARATE_LABELS) {
       assert.equal(identity.includes(label), false,
-        `${where}: the band names ${label}, which the directory presents as Shiplog's own`);
+        `${where}: the band names ${label}, which the directory marks as a separate lab tool`);
     }
     // Still one sentence for them, in the band's register, and still text: the
     // band adds no stop to pages whose first screen has no spare tab stop.

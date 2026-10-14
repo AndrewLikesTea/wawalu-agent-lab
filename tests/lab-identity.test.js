@@ -59,8 +59,10 @@ test("Shiplog's home page and Releases still identify as Shiplog", async () => {
 
 test("each lab page says near its top that it is separate from Shiplog, and links to the decision log", async () => {
   assert.match(LAB_IDENTITY, /separate/i);
-  assert.match(LAB_IDENTITY, new RegExp(`\\b${LAB}\\b`));
-  assert.match(LAB_IDENTITY, /not part of /);
+  // The footer's mark for the same pages, word for word (#2881): one name for
+  // the concept. The lab's own name is in each page's title, asserted above.
+  assert.match(LAB_IDENTITY, /^A separate lab tool, not part of /);
+  assert.doesNotMatch(LAB_IDENTITY, /Wawalu Lab project|tool in the lab/);
   assert.equal(LAB_IDENTITY_HREF, "/#decisions-title");
 
   for (const { file, before, after, linked = true } of LAB_PAGES) {
@@ -75,7 +77,8 @@ test("each lab page says near its top that it is separate from Shiplog, and link
     const text = textOf(lines[0]);
     assert.equal(text, LAB_IDENTITY_TEXT, file);
     assert.match(text, /separate/i, file);
-    assert.match(text, /Wawalu Lab/, file);
+    assert.match(text, /separate lab tool/, file);
+    assert.ok(titleOf(html).endsWith(` · ${LAB}`), `${file}: the lab's name must still reach the reader`);
     assert.match(text, /not part of Shiplog/, file);
 
     const links = lines[0].querySelectorAll("a");

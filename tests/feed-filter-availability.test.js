@@ -304,7 +304,12 @@ test("Social's filter row says once, for both menus, when its filters become usa
   assert.equal(rendered(document, ".post-card"), 3, "the feed did not come back when the filters were cleared");
   assert.equal(textOf(socialNameLabel(document)), "Filter posts by display name");
   assert.equal(textOf(document.querySelector("#feed-summary")), "Showing 3 posts, all example posts, newest first.");
-  assert.equal(says(", newest first."), 1, "the page states its order more than once");
+  // The footer's People row says its own order ("newest first. Separate lab
+  // tool." since #2881); that is People's, not this feed's, and is pinned apart.
+  const order = (node) => textOf(node).split(", newest first.").length - 1;
+  assert.equal(order(document.getElementById("main-content")), 1, "the page states its order more than once");
+  assert.equal(order(document.querySelector(".site-footer-demos")), 1, "the footer's People row");
+  assert.equal(says(", newest first."), 2, "the order is stated somewhere other than the feed and People's row");
 });
 
 test("a failed Social feed leaves Retry as the reachable control, with nothing moved", async (t) => {
