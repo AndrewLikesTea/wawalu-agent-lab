@@ -1405,20 +1405,31 @@ function syncSupersedesOptions(select, decisions) {
 // requirements are a filter rather than a fallback: an unparseable date makes
 // "newest" arbitrary, and an uncitable number is the single thing this block
 // exists to rule out, so a record missing either is dropped instead of shown.
+//
+// The block ships holding REPOSITORY_EVIDENCE_LOADING byte for byte, and this
+// replaces it with the record, the empty sentence, or, when the read throws,
+// REPOSITORY_EVIDENCE_FAILED. Its next step is the route link already below
+// the block, so a failure adds no tab stop to this full first screen.
+export const REPOSITORY_EVIDENCE_LOADING = "Loading the decisions this repository recorded about its own development…";
+export const REPOSITORY_EVIDENCE_FAILED = "The repository-backed decisions could not be loaded. Use “Browse all repository-backed Shiplog decisions” below to open them in the full log.";
+
 export function renderRepositoryEvidence(root, decisions = SEED_DECISIONS) {
   const target = root.querySelector("#repository-evidence-records");
   if (!target) return;
-  const records = selectHistory(toHistoryRecords(decisions, []), {
-    repositoryOnly: true, type: "decision", sort: "newest",
-  }).filter((record) => Number.isSafeInteger(record.repository?.pullRequest)
-    && record.repository.pullRequest > 0 && record.title?.trim()
-    && Number.isFinite(Date.parse(record.createdAt)));
+  let records = null;
+  try {
+    records = selectHistory(toHistoryRecords(decisions, []), {
+      repositoryOnly: true, type: "decision", sort: "newest",
+    }).filter((record) => Number.isSafeInteger(record.repository?.pullRequest)
+      && record.repository.pullRequest > 0 && record.title?.trim()
+      && Number.isFinite(Date.parse(record.createdAt)));
+  } catch {}
   target.replaceChildren();
-  const record = records[0];
+  const record = records?.[0];
   if (!record) {
     const empty = root.createElement("p");
     empty.setAttribute("class", "release-followup-lead");
-    empty.textContent = "No repository-backed decisions are available in this log.";
+    empty.textContent = records ? "No repository-backed decisions are available in this log." : REPOSITORY_EVIDENCE_FAILED;
     target.append(empty);
     return;
   }

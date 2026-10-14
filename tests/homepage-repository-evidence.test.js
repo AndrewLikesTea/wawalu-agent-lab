@@ -2,7 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import {
-  RELEASE_PAIR_LOADED, RELEASE_PAIR_UNAVAILABLE, initDecisionLog, renderRepositoryEvidence,
+  RELEASE_PAIR_LOADED, RELEASE_PAIR_UNAVAILABLE, REPOSITORY_EVIDENCE_FAILED, REPOSITORY_EVIDENCE_LOADING,
+  initDecisionLog, renderRepositoryEvidence,
   renderRepositoryReleasePair, repositoryReleasePair, STORAGE_KEY,
 } from "../src/app.js";
 import { BUILD_STAMP } from "../src/build-stamp.js";
@@ -66,6 +67,39 @@ test("evidence excludes unmarked examples and missing or malformed PR citations"
   assert.equal(target.querySelectorAll("a").length, 1);
   renderRepositoryEvidence(page.document, []);
   assert.equal(target.querySelectorAll("a").length, 0, "stale evidence is removed");
+});
+
+// The wait is not a failure: a first-time visitor reads this block as the
+// proof, so the pre-script line may not use error wording, the failed read
+// must point at the route link already on the page, and neither may survive
+// a successful render.
+test("evidence states loading, failure with its next step, and loaded apart", async (t) => {
+  const page = await loadPage(home);
+  t.after(() => page.restore());
+  const block = page.document.getElementById("repository-evidence");
+  const target = page.document.getElementById("repository-evidence-records");
+  assert.equal(textOf(target), REPOSITORY_EVIDENCE_LOADING);
+  assert.match(REPOSITORY_EVIDENCE_LOADING, /^Loading /);
+  assert.doesNotMatch(textOf(target), /unavailable|could not|failed|error/i);
+  assert.equal(target.querySelectorAll("a").length, 0);
+  const tabStops = tabSequence(page.document).length;
+
+  const unreadable = new Proxy([], { get() { throw new Error("read failed"); } });
+  renderRepositoryEvidence(page.document, unreadable);
+  assert.equal(textOf(target), REPOSITORY_EVIDENCE_FAILED);
+  assert.match(textOf(target), /^The repository-backed decisions could not be loaded\./);
+  const [route] = block.querySelectorAll("a").filter((link) => link.getAttribute("href") === "/?source=repository#record-history");
+  assert.ok(textOf(target).includes(`“${textOf(route)}” below`), "the failure names the route link by its own text");
+  assert.equal(target.querySelectorAll("a").length, 0);
+  assert.equal(tabSequence(page.document).length, tabStops, "the failure adds no tab stop");
+
+  await initDecisionLog(page.document, page.storage);
+  assert.equal(target.querySelectorAll("a").length, 1);
+  for (const sentence of [REPOSITORY_EVIDENCE_LOADING, REPOSITORY_EVIDENCE_FAILED]) {
+    assert.ok(!textOf(block).includes(sentence));
+  }
+  assert.equal(textOf(block.querySelector("p")),
+    "These decisions document this repository’s own development. This is neither an invented example nor a customer result.");
 });
 
 // Wrapping, width and the focus ring come from `.release-followup-lead` and the
