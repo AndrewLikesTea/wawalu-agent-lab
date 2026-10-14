@@ -28,7 +28,7 @@ import {
 import { initDecisionDetail } from "../src/decision-page.js";
 import { EXAMPLE_LABEL } from "../src/seed-records.js";
 import { REPOSITORY_URL } from "../src/repository-url.js";
-import { FOLLOW_UP_TOPICS, POST_FOLLOW_UP_TOPIC } from "../src/leads.js";
+import { FOLLOW_UP_TOOL_TOPICS, FOLLOW_UP_TOPICS, POST_FOLLOW_UP_TOPIC } from "../src/leads.js";
 import { FOLLOW_UP_PRIVACY, FOLLOW_UP_REPLY, FOLLOW_UP_USE } from "../src/lead-capture.js";
 import { SITE_NAV } from "../src/site-nav.js";
 import { loadPage, parseHtml, pressEnter, tabSequence, textOf, typeText } from "./support/browser.js";
@@ -170,21 +170,24 @@ const FOOTER_VARIANT = new Map([
   // drawn on every card here and on every tile on People. It sends them there
   // and stops: how a report is then handled is Social's disclosure to explain,
   // once (#2471).
+  // `tool` (#2877): the three pages that host a separate lab tool let a visitor
+  // ask about that tool instead of Shiplog. The page's tool name is passed here
+  // and rendered into its markup, not kept in the shared footer module.
   ["social.html", {
     followUpType: "follow_up_social", followUpTopic: FOLLOW_UP_TOPICS.follow_up_social,
     invitation: FEED_INVITATION,
-    collapsedDemos: true, askMessage: true, offer: true, assets: true,
+    collapsedDemos: true, askMessage: true, offer: true, assets: true, tool: FOLLOW_UP_TOOL_TOPICS.follow_up_social,
   }],
   ["profile.html", {
     followUpType: "follow_up_people", followUpTopic: FOLLOW_UP_TOPICS.follow_up_people,
     invitation: FEED_INVITATION,
-    collapsedDemos: true, askMessage: true, offer: true, assets: true,
+    collapsedDemos: true, askMessage: true, offer: true, assets: true, tool: FOLLOW_UP_TOOL_TOPICS.follow_up_people,
   }],
   // #2470: the observatory carried every other flag the task pages do but this
   // one, so its open map sat between the evaluation-brief link and the form.
   ["agents.html", {
     followUpType: "follow_up_agents", followUpTopic: FOLLOW_UP_TOPICS.follow_up_agents,
-    collapsedDemos: true, askMessage: true, offer: true, assets: true,
+    collapsedDemos: true, askMessage: true, offer: true, assets: true, tool: FOLLOW_UP_TOOL_TOPICS.follow_up_agents,
   }],
 ]);
 

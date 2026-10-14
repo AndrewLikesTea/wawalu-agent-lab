@@ -34,6 +34,7 @@ export const CONFIRMATION_INTENT_DETAIL = "Your discussion choice has been saved
 export const CONFIRMATION_INTENT_MESSAGE_DETAIL = "Your discussion choice and the message you entered have been saved. The Wawalu team may review the request and reply; a reply is not guaranteed.";
 export const TOPIC_LEAD = "Fixed page topic: ";
 export const INTENT_LEAD = "What you want to discuss: ";
+export const SUBJECT_LEAD = "Asked about: ";
 export const REOPEN_LABEL = "Request another follow-up";
 
 /**
@@ -90,8 +91,10 @@ export function createFollowUpConfirmation({ form, status, submit, email, onReop
   topic.className = `${base}-confirmation-topic`;
   const intent = document.createElement("strong");
   intent.className = topic.className;
+  const subject = document.createElement("strong");
+  subject.className = topic.className;
   const explanation = document.createElement("span");
-  detail.append(topic, intent, explanation);
+  detail.append(subject, topic, intent, explanation);
 
   const again = document.createElement("button");
   again.className = `${base}-confirmation-again`;
@@ -119,11 +122,12 @@ export function createFollowUpConfirmation({ form, status, submit, email, onReop
    * sentence appears only where the field does. `storedIntent` is the label for
    * the intent the endpoint read back, so it too is empty unless one is known.
    */
-  function show(value, submittedTopic = "", messageProvided = false, storedIntent = "") {
+  function show(value, submittedTopic = "", messageProvided = false, storedIntent = "", asked = "") {
     address.textContent = value;
+    subject.textContent = asked ? `${SUBJECT_LEAD}${asked}. ` : "";
     topic.textContent = submittedTopic ? `${TOPIC_LEAD}${submittedTopic}. ` : "";
     intent.textContent = storedIntent ? `${INTENT_LEAD}${storedIntent}. ` : "";
-    explanation.textContent = storedIntent
+    explanation.textContent = storedIntent || asked
       ? (messageProvided ? CONFIRMATION_INTENT_MESSAGE_DETAIL : CONFIRMATION_INTENT_DETAIL)
       : messageProvided ? CONFIRMATION_MESSAGE_DETAIL : CONFIRMATION_DETAIL;
     if (!region.parentNode) form.parentNode.insertBefore(region, form);
