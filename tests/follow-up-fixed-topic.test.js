@@ -60,8 +60,15 @@ const MESSAGE_FIELD = "INPUT#site-footer-message";
 // The required intent radios (#2365) stand above the question on the same pages.
 const INTENT_FIELDS = ["availability_pricing", "demo", "pilot", "security_data"]
   .map((value) => `INPUT#site-footer-intent-${value}`);
+// The three separate lab tools (#2877) ask first whether the request is about
+// Shiplog or about the tool on the page — one more radio group, both radios named.
+const ASKS_SUBJECT = new Set(["social.html", "profile.html", "agents.html"]);
+const SUBJECT_FIELDS = ["INPUT#site-footer-subject-shiplog", "INPUT#site-footer-subject-tool"];
 const withMessage = (baseline) => [...INTENT_FIELDS, MESSAGE_FIELD, ...baseline];
-const expectedStops = (file, baseline) => (ASKS_MESSAGE.has(file) ? withMessage(baseline) : baseline);
+const expectedStops = (file, baseline) => [
+  ...(ASKS_SUBJECT.has(file) ? SUBJECT_FIELDS : []),
+  ...(ASKS_MESSAGE.has(file) ? withMessage(baseline) : baseline),
+];
 
 const SENTENCE_LEAD = "This request is sent about the ";
 const TYPED_EMAIL = "director@example.com";

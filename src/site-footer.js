@@ -236,11 +236,11 @@ export const FOLLOW_UP_REDIRECT = Object.freeze({
 export function siteFooterMarkup(indent = "    ", {
   redirect = null, followUpType = null, followUpTopic = null,
   collapsedDemos = false, askMessage = false, offer = false, invitation = INVITATION,
-  assets = false,
+  assets = false, tool = null,
 } = {}) {
   const contact = redirect ? [
     `    <a class="site-footer-redirect-link" href="${redirect.href}">${redirect.label}</a>`,
-  ] : contactFormLines(followUpType, followUpTopic, askMessage, offer, invitation);
+  ] : contactFormLines(followUpType, followUpTopic, askMessage, offer, invitation, tool);
   const directory = demoListLines(collapsedDemos);
   const lines = [
     '<footer class="site-footer" id="site-footer" aria-labelledby="site-footer-title">',
@@ -338,7 +338,14 @@ function messageFieldLines() {
   ];
 }
 
-function contactFormLines(followUpType, followUpTopic, askMessage = false, offer = false, invitation = INVITATION) {
+const subjectFieldLines = (tool) => [
+  '        <fieldset class="decision-picker-field" id="site-footer-subject">',
+  "          <legend>Ask about</legend>",
+  ...[["shiplog", "", "Shiplog"], ["tool", tool, tool]].map(([id, value, label]) => `          <div class="filter-option"><input id="site-footer-subject-${id}" name="subject" type="radio" value="${value}"${value ? "" : " checked"} /><label for="site-footer-subject-${id}">${label}</label></div>`),
+  "        </fieldset>",
+];
+
+function contactFormLines(followUpType, followUpTopic, askMessage = false, offer = false, invitation = INVITATION, tool = null) {
   return [
     `    <p class="site-footer-invitation">${invitation}</p>`,
     '    <div class="site-footer-panel" id="site-footer-panel">',
@@ -349,6 +356,7 @@ function contactFormLines(followUpType, followUpTopic, askMessage = false, offer
     ...(followUpTopic ? [
       `        <p class="site-footer-note" id="site-footer-topic-note">This request is sent about the ${followUpTopic}.</p>`,
     ] : []),
+    ...(tool ? subjectFieldLines(tool) : []),
     ...(askMessage ? [...intentFieldLines(), ...messageFieldLines()] : []),
     '        <div class="site-footer-field">',
     '          <label for="site-footer-email">Work email for your follow-up</label>',
@@ -398,6 +406,7 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
   const intentGroup = root.querySelector("#site-footer-intent");
   const intentError = root.querySelector(`#${INTENT_ERROR_ID}`);
   const intents = intentGroup ? [...intentGroup.querySelectorAll('input[name="intent"]')] : [];
+  const subjects = [...form.querySelectorAll('input[name="subject"]')];
   const submit = form.querySelector('button[type="submit"]');
   const fieldError = root.querySelector(`#${ERROR_ID}`);
   const status = root.querySelector("#site-footer-status");
@@ -458,6 +467,12 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
     radio.addEventListener("change", () => {
       setIntentError(null);
       showNoteGuidance(radio.value);
+    });
+  }
+  for (const radio of subjects) {
+    radio.addEventListener("change", () => {
+      setIntentError(null);
+      intentGroup.disabled = Boolean(radio.value);
     });
   }
 
@@ -565,8 +580,9 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
     }
     // A required radio group is refused here, not by the browser: the form is
     // `novalidate`, and the request would only come back as `invalid_intent`.
-    const chosen = intents.find((radio) => radio.checked);
-    if (intentGroup && !chosen) {
+    const tool = subjects.find((radio) => radio.checked)?.value;
+    const chosen = intents.find((radio) => radio.checked && !tool);
+    if (intentGroup && !chosen && !tool) {
       form.dataset.requestState = "idle";
       form.dataset.state = "invalid";
       setFieldError(null);
@@ -599,7 +615,7 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
       // Blank stays off the wire: an empty optional field sends exactly the
       // request this form sent before it existed.
       const note = message?.value.trim() || null;
-      const body = await postLeadEmail(request, email.value, form.dataset.followUpType || "follow_up", CONTACT_COPY, topic, note,
+      const body = await postLeadEmail(request, email.value, form.dataset.followUpType || "follow_up", CONTACT_COPY, tool || topic, note,
         chosen?.value ?? null);
       form.dataset.requestState = "success";
       form.dataset.state = "success";
@@ -608,7 +624,8 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
       // The form is replaced from here, so the control that would send again is
       // gone before the `finally` below could bring it back. The intent named is
       // the endpoint's stored one, never the radio still checked above.
-      confirmation.show(address, topic, Boolean(note), body.intent ? FOLLOW_UP_INTENTS[body.intent] : "");
+      confirmation.show(address, topic, Boolean(note), body.intent ? FOLLOW_UP_INTENTS[body.intent] : "",
+        subjects.length ? tool || "Shiplog" : "");
     } catch (error) {
       // Copy this repository owns, never a string an intermediary supplied, and
       // never a claim that the address was lost when that is not known.

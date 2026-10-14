@@ -64,6 +64,20 @@ export const FOLLOW_UP_TOPICS = Object.freeze({
   // destination. It is DEMOS's clause now, like every other row here.
   follow_up_agents: "Agent observatory page — watch a synthetic engineering team build and review work",
 });
+/**
+ * The second subject on the three pages that host a separate lab tool (#2877).
+ * Their footer form asks whether the request is about Shiplog or about the tool
+ * on the page; choosing the tool sends this topic instead of the page's, so the
+ * stored row says which of the two the visitor asked about. Each string is also
+ * the radio's label, rendered from the page's markup, so the form, the wire and
+ * the row name the subject the same way. A tool request asks no intent: the
+ * intent radios are the Shiplog questions.
+ */
+export const FOLLOW_UP_TOOL_TOPICS = Object.freeze({
+  follow_up_social: "Social (a separate lab tool)",
+  follow_up_people: "People (a separate lab tool)",
+  follow_up_agents: "Agent observatory (a separate lab tool)",
+});
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
@@ -105,8 +119,11 @@ function json(body, status, requestId, headers = {}) {
 
 // Both stores answer `{ created, intent }`: whether a row was inserted, and the
 // intent the row holds once the write is done. A repeat request keeps its first
-// topic and message but takes the new intent — the latest answer is the one the
-// team needs, and the receipt names the stored value rather than the sent one.
+// message but, on a form that asks, takes the new intent and topic — the latest
+// answer is the one the team needs, and the receipt names the stored value
+// rather than the sent one. The topic moves with it because on the three tool
+// pages it is the subject chosen (FOLLOW_UP_TOOL_TOPICS); everywhere else a
+// purpose has exactly one topic, so rewriting it changes nothing.
 export function createMemoryLeadStore() {
   const submissions = new Map();
   return {
@@ -114,7 +131,7 @@ export function createMemoryLeadStore() {
       const key = `${purpose}:${email}`;
       const created = !submissions.has(key);
       if (created) submissions.set(key, { topic, message, intent });
-      else if (intent !== null) submissions.get(key).intent = intent;
+      else if (FOLLOW_UP_INTENT_PURPOSES.includes(purpose)) Object.assign(submissions.get(key), { topic, intent });
       return { created, intent: submissions.get(key).intent };
     },
     has: (email, purpose = "field_notes") => submissions.has(`${purpose}:${email}`),
@@ -143,17 +160,19 @@ export function createMemoryLeadStore() {
  * conflict it means to ignore. Anything else raises, and `handleLeadRequest`
  * turns it into a truthful `storage_error` the visitor can act on.
  *
- * A request carrying an intent is the one exception to "do nothing": on conflict
- * it saves the new intent and reads it back with `RETURNING`. An upsert changes
+ * A request from a form that asks an intent is the one exception to "do
+ * nothing": on conflict it saves the new intent and topic (null intent included,
+ * when the visitor switched to asking about a separate tool) and reads the
+ * intent back with `RETURNING`. An upsert changes
  * a row either way, so `changes` can no longer tell insert from conflict; the
- * lookup batched before it can, because a D1 batch is one transaction. Requests
- * without an intent keep the statement above untouched, so a database that has
+ * lookup batched before it can, because a D1 batch is one transaction. Other
+ * purposes keep the statement above untouched, so a database that has
  * not had migration 0014 applied still takes every other purpose.
  */
 export function createD1LeadStore(db) {
   return {
     async capture(email, purpose, createdAt, topic = null, message = null, intent = null) {
-      if (intent === null) {
+      if (!FOLLOW_UP_INTENT_PURPOSES.includes(purpose)) {
         const result = await db.prepare(
           "INSERT INTO lead_submissions (email, purpose, created_at, topic, message) VALUES (?, ?, ?, ?, ?)"
           + " ON CONFLICT (email, purpose) DO NOTHING",
@@ -164,7 +183,7 @@ export function createD1LeadStore(db) {
         db.prepare("SELECT 1 AS found FROM lead_submissions WHERE email = ? AND purpose = ?").bind(email, purpose),
         db.prepare(
           "INSERT INTO lead_submissions (email, purpose, created_at, topic, message, intent) VALUES (?, ?, ?, ?, ?, ?)"
-          + " ON CONFLICT (email, purpose) DO UPDATE SET intent = excluded.intent RETURNING intent",
+          + " ON CONFLICT (email, purpose) DO UPDATE SET intent = excluded.intent, topic = excluded.topic RETURNING intent",
         ).bind(email, purpose, createdAt, topic, message, intent),
       ]);
       return { created: (existing.results ?? []).length === 0, intent: written.results?.[0]?.intent ?? null };
@@ -192,14 +211,17 @@ export async function handleLeadRequest(request, {
   }
   const isObject = input !== null && typeof input === "object" && !Array.isArray(input);
   const keys = isObject ? Object.keys(input) : [];
+  const toolTopic = isObject && Object.hasOwn(FOLLOW_UP_TOOL_TOPICS, input.purpose)
+    && input.topic === FOLLOW_UP_TOOL_TOPICS[input.purpose];
   const expectedTopic = isObject && input.purpose === "follow_up_social" && input.topic === POST_FOLLOW_UP_TOPIC
     ? POST_FOLLOW_UP_TOPIC
-    : isObject ? FOLLOW_UP_TOPICS[input.purpose] : null;
+    : toolTopic ? input.topic : isObject ? FOLLOW_UP_TOPICS[input.purpose] : null;
   const expectedKeys = expectedTopic ? ["email", "purpose", "topic"] : ["email", "purpose"];
   // `message` may be present or absent, and only on a purpose whose form offers
   // the field; `intent` may arrive only where the form asks for it, and its
   // absence there is refused below as `invalid_intent`. Everything else is exact.
-  const asksIntent = isObject && FOLLOW_UP_INTENT_PURPOSES.includes(input.purpose);
+  // A request about a separate tool asks no intent, so it may send none.
+  const asksIntent = isObject && FOLLOW_UP_INTENT_PURPOSES.includes(input.purpose) && !toolTopic;
   const allowedKeys = [
     ...expectedKeys,
     ...(isObject && FOLLOW_UP_MESSAGE_PURPOSES.includes(input.purpose) ? ["message"] : []),

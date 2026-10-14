@@ -378,7 +378,9 @@ test("the optional field asks something the question above it did not", async ()
 
     // The required question keeps its own words, and is now the only one on the
     // form that opens this way.
-    assert.equal(textOf(form.querySelector("legend")), INTENT_QUESTION,
+    // The intent group's own legend: on the three tool pages (#2877) the
+    // "Ask about" group stands above it with a legend of its own.
+    assert.equal(textOf(form.querySelector("#site-footer-intent").querySelector("legend")), INTENT_QUESTION,
       `${file}: the question about the topic has drifted`);
     assert.equal(openings.length, 1,
       `${file}: two questions on one form open "What do you want to" and read as one asked twice`);

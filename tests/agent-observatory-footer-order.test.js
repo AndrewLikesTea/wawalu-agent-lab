@@ -125,11 +125,12 @@ test("Tab from the evaluation-brief link lands in the form before any destinatio
   const stops = tabSequence(document).filter((stop) => !insideDirectory(stop));
   const assets = stops.findIndex((stop) => stop.getAttribute("id") === "site-footer-assets");
   assert.ok(assets >= 0, "the evaluation-brief link is not a tab stop");
-  assert.equal(stops[assets + 1].getAttribute("id"), "site-footer-intent-availability_pricing",
+  // The form's first control is the "Ask about" choice (#2877), Shiplog checked.
+  assert.equal(stops[assets + 1].getAttribute("id"), "site-footer-subject-shiplog",
     "the next stop after the About block is not the form's first control");
 
   document.querySelector("#site-footer-assets").focus();
-  assert.equal(pressTab(document).getAttribute("id"), "site-footer-intent-availability_pricing",
+  assert.equal(pressTab(document).getAttribute("id"), "site-footer-subject-shiplog",
     "Tab from the About block's last link skipped the form");
   const submit = stops.findIndex((stop) => stop.tagName === "BUTTON" && textOf(stop) === "Request a follow-up");
   const summary = stops.findIndex((stop) => stop.getAttribute("id") === "site-footer-directory-summary");
