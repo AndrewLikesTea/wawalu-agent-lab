@@ -1695,9 +1695,8 @@ test("the loading feed offers no control that claims to open or report a post", 
   assert.equal(feed.querySelectorAll(".post-card-skeleton").length > 0, true, "the placeholders are the point");
 });
 
-// The dead end belongs to the filters, not to an empty feed: with nothing
-// published at all, any filter setting is still the never-posted screen.
-test("an empty feed keeps the never-posted state whatever the filters hold", async (t) => {
+// An active filter always has a way back to the unfiltered view.
+test("an empty response with active filters offers filter recovery", async (t) => {
   const page = await loadPage(new URL("../src/social.html", import.meta.url), {});
   t.after(() => page.restore());
   const feed = mountSocialFeed(page.document, { posts: [], state: "ready" });
@@ -1706,8 +1705,13 @@ test("an empty feed keeps the never-posted state whatever the filters hold", asy
   timeFilter.value = "hour";
   timeFilter.dispatchEvent({ type: "change", bubbles: true });
   const panel = page.document.querySelector(".empty-state");
-  assert.match(textOf(panel), /No posts on Social yet\./);
-  assert.doesNotMatch(textOf(panel), /No posts match/);
+  assert.match(textOf(panel), /No posts from the past hour\./);
+  assert.doesNotMatch(textOf(panel), /No posts on Social yet/);
+  const clear = panel.querySelector("button");
+  assert.equal(clear.textContent, "Clear filters");
+  clear.click();
+  assert.equal(timeFilter.value, "all");
+  assert.match(textOf(page.document.querySelector(".empty-state")), /No posts on Social yet\./);
   assert.equal(page.document.querySelector("#post-feed").querySelectorAll("button").length, 0);
   assert.equal(feed.getPosts().length, 0);
 });

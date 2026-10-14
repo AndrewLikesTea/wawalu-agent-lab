@@ -1,10 +1,6 @@
-// Page wiring for the social feed. This is the only layer that knows where data
-// comes from, keeping social.js reusable and unit-testable. It composes:
-//   1. posts from the shared durable API, or
-//   2. a static seed from social-demo-data.json while that API is offline.
-//
-// Demo only (PRODUCT.md): the seed is static, hand-authored sample content and
-// no customer or production data is read here.
+// Page wiring for the Social feed and composer. The durable API is the source
+// of truth: demo fixtures must not masquerade as a successful load while that
+// request is pending or failed.
 
 import { connectionStatusLine, mountSocialFeed, normalizeSocialApiPosts, renderFieldError } from "/social.js";
 import {
@@ -448,28 +444,6 @@ function mountMediaComposer(root, description, composer) {
   };
 }
 
-async function fetchDemoPosts() {
-  try {
-    const response = await fetch("/social-demo-data.json", { cache: "no-store" });
-    if (!response.ok) return [];
-    const data = await response.json();
-    return Array.isArray(data.posts) ? data.posts : [];
-  } catch {
-    return [];
-  }
-}
-
-function dedupeById(items) {
-  const seen = new Set();
-  const result = [];
-  for (const item of items) {
-    if (!item || seen.has(item.id)) continue;
-    seen.add(item.id);
-    result.push(item);
-  }
-  return result;
-}
-
 async function init() {
   const root = document;
   if (!root.querySelector("#post-feed")) return;
@@ -524,9 +498,7 @@ async function init() {
   if (wantsComposer) feed.composer.open({ focus: !fromPaint });
   const media = mountMediaComposer(root, feed.description, feed.composer);
 
-  const fallback = dedupeById(await fetchDemoPosts());
-  if (fallback.length) feed.seed(fallback);
-  let knownIds = new Set(fallback.map((post) => post.id));
+  let knownIds = new Set();
   let hasConnected = false;
 
   const load = async () => {

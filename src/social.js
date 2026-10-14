@@ -3,11 +3,11 @@
 // Structured like releases.js and app.js: a pure, DOM-free core (validation,
 // normalization, ordering, character-budget math, focus math) that is unit
 // tested without a browser, plus a thin rendering layer that turns posts into
-// accessible DOM. Data sourcing (durable API + demo seed) lives in social-page.js
+// accessible DOM. Data sourcing (the durable API) lives in social-page.js
 // so this module stays reusable and testable in isolation.
 //
-// Demo-only, by design (PRODUCT.md): posts come from the shared backend with a
-// static seed fallback. No customer data, cookies, credentials,
+// Demo-only, by design (PRODUCT.md): posts come from the shared demo backend.
+// No customer data, cookies, credentials,
 // or internal APIs are read or written, and — like the rest of Shiplog — every
 // field is written through textContent / text nodes, never HTML strings, so a
 // post body can never execute markup.
@@ -952,11 +952,15 @@ export function connectionStatusLine(state, noun = "posts") {
   return `New ${noun} will appear here on their own.`;
 }
 
-// `state` separates "we have nothing yet because we are still fetching" from
-// "we have nothing because there is nothing" and from "we have nothing because
-// the fetch failed" — three situations that must not share one empty state.
-// Posts always win over a pending or failed refresh: stale content beats a
-// spinner over content the reader could already see.
+// Posts always win over a pending or failed refresh: one failed ten-second poll
+// must not blank a feed the reader could already see. Social adds one rule to
+// the shared machine: an answered, empty response under active filters still
+// offers Clear filters. Every Social render and its chrome use this decision.
+export function socialFeedPhase({ state = "ready", ...counts } = {}) {
+  if (state === "ready" && counts.visible === 0 && counts.filtering) return "filtered-empty";
+  return feedPhase({ state, ...counts });
+}
+
 export function renderPosts(container, posts, options = {}) {
   const { noMatch = null, state = "ready", statusRegion = container, onRetry = null, onPublish = null, onReport = null } = options;
   const ordered = sortPostsNewestFirst(posts);
@@ -974,17 +978,17 @@ export function renderPosts(container, posts, options = {}) {
     statusRegion.hidden = false;
   }
 
-  // One decision, taken by the shared machine, so the status region below and
+  // One decision, taken by the Social machine, so the status region below and
   // the count, filters, and connection line in mountSocialFeed cannot disagree
   // about which of the five states this render is in.
-  const phase = feedPhase({
+  const phase = socialFeedPhase({
     state,
     total: noMatch ? noMatch.total : ordered.length,
     visible: ordered.length,
     filtering: Boolean(noMatch),
   });
 
-  if (ordered.length === 0) {
+  if (phase !== "loaded") {
     if (phase === "loading") {
       renderSkeleton(container);
       renderFeedStatus(statusRegion, {
@@ -1040,7 +1044,8 @@ export function renderPosts(container, posts, options = {}) {
     return;
   }
 
-  if (statusRegion !== container) {
+  // A failed refresh keeps its Retry panel beside the posts it left on screen.
+  if (statusRegion !== container && state !== "error") {
     statusRegion.replaceChildren();
     statusRegion.hidden = true;
   }
@@ -1470,10 +1475,8 @@ export function mountSocialFeed(root, options = {}) {
       range: timeFilter && timeFilter.value !== "all" ? midSentence(selectedText(timeFilter)) : "",
       author: nameFilter && nameFilter.value !== "all" ? selectedText(nameFilter) : "",
     };
-    // A dead end only exists if there is something behind the filters: with no
-    // posts at all this is the never-posted feed, whichever way the menus are
-    // set, and that state has its own words and its own action.
-    const noMatch = filtering && visible.length === 0 && posts.length > 0
+    // Active filters remain recoverable even when a refresh returns no posts.
+    const noMatch = filtering && visible.length === 0
       ? { ...named, total: posts.length, onClear: recoverFromNoMatch }
       : null;
     renderPosts(feed, visible, {
@@ -1483,7 +1486,7 @@ export function mountSocialFeed(root, options = {}) {
     });
     // The same machine renderPosts just branched on, so the count, the filters
     // and the connection line are describing the state the status region drew.
-    const phase = feedPhase({ state, total: posts.length, visible: visible.length, filtering });
+    const phase = socialFeedPhase({ state, total: posts.length, visible: visible.length, filtering });
     // Absent, not hidden: a `hidden` placeholder is still text in the
     // accessibility tree, and the point is that a page with no answer yet makes
     // no claim at all.
@@ -1612,7 +1615,7 @@ export function mountSocialFeed(root, options = {}) {
     // announces unreliably, if at all. Before a fetch answers the sentence is
     // empty rather than a zero: "Showing 0 posts" is a claim, and the page has
     // not looked yet.
-    if (summary) summary.textContent = answered ? feedSummarySentence(showing) : "";
+    if (summary) summary.textContent = vouched ? feedSummarySentence(showing) : "";
 
     // Last, once every node this render touches holds its final words: a reader
     // who pressed Retry is placed on the new Retry if the attempt failed again,
