@@ -20,11 +20,13 @@ import {
 // route closes the page below the composer instead. Its container is
 // <main> itself, which carries no class — hence the null. Since #2883 People's
 // row closes the page too, after the image posts, so its region is <main>.
+// Since #2884 the observatory's row follows the merged pull request figure
+// rather than sitting in the introduction, so its region is its own row.
 const pages = [
   ["coach", "follow_up_coach", "#ask-about-shiplog-actions", "hero-actions"],
   ["social", "follow_up_social", "#main-content", null],
   ["profile", "follow_up_people", "#main-content", "hero-actions"],
-  ["agents", "follow_up_agents", ".observatory-hero", "hero-actions"],
+  ["agents", "follow_up_agents", "#ask-about-shiplog-actions", "hero-actions"],
 ];
 
 for (const [name, purpose, heroSelector, containerClass] of pages) {
