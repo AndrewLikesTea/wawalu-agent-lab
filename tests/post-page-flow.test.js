@@ -94,17 +94,14 @@ function assertExits(page, peopleHref, where) {
   );
 }
 
-// Who chose the name in the byline, in one sentence (#2408). This page used to
-// ship Social's whole feed note — the three sentences in FEED_NOTE below — which
-// is written for a reader scrolling many posts by many names. A permalink holds
-// one post, and the sentence above it has already named the invented posts, so
-// the block spent forty words to leave one fact this page's reader needs.
-const IDENTITY = "Whoever published this post chose the display name on it; nobody owns or verifies a display name on Social.";
+// Who chose the name in the byline, in Social's and People's bytes (#2895). The
+// paragraph above it ends "Their display names are invented." about the posts
+// labelled "Example post"; this note covers every other post.
+const IDENTITY = "On any other post, whoever published it chose the name. Nobody owns or verifies a display name, and anyone can publish under any name.";
 
-// Social's and People's version, which this page no longer carries. Those two
-// pages keep it and are asserted on elsewhere; here it is the string that must
-// not come back.
-const FEED_NOTE = "On any other post, whoever published it chose the name. Nobody owns or verifies a display name, and anyone can publish under any name.";
+// What this page said from #2408 until #2895: true of a visitor's post, false of
+// an Example post, whose name is invented.
+const RETIRED_IDENTITY = "Whoever published this post chose the display name on it";
 
 const SOCIAL = { label: "Read the Social feed", href: "/social.html" };
 const PEOPLE = { label: "See Mina Okafor’s image posts on People", href: "/profile.html" };
@@ -135,12 +132,8 @@ test("a post that loads is headed by its display name and reads name, time, capt
     const main = textOf(document.querySelector("#main-content"));
     assert.ok(main.includes(IDENTITY),
       "a stranger arriving on this link is not told who chose the name in the byline");
-    // Painted, not just authored: one sentence, no "demo" for a real post, and
-    // no trace of the three-sentence feed note it replaced.
-    const notice = main.slice(main.indexOf(IDENTITY), main.indexOf(IDENTITY) + IDENTITY.length);
-    assert.doesNotMatch(notice, /\bdemo\b/i, "the notice calls a real post a demo");
-    assert.equal(notice.split(". ").length, 1, `the caveat is more than one sentence: ${notice}`);
-    assert.equal(main.includes(FEED_NOTE), false, "Social's three-sentence feed note is back on the permalink");
+    // Painted, not just authored, and no trace of the sentence it replaced.
+    assert.equal(main.includes(RETIRED_IDENTITY), false, "the permalink still says every name was chosen by its publisher");
 
     // The post named its author, so the People link now points at that one
     // display name's view — which is what its words promised all along.
@@ -176,26 +169,30 @@ test("unusable publisher names leave a generic heading and title", async () => {
   }
 });
 
-// Issue #2408. The permalink names who chose the display name in a sentence of
-// its own rather than in Social's three. Social and People keep the feed note —
-// read out of those two pages here so this test fails if the block quietly
-// migrates back — and this page's markup must carry neither it nor any other
-// second telling of the same fact.
-test("the permalink names who chose the display name in one sentence, not Social's three", async () => {
+// Issue #2895. From #2408 the permalink said who chose the name in a sentence of
+// its own, "Whoever published this post…", which an Example post's invented name
+// contradicted. It now says it in Social's and People's bytes. All three pages
+// are read here, so a rewording on any one of them fails this test rather than
+// leaving the permalink saying something the feed does not.
+test("the permalink says whose display names are invented and who chose the rest in Social's and People's words", async () => {
+  const INVENTED = "Their display names are invented.";
   const shipped = [];
-  for (const file of ["social.html", "profile.html"]) {
+  for (const file of ["social.html", "profile.html", "post.html"]) {
     const html = (await readFile(new URL(`../src/${file}`, import.meta.url), "utf8")).replace(/<!--[\s\S]*?-->/g, "");
+    const invented = html.match(/labelled “Example post” [^<]*?(Their display names are invented\.)/)?.[1];
+    assert.equal(invented, INVENTED, `${file} no longer says the Example posts' names are invented`);
     const clause = html.match(/On any other post,[^<]*anyone can publish under any name\./)?.[0];
-    assert.ok(clause, `${file} no longer tells a reader what a display name is`);
+    assert.ok(clause, `${file} no longer tells a reader who chose any other name`);
+    assert.equal(html.split(clause).length - 1, 1, `${file} says who chose the name other than exactly once`);
+    assert.ok(html.indexOf(INVENTED) < html.indexOf(clause), `${file} says "any other post" before naming the invented ones`);
     shipped.push(clause);
   }
-  assert.equal(new Set(shipped).size, 1, "Social and People drifted into two ways of saying it");
-  assert.equal(FEED_NOTE, shipped[0], `the feed note the permalink dropped was reworded: ${shipped[0]}`);
+  assert.equal(new Set(shipped).size, 1, `the three pages drifted apart: ${shipped.join(" / ")}`);
+  assert.equal(IDENTITY, shipped[0], `the shared note was reworded: ${shipped[0]}`);
 
-  const post = (await readFile(new URL("../src/post.html", import.meta.url), "utf8")).replace(/<!--[\s\S]*?-->/g, "");
-  assert.equal(post.split(IDENTITY).length - 1, 1, "the permalink's markup carries its own sentence other than exactly once");
-  assert.equal(post.includes("Display names on posts labelled"), false, "the permalink still ships Social's feed note");
-  assert.equal(post.includes("anyone can publish under any name"), false, "the permalink still ships the feed note's last clause");
+  const post = await readFile(new URL("../src/post.html", import.meta.url), "utf8");
+  assert.equal(post.replace(/<!--[\s\S]*?-->/g, "").includes(RETIRED_IDENTITY), false,
+    "the permalink still says every name was chosen by its publisher");
 
   const page = await openPostPage("?id=p-image", seedOnly([SEED_POST]));
   try {
@@ -226,8 +223,8 @@ test("the permalink names who chose the display name in one sentence, not Social
 function assertIdentityStands(document, where) {
   assert.equal(textOf(document.body).split(IDENTITY).length - 1, 1,
     `${where}: the page says who chose the display name other than exactly once`);
-  assert.equal(textOf(document.body).includes(FEED_NOTE), false,
-    `${where}: Social's three-sentence feed note is back on the permalink`);
+  assert.equal(textOf(document.body).includes(RETIRED_IDENTITY), false,
+    `${where}: the permalink still says every name was chosen by its publisher`);
   const flow = document.querySelector("#main-content").querySelectorAll("h1,p,a,#post-detail");
   const heading = flow.findIndex((node) => node.id === "page-title");
   const detail = flow.findIndex((node) => node.id === "post-detail");
