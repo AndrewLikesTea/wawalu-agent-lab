@@ -141,7 +141,7 @@ test("the five feed states are mutually exclusive and decided in one place", () 
 // sequence owns the offer, in order and in full. What the wait says instead is
 // the fact this frame is the only one that has to carry — where the pictures
 // come from — so it still names Social, and still names it once.
-test("People's wait names where its image posts come from and offers nothing", async (t) => {
+test("People's waiting message names the source while publishing routes remain available", async (t) => {
   const people = await loadPage(PEOPLE_PAGE, {});
   t.after(() => people.restore());
   mountProfile(people.document, { posts: [], author: "Zed", state: "loading" });
@@ -166,10 +166,8 @@ test("People's wait names where its image posts come from and offers nothing", a
   assert.doesNotMatch(loadingSummaryText(), /Open Social|Write a post/,
     "the wait offers the trip to Social under a second name");
 
-  // And the sequence that does own it is off the page in this state anyway:
-  // feedPresence() removes it while the fetch is open, so the reader is not
-  // being asked to publish at the moment they have nothing to look at.
-  assert.equal(people.document.querySelectorAll(".feed-create").length, 0);
+  // The publishing routes remain available while the request is open.
+  assert.equal(people.document.querySelectorAll(".feed-create").length, 1);
 });
 
 /* ---------------------------------- Social -------------------------------- */
@@ -820,7 +818,7 @@ test("the four Social states hold their words at a narrow width", async () => {
 
 /* ---------------------------------- People -------------------------------- */
 
-test("People says one thing while it loads, and the other three lines are not on the page", async (t) => {
+test("People shows loading without result claims and retains publishing routes", async (t) => {
   const page = await loadPage(PEOPLE_PAGE, {});
   t.after(() => page.restore());
   const { document } = page;
@@ -831,7 +829,7 @@ test("People says one thing while it loads, and the other three lines are not on
 
   assert.equal(document.querySelectorAll("#profile-summary").length, 0);
   assert.equal(document.querySelectorAll(".feed-connection").length, 0);
-  assert.equal(document.querySelectorAll(".feed-create").length, 0);
+  assert.equal(document.querySelectorAll(".feed-create").length, 1);
   assert.equal(document.querySelectorAll(".empty-state").length, 0);
   const body = textOf(document.body);
   assert.doesNotMatch(body, /Counting image posts/);
@@ -964,7 +962,7 @@ test("People names its failure, retries it by keyboard, and comes back", async (
     image_url: "/media/Mina.svg", image_alt: "A drawing signed Mina", image_width: 1200, image_height: 900,
   }] };
   retry.click();
-  assert.equal(textOf(document.querySelector("#profile-feed-status")), "Image posts are loading. Each one was published on Social.",
+  assert.equal(textOf(document.querySelector(".profile-load-message")), "Image posts are loading. Each one was published on Social.",
     "retry did not put the page back into the loading state");
   await waitFor(() => document.querySelectorAll(".profile-tile").length > 0, "the retried request settled");
 

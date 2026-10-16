@@ -69,3 +69,25 @@
 #feed-state .feed-status { min-width:0; overflow-wrap:anywhere; }
 #feed-state .feed-status-action { max-width:100%; box-sizing:border-box; white-space:normal; }
 #feed-state:focus-visible,#feed-summary:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+
+/* People recovery uses the existing rejected-input palette (evolution.css).
+   The site explicitly supports light color-scheme, including in a dark OS theme. */
+#profile-feed-status {
+  --state-error-ink:#6f2821;
+  --state-error-line:#b4453a;
+  --state-error-wash:#fdf4f3;
+  min-width:0;
+}
+#profile-feed-status .feed-status-error {
+  border:1px solid var(--state-error-line);
+  border-left-width:5px;
+  border-radius:9px;
+  padding:12px;
+  background:var(--state-error-wash);
+  color:var(--state-error-ink);
+  text-align:left;
+}
+#profile-feed-status .feed-status-error :is(.feed-status-label,.feed-status-value,.feed-status-detail) { color:inherit; }
+#profile-feed-status .field-error-mark { order:-1; border:2px solid currentColor; border-radius:50%; width:24px; height:24px; text-align:center; }
+#profile-feed-status .profile-retry { max-width:100%; min-height:44px; margin-bottom:12px; white-space:normal; overflow-wrap:anywhere; }
+#profile-feed-status .profile-retry[aria-disabled="true"] { cursor:wait; }

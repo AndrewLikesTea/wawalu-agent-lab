@@ -289,23 +289,66 @@ test("People says its failure out loud and names the control that undoes it", as
   assert.equal(textOf(retry), PROFILE_RETRY_LABEL);
 });
 
-test("People's Retry is reachable by Tab and gives focus back to the region that speaks", async (t) => {
-  const { document, routes } = await bootPeople(t);
-
-  assert.ok(tabDistanceTo(document, isRetry(PROFILE_RETRY_LABEL)) >= 0,
-    "Retry is not in the tab order of the failed grid");
-
-  routes[LIVE_ROUTE] = { posts: [apiPost("live-18", "Zed", "18", { withImage: true })] };
+test("People keeps the same keyboard control through retry and recovery", async (t) => {
+  const { document } = await bootPeople(t);
+  const status = document.querySelector("#profile-feed-status");
+  const announcer = document.querySelector("#profile-announcer");
+  const announcements = [];
+  const content = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(announcer), "textContent");
+  Object.defineProperty(announcer, "textContent", {
+    get() { return content.get.call(this); },
+    set(value) { announcements.push(value); content.set.call(this, value); },
+  });
+  const cue = status.querySelector(".field-error-mark");
+  assert.equal(textOf(cue), "!");
+  assert.equal(cue.getAttribute("aria-hidden"), "true");
+  assert.equal(status.querySelectorAll("[aria-live]").length, 0);
+  const social = document.querySelector("#profile-publish-route");
+  const paint = document.querySelector("#profile-paint-route");
+  assert.ok(social && paint);
+  assert.ok(tabDistanceTo(document, isRetry(PROFILE_RETRY_LABEL)) >= 0);
+  const retry = document.activeElement;
+  let requests = 0;
+  let resolve;
+  globalThis.fetch = async (url) => {
+    assert.equal(url, LIVE_ROUTE);
+    requests++;
+    return await new Promise((done) => { resolve = done; });
+  };
   pressKey(document, "Enter");
+  assert.equal(requests, 1);
+  assert.equal(document.activeElement === retry, true);
+  assert.equal(status.querySelector(".profile-retry") === retry, true);
+  assert.equal(retry.getAttribute("aria-disabled"), "true");
+  assert.equal(textOf(announcer), PROFILE_LOADING_ANNOUNCEMENT);
+  assert.match(textOf(status), /Image posts are loading/);
+  assert.doesNotMatch(textOf(status), /could not be loaded/);
+  retry.click();
+  assert.equal(requests, 1, "pending retry must not submit twice");
+  assert.equal(document.querySelector("#profile-publish-route") === social, true);
+  assert.equal(document.querySelector("#profile-paint-route") === paint, true);
+  resolve({ ok: true, json: async () => ({ posts: [apiPost("live-18", "Zed", "18", { withImage: true })] }) });
   await waitFor(() => drawnTiles(document).length === 1, "the retried request drew no tiles");
+  assert.equal(document.activeElement === retry, true);
+  assert.equal(status.querySelector(".profile-retry") === retry, true);
+  assert.equal(textOf(retry), "Reload image posts");
+  assert.equal(retry.getAttribute("aria-disabled"), "false");
+  assert.equal(textOf(announcer), "Showing 1 image post by Zed, newest first.");
+  assert.deepEqual(announcements, [PROFILE_LOADING_ANNOUNCEMENT, "Showing 1 image post by Zed, newest first."],
+    "recovery must not announce an intermediate empty result");
+  assert.equal(document.querySelector("#profile-paint-route") === paint, true);
+  pressKey(document, "Enter");
+  assert.equal(requests, 2);
+  assert.match(textOf(status), /Image posts are loading/);
+  assert.equal(drawnTiles(document).length, 1);
+  resolve({ ok: false, status: 503 });
+  await waitFor(() => retry.getAttribute("aria-disabled") === "false", "refresh failure settles");
+  assert.equal(document.activeElement === retry, true);
+  assert.equal(drawnTiles(document).length, 1);
+  assert.match(textOf(status), /Showing the image posts already loaded/);
+  assert.equal(status.querySelector(".profile-load-message").hidden, false);
+  assert.equal(textOf(status.querySelector(".field-error-mark")), "!");
 
-  assert.equal(document.querySelectorAll(".feed-status-action").length, 0, "Retry outlived the load it retried");
-  assert.equal(focusedId(document), "profile-announcer",
-    "a successful retry left focus somewhere other than the region's status node");
-  assert.equal(textOf(document.activeElement), "Showing 1 image post by Zed, newest first.",
-    "the landing does not say what the retry produced");
-  // A landing, not a stop: Tab still starts the page where it always did.
-  assert.equal(document.activeElement.getAttribute("tabindex"), "-1");
 });
 
 /* ---------------------------- the shared post ----------------------------- */
@@ -358,4 +401,20 @@ test("the shared post keeps the reader in the region across a retry", async (t) 
   assert.equal(document.activeElement.getAttribute("tabindex"), "-1");
   assert.equal(document.activeElement.getAttribute("data-post-state-panel"), "loaded",
     "a successful retry left focus somewhere other than the post it resolved");
+});
+
+test("People repeated failure preserves focus, including a reader who leaves retry", async (t) => {
+  const { document } = await bootPeople(t);
+  const retry = document.querySelector(".profile-retry");
+  retry.focus();
+  pressKey(document, "Enter");
+  await waitFor(() => retry.getAttribute("aria-disabled") === "false", "second failure settles");
+  assert.equal(document.activeElement === retry, true);
+  assert.match(textOf(document.querySelector("#profile-announcer")), /could not be loaded/);
+  const paint = document.querySelector("#profile-paint-route");
+  retry.click();
+  paint.focus();
+  await waitFor(() => retry.getAttribute("aria-disabled") === "false", "third failure settles");
+  assert.equal(document.activeElement === paint, true);
+  assert.equal(document.querySelector("#profile-paint-route") === paint, true);
 });

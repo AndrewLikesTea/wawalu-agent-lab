@@ -361,11 +361,7 @@
                has to get past to reach the images. Tab order follows out of the
                markup and not out of a tabindex: the display-name picker, then
                every Open post control, then these two links.
-               profile.js takes this paragraph out of the document while the
-               first fetch is open and puts it back against the display-name
-               caveat below (feedPresence's anchor in src/feed-status.js), so
-               the painted order is this order in every state rather than only
-               before hydration.
+               These routes stay available while image posts load or fail.
                The sentence names every step in the
                order they happen, because Paint publishes nothing: it used to
                read "Want a picture of your own here? Open Paint", which made
