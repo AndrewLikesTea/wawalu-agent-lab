@@ -231,9 +231,9 @@ test("the painted front door leads with the promise, then names the log", async 
   assert.equal(textOf(document.getElementById("home-log-title")), "Decision log");
   assert.match(textOf(blocks[at("home-log-title") + 1]), /^Browse existing decisions or record a new one/);
   const demo = document.getElementById("core-demo-link");
-  assert.equal(textOf(demo), "Explore the decision and release log demo →");
+  assert.equal(textOf(demo), "Explore the Decision log →");
   assert.equal(demo.getAttribute("href"), "#record-history-title");
-  assert.equal(textOf(document.getElementById("record-history-title")), "Decision and release workspace");
+  assert.equal(textOf(document.getElementById("record-history-title")), "Decision log");
 
   assert.doesNotMatch(textOf(main), /the product this page carries/);
   assert.equal(document.getElementById("shiplog-entry").childElements[0].getAttribute("id"), "repository-evidence",

@@ -105,7 +105,7 @@ test("hero targets a visible native-focus heading before every workspace control
   const hero = doc.getElementById("core-demo-link");
   const heading = doc.getElementById(hero.getAttribute("href").slice(1));
   assert.equal(heading.tagName, "H2");
-  assert.equal(textOf(heading), "Decision and release workspace");
+  assert.equal(textOf(heading), "Decision log");
   assert.equal(heading.getAttribute("tabindex"), "-1");
   const workspace = doc.getElementById("record-history");
   assert.equal(workspace.getAttribute("aria-labelledby"), heading.id);

@@ -167,7 +167,7 @@ test("the static markup already states the count a cold visitor will see", async
   // words say "on this page" because #2219 gave the hero above it a demo button
   // that leaves for Releases: two buttons named the same thing, landing in two
   // places, is a buyer clicking the wrong one.
-  assert.match(html, /href="#record-history">Record and search the log on this page/);
+  assert.match(html, /href="#record-history">Record and search the Decision log on this page/);
   assert.match(html, /id="record-history"/);
   // The sample links agree with the ids the seed data uses.
   assert.ok(html.includes(`href="/decision.html?id=${SAMPLE_DECISION_ID}"`));

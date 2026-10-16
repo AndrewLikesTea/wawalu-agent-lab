@@ -167,7 +167,7 @@ test("the homepage names the Decision log and explains browsing and recording", 
   for (const term of ["context", "alternatives", "owner", "release"]) assert.match(ledeText, new RegExp(term));
   const primary = hero.querySelector(".button-link");
   assert.equal(primary.getAttribute("href"), "#record-history-title");
-  assert.match(primary.textContent, /Explore the decision and release log demo/);
+  assert.match(primary.textContent, /Explore the Decision log/);
   assert.match(hero.textContent, /invented and use no customer or production data/);
   // Distinct labels distinguish the hero's demo invitation from the
   // explanation's record-and-search shortcut to the same workspace.
