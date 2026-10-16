@@ -937,7 +937,7 @@ test("the homepage workspace leads to Releases and a saved, inspectable outcome"
   pressEnter(home.document);
   assert.equal(home.navigations[0], "#record-history-title");
   const heading = home.document.querySelector(home.navigations[0]);
-  assert.equal(textOf(heading), "Decision and release workspace");
+  assert.equal(textOf(heading), "Decision log");
   const releases = home.document.querySelector("#record-history").querySelector('a[href="/releases.html"]');
   releases.focus();
   pressEnter(home.document);
