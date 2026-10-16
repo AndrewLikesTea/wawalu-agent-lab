@@ -418,8 +418,8 @@ test("People uses one status node for loading, error, and recovery to live posts
   }] };
   await refresh();
   assert.equal(page.document.querySelectorAll(".profile-tile").length, 1);
-  assert.equal(status.hidden, true, "live refresh hides the failed status after posts arrive");
-  assert.equal(textOf(status), "");
+  assert.equal(status.querySelector(".profile-load-message").hidden, true);
+  assert.equal(textOf(status), "Reload image posts");
 });
 
 test("every entry says how many image posts that display name has, and which one is showing", async () => {
@@ -1536,7 +1536,7 @@ test("People claims no result before its first image post, and the loaded page i
     // only the module does — this page's authored markup fakes hydration, so a
     // wait on any string under test would return before the module ran.
     await importPageModule("/profile-page.js");
-    await waitFor(() => document.querySelectorAll(".feed-create").length === 0, "the module takes the page over");
+    await waitFor(() => document.querySelectorAll(".profile-load-message").length === 1, "the module takes the page over");
     assertClaimsNoResult(document, "loading");
     // The module wrote this frame rather than leaving the served one standing:
     // the identity line left the document beside the count it waits with.

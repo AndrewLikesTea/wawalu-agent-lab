@@ -1055,3 +1055,27 @@ test("People recovery has a focusable picker destination and wrapping narrow-lay
   assert.match(css, /\.empty-actions\s*\{[^}]*flex-wrap:wrap/);
   assert.match(css, /#profile-feed-status \.empty-actions \.empty-action\s*\{[^}]*max-width:100%;[^}]*box-sizing:border-box/);
 });
+
+test("People failure and retry retain contrast, focus and narrow-width safeguards", async () => {
+  const base = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
+  const css = await readFile(new URL("../src/social-states.css", import.meta.url), "utf8");
+  // This product opts into light rendering even when the OS prefers dark.
+  assert.match(base, /:root\s*\{[^}]*color-scheme:light/);
+  assert.match(base, /\.feed-status-action:focus-visible\s*\{[^}]*outline:3px solid var\(--focus-ring\)/);
+  assert.match(css, /\.profile-retry\s*\{[^}]*max-width:100%;[^}]*min-height:44px;[^}]*white-space:normal;[^}]*overflow-wrap:anywhere/);
+  assert.match(css, /\.feed-status-error\s*\{[^}]*border-left-width:5px;[^}]*background:var\(--state-error-wash\);[^}]*color:var\(--state-error-ink\)/);
+  const luminance = (hex) => {
+    const rgb = hex.match(/\w\w/g).map((pair) => parseInt(pair, 16) / 255)
+      .map((c) => c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+    return rgb[0] * 0.2126 + rgb[1] * 0.7152 + rgb[2] * 0.0722;
+  };
+  const contrast = (a, b) => (Math.max(luminance(a), luminance(b)) + 0.05)
+    / (Math.min(luminance(a), luminance(b)) + 0.05);
+  const token = (name) => css.match(new RegExp(`--${name}:#([0-9a-f]{6})`))[1];
+  assert.ok(contrast(token("state-error-ink"), token("state-error-wash")) >= 4.5);
+  const action = base.match(/\.feed-status-action\s*\{([^}]+)\}/)[1];
+  const ink = action.match(/color:#([0-9a-f]{6})/)[1];
+  assert.match(action, /background:#fff;/);
+  assert.ok(contrast(ink, "ffffff") >= 4.5);
+  assert.ok(contrast("155f9e", "ffffff") >= 3);
+});

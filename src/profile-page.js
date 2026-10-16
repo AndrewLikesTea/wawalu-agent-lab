@@ -125,19 +125,19 @@ async function init() {
       live = await fetchLivePosts();
       // Live posts shadow same-id seeds; the seed stays visible underneath so an
       // empty database does not read as an empty profile.
-      profile.seed(mergePostsById(live, seeds));
+      const merged = mergePostsById(live, seeds);
       // The landing name was decided from the seed alone, before the feed had
       // answered. If the merged feed holds images and the name it picked does
       // not, land on one that does — once, only for a visitor who chose nothing,
       // and without writing the URL or storage, because nobody chose this.
       if (!chosen) {
         chosen = true;
-        const landing = defaultProfileAuthor(profile.getPosts());
-        if (landing && selectProfilePosts(profile.getPosts(), profile.getAuthor()).length === 0) {
+        const landing = defaultProfileAuthor(merged);
+        if (landing && selectProfilePosts(merged, profile.getAuthor()).length === 0) {
           author = landing;
-          profile.setAuthor(landing);
         }
       }
+      profile.seed(merged, author);
       profile.setStatus(profileConnectionLine("live"));
     } catch {
       // One sentence whether this is the first failed load or a connection that

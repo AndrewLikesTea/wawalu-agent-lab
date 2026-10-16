@@ -29,7 +29,7 @@ import {
   OPEN_POST_LABEL, postControlName, postDetailHref, profileHref, socialAllPostsLabel, socialFeedHref,
 } from "./social-links.js";
 import { imageDescription, renderDescriptionNote, renderImageDescriptionText, renderImageUnavailable } from "./image-description.js";
-import { renderFeedStatus, feedPhase, feedPresence, retryFocus, setFilterAvailability } from "./feed-status.js";
+import { renderFeedStatus, feedPhase, feedPresence, setFilterAvailability } from "./feed-status.js";
 import { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH } from "./social-identity.js";
 import { mountPostReport, renderReportButton } from "./post-report.js";
 
@@ -826,6 +826,9 @@ function renderError(container, onRetry) {
     detail: "The selected display-name filter is unchanged. Retry loading image posts.",
     actionLabel: PROFILE_RETRY_LABEL, onAction: onRetry,
   });
+  const mark = el("span", "field-error-mark", "!");
+  mark.setAttribute("aria-hidden", "true");
+  failed.append(mark);
   failed.classList.add("empty-state", "empty-state-error");
   failed.querySelector?.(".feed-status-value")?.classList.add("empty-title");
   failed.querySelector?.(".feed-status-action")?.classList.add("empty-action");
@@ -844,12 +847,15 @@ export function renderProfileGrid(container, posts, options = {}) {
   container.replaceChildren();
   container.setAttribute("aria-busy", state === "loading" && ordered.length === 0 ? "true" : "false");
   if (statusRegion !== container && state === "error") {
-    renderFeedStatus(statusRegion, {
+    const failed = renderFeedStatus(statusRegion, {
       state: "error", label: "People feed update failed",
       text: "Showing the image posts already loaded.",
       detail: "The selected display-name filter is unchanged. Retry loading newer image posts.",
       actionLabel: PROFILE_RETRY_LABEL, onAction: onRetry,
     });
+    const mark = el("span", "field-error-mark", "!");
+    mark.setAttribute("aria-hidden", "true");
+    failed.append(mark);
   } else if (statusRegion !== container) {
     statusRegion.replaceChildren();
     statusRegion.hidden = false;
@@ -882,7 +888,7 @@ export function renderProfileGrid(container, posts, options = {}) {
     return;
   }
 
-  if (statusRegion !== container) {
+  if (statusRegion !== container && state !== "error") {
     statusRegion.replaceChildren();
     statusRegion.hidden = true;
   }
@@ -1110,13 +1116,7 @@ export function mountProfile(root, options = {}) {
   // hidden line is still text a screen reader can be walked through.
   const waiting = [
     feedPresence(elements.summary),
-    // Restored after the display-name caveat, at the end of the paragraph the
-    // two share (#2819): the caveat qualifies the "Example post" sentence just
-    // above it, so nothing may come between them. An earlier anchor put this
-    // back in front of the caveat (#2142); with no anchor it returns to its
-    // slot, the paragraph's last.
-    feedPresence(root.querySelector(".feed-create")),
-    // The identity line is the fourth: it says what the grid beside it is
+    // The identity line says what the grid beside it is
     // showing, so a grid with nothing in it has nothing for it to say. It leaves
     // the document while the first load is open — absent rather than emptied,
     // because an empty `.profile-active-filter` still paints its wash, and
@@ -1135,17 +1135,14 @@ export function mountProfile(root, options = {}) {
   connection?.removeAttribute("hidden");
   const connectionLine = feedPresence(connection);
 
-  // Retry is drawn inside #profile-feed-status, so pressing it destroys the
-  // control the reader is standing on. THE DOCUMENTED LANDING FOR THIS REGION
-  // IS #profile-announcer: the page's one live region, authored in the markup,
-  // present in every state, and the node that is about to say what the retry
-  // produced. The visible panel cannot take the focus — it is hidden the moment
-  // tiles paint, and a reader left on a node that disappears is returned to the
-  // top of the document.
-  const retryLanding = retryFocus(elements.feedStatus ?? grid, elements.announcer ?? elements.heading);
-  const retryLoad = options.onRetry
-    ? () => { retryLanding.armed(); return options.onRetry(); }
-    : null;
+  // Keep the control outside the replaceable message. Removing or reparenting
+  // a focused button loses focus in browsers, even if it is appended again.
+  const message = elements.feedStatus ? el("div", "profile-load-message") : grid;
+  if (elements.feedStatus) elements.feedStatus.replaceChildren(message);
+  let retryButton = null;
+  const retryLoad = options.onRetry ? () => {
+    if (state !== "loading") return options.onRetry();
+  } : null;
 
   let posts = options.posts ?? [];
   let state = options.state ?? "ready";
@@ -1221,13 +1218,30 @@ export function mountProfile(root, options = {}) {
     const anyImages = Boolean(elsewhere);
     renderProfileGrid(grid, mine, {
       state,
-      onRetry: retryLoad,
+      onRetry: elements.feedStatus ? null : retryLoad,
       author,
       anyImages,
       onClear: options.onClearSelection,
-      statusRegion: elements.feedStatus ?? grid,
+      statusRegion: message,
       onReport: report ? (post, button) => report.open(post, button) : null,
     });
+    if (state === "error" && retryLoad && elements.feedStatus && !retryButton) {
+      retryButton = el("button", "feed-status-action profile-retry", PROFILE_RETRY_LABEL);
+      retryButton.type = "button";
+      retryButton.addEventListener("click", retryLoad);
+      elements.feedStatus.append(retryButton);
+    }
+    if (retryButton && state === "loading" && message.hidden) {
+      renderFeedStatus(message, {
+        state: "loading", text: loadingSummaryText(author), quiet: true,
+      });
+    }
+    if (retryButton) {
+      // aria-disabled keeps the current focus and tab position during the wait.
+      retryButton.setAttribute("aria-disabled", String(state === "loading"));
+      retryButton.textContent = state === "ready" ? "Reload image posts" : PROFILE_RETRY_LABEL;
+    }
+    if (elements.feedStatus) elements.feedStatus.hidden = message.hidden && !retryButton;
     const phase = feedPhase({
       state, total: filtered ? posts.length : mine.length, visible: mine.length, filtering: filtered,
     });
@@ -1247,12 +1261,9 @@ export function mountProfile(root, options = {}) {
     // reader who could not see the panel was told the image posts were coming
     // and then never told they were not. One node says all four.
     if (elements.announcer) {
-      elements.announcer.textContent = profileLoadAnnouncement({ state, author, shown: mine.length, anyImages });
+      const announcement = profileLoadAnnouncement({ state, author, shown: mine.length, anyImages });
+      if (elements.announcer.textContent !== announcement) elements.announcer.textContent = announcement;
     }
-    // Last, with the announcement in place: a reader who pressed Retry is put
-    // on the new Retry if this attempt failed too, and otherwise on the region
-    // above, which is now holding the news.
-    retryLanding.settle(state);
     if (options.onRender) options.onRender({ author, posts: mine, summary });
   };
 
@@ -1300,7 +1311,7 @@ export function mountProfile(root, options = {}) {
     render,
     getAuthor() { return author; },
     setAuthor(next) { author = next; renderPicker(); render(); },
-    seed(next) { posts = next ?? []; state = "ready"; renderPicker(); render(); },
+    seed(next, nextAuthor = author) { posts = next ?? []; author = nextAuthor; state = "ready"; renderPicker(); render(); },
     // Loading and error are display states only: they never discard posts
     // already on screen, so a failed refresh degrades to "stale but readable".
     // The picker re-renders too, because leaving "loading" is exactly what
