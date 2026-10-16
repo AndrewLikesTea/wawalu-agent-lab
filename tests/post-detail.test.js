@@ -528,8 +528,9 @@ test("both destinations ship as constants, and only the People link's target nar
 // PUBLISHED_POST_REACH now, in one wording — on this page as its own standing
 // paragraph below the post, outside #post-provenance so the swap below cannot
 // take it away. What is left here is Social's bytes for the provenance, word for
-// word, and People's.
-const STANDING_SENTENCE = "Posts labelled “Example post” are invented to show how Social works; they use no customer or production data.";
+// word, and People's, including the sentence about the invented posts' names
+// (#2895).
+const STANDING_SENTENCE = "Posts labelled “Example post” are invented to show how Social works; they use no customer or production data. Their display names are invented.";
 
 // Every state the panel can be in, named the way a reader would name it.
 const PANEL_STATES = [
@@ -557,9 +558,10 @@ test("the page identifies a shared post as invented or visitor-published, writte
   assert.equal(content.includes("Social is a shared feed of short posts"), false,
     "the post-specific explanation must not sit beside a generic feed description");
 
-  // Short enough to read at a glance, and one sentence rather than a paragraph.
+  // Short enough to read at a glance: the provenance, then whose names are
+  // invented, and nothing more.
   assert.ok(STANDING_SENTENCE.split(/\s+/).length <= 25, "the standing sentence stays at 25 words or fewer");
-  assert.equal(STANDING_SENTENCE.split(/[.!?]/).filter((part) => part.trim()).length, 1, "one sentence, not two");
+  assert.equal(STANDING_SENTENCE.split(/[.!?]/).filter((part) => part.trim()).length, 2, "two sentences, not a paragraph");
 
   // It belongs to the standing frame, which no script rewrites, and it sits
   // outside the panel the fetch replaces — so it survives every state the
@@ -703,8 +705,8 @@ test("the post region holds exactly one state, and names it on one attribute", (
     if (name !== "loading") assert.doesNotMatch(container.textContent, /Loading this post/);
     // Who chose the display name belongs to src/post.html's standing frame, not
     // to any one state: a panel that painted it too would say it twice once
-    // loaded. Both wordings are refused — the page's own sentence (#2408) and
-    // the feed note it replaced, which must not come back through the panel.
+    // loaded. The note's own words and the retired feed wording are both
+    // refused here, so neither comes back through the panel.
     assert.doesNotMatch(container.textContent, /Display names on posts labelled|owns or verifies/,
       `the ${name} state paints its own display-name explanation`);
     assert.equal(byClass(container, "detail-post-description").length, name === "loaded" ? 1 : 0,

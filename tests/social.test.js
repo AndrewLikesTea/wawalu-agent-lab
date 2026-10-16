@@ -1035,7 +1035,7 @@ test("Social, People, and a post permalink claim no customer data only for the i
     // now, said once per page in one wording, and what is left here is the
     // provenance claim alone.
     "profile.html": PROVENANCE_SENTENCE,
-    "post.html": "Posts labelled “Example post” are invented to show how Social works; they use no customer or production data.",
+    "post.html": PROVENANCE_SENTENCE,
   };
   for (const [file, sentence] of Object.entries(scoped)) {
     const page = await loadPage(new URL(`../src/${file}`, import.meta.url), {});

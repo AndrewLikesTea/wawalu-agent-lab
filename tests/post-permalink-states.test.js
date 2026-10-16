@@ -651,8 +651,9 @@ const RETIRED_DATA_SENTENCE = "Posts use no customer or production data.";
 // Social's bytes for the provenance, word for word, and People's (#2734). It
 // used to close with "; anyone can read a post a visitor publishes" — this page's
 // point of view on a fact the other two pages each stated in their own — and that
-// fact is PUBLISHED_POST_REACH now, said once per page in one wording.
-const CONTEXT_SENTENCE = "Posts labelled “Example post” are invented to show how Social works; they use no customer or production data.";
+// fact is PUBLISHED_POST_REACH now, said once per page in one wording. Since
+// #2895 it also ends on Social's sentence about the invented posts' names.
+const CONTEXT_SENTENCE = "Posts labelled “Example post” are invented to show how Social works; they use no customer or production data. Their display names are invented.";
 // As it ships, id and all. The id is not decoration: it is the handle
 // src/post-page.js writes the per-post answer through, so a paragraph that loses
 // it keeps hedging about a post the page has already read.
@@ -1559,7 +1560,7 @@ test("the post page says what it is before it says it is loading", async () => {
   // this page's does too since #2734 — the clause it used to add about who can
   // read a published post is now a sentence of its own below the post, in the
   // one wording all three pages render.
-  const SOCIAL_PROVENANCE = "Posts labelled “Example post” are invented to show how Social works; they use no customer or production data.";
+  const SOCIAL_PROVENANCE = "Posts labelled “Example post” are invented to show how Social works; they use no customer or production data. Their display names are invented.";
   assert.ok(social.includes(SOCIAL_PROVENANCE),
     "Social no longer says the provenance sentence this page follows");
   assert.equal(CONTEXT_SENTENCE, SOCIAL_PROVENANCE,
