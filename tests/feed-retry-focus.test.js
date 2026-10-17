@@ -220,7 +220,7 @@ async function bootPeople(t, { routes = {} } = {}) {
   t.after(() => { globalThis.setInterval = savedInterval; page.restore(); });
   await importPageModule("/profile-page.js");
   await waitFor(() => page.document.documentElement.dataset.shiplogProfile === "ready", "People's first load settled");
-  return { document: page.document, routes: table };
+  return { document: page.document, routes: table, navigations: page.navigations };
 }
 
 test("People announces the wait from the node that was already there, and only that node", async (t) => {
@@ -417,4 +417,88 @@ test("People repeated failure preserves focus, including a reader who leaves ret
   await waitFor(() => retry.getAttribute("aria-disabled") === "false", "third failure settles");
   assert.equal(document.activeElement === paint, true);
   assert.equal(document.querySelector("#profile-paint-route") === paint, true);
+});
+
+// #2906's acceptance table for a failed People feed, in the words the page
+// paints. A rewording of any of them is a decision this table has to be told of.
+const PEOPLE_FAILURE_COPY = {
+  failed: "Image posts could not be loaded.",
+  detail: "The selected display-name filter is unchanged. Retry loading image posts.",
+  retry: "Retry loading image posts",
+  loading: "Image posts are loading.",
+  filterHint: "This filter becomes available once the image posts finish loading.",
+};
+
+// Pre-order position, the order a browser reads the page in.
+function readingIndex(document, node) {
+  const order = [];
+  const visit = (parent) => {
+    for (const child of parent.children) {
+      if (child.nodeType !== 1) continue;
+      order.push(child);
+      visit(child);
+    }
+  };
+  visit(document);
+  return order.indexOf(node);
+}
+
+test("People's Retry is a real button after the selected name, and fail, fail, recover happens in place", async (t) => {
+  const { document, navigations } = await bootPeople(t);
+  const status = document.querySelector("#profile-feed-status");
+  const name = document.querySelector("#profile-name");
+  const retry = status.querySelector(".profile-retry");
+  const hint = document.querySelector("#profile-filter-hint");
+  const chipCount = () => document.querySelectorAll(".profile-filter-option").length;
+
+  assert.equal(PEOPLE_FAILURE_COPY.retry, PROFILE_RETRY_LABEL);
+  assert.ok(textOf(status).includes(PEOPLE_FAILURE_COPY.failed), "the failure is not named in plain text");
+  assert.ok(textOf(status).includes(PEOPLE_FAILURE_COPY.detail));
+  assert.equal(retry.tagName, "BUTTON");
+  // The property, not the attribute: the harness does not reflect one into the other.
+  assert.equal(retry.type, "button", "Retry would submit a form");
+  assert.equal(textOf(retry), PEOPLE_FAILURE_COPY.retry);
+  // The selected display name stays on screen, and Retry is read after it.
+  assert.equal(name.hasAttribute("hidden"), false, "the failure hid the selected display name");
+  assert.match(textOf(name), /published as \S/, "the failure dropped the selected display name");
+  assert.ok(readingIndex(document, name) < readingIndex(document, retry), "Retry is read before the selected name");
+  const toRetry = tabDistanceTo(document, isRetry(PROFILE_RETRY_LABEL));
+  const toPaint = tabDistanceTo(document, (node) => node.getAttribute?.("id") === "profile-paint-route");
+  assert.ok(toRetry >= 0 && toRetry < toPaint, "Retry is not reached by Tab before the publishing steps");
+  // Nothing to filter in a failed feed, and the page says why rather than
+  // drawing chips that do nothing.
+  assert.equal(chipCount(), 0);
+  assert.equal(textOf(hint), PEOPLE_FAILURE_COPY.filterHint);
+
+  let answer = { ok: false, status: 503 };
+  let requests = 0;
+  globalThis.fetch = async (url) => {
+    assert.equal(url, LIVE_ROUTE, "Retry took a different path from the first load");
+    requests += 1;
+    return answer;
+  };
+
+  // Fail, retry, fail again: back through loading, then the error once more.
+  retry.focus();
+  pressKey(document, "Enter");
+  assert.equal(requests, 1);
+  assert.ok(textOf(status).includes(PEOPLE_FAILURE_COPY.loading), "Retry skipped the loading state");
+  assert.equal(document.querySelector("#profile-grid").getAttribute("aria-busy"), "true");
+  assert.equal(chipCount(), 0, "the loading state offered a filter it cannot apply");
+  assert.equal(textOf(hint), PEOPLE_FAILURE_COPY.filterHint);
+  await waitFor(() => retry.getAttribute("aria-disabled") === "false", "the second failure never settled");
+  assert.ok(textOf(status).includes(PEOPLE_FAILURE_COPY.failed), "a second failure left the page loading");
+  assert.ok(!textOf(status).includes(PEOPLE_FAILURE_COPY.loading));
+  assert.equal(document.activeElement === retry, true);
+
+  // Then a success, drawn in place: no navigation, focus still in the region.
+  answer = { ok: true, json: async () => ({ posts: [apiPost("live-18", "Guest", "18", { withImage: true })] }) };
+  pressKey(document, "Enter");
+  await waitFor(() => drawnTiles(document).length === 1, "the retried request drew no tiles");
+  assert.equal(requests, 2);
+  assert.deepEqual(navigations, [], "Retry navigated instead of fetching in place");
+  assert.ok(!textOf(status).includes(PEOPLE_FAILURE_COPY.failed));
+  assert.equal(document.querySelector("#profile-grid").getAttribute("aria-busy"), "false");
+  assert.equal(focusedText(document), "Reload image posts", "focus left the results region");
+  assert.ok(status.querySelectorAll(".profile-retry").length === 1);
 });

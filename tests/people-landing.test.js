@@ -1238,6 +1238,50 @@ test("a selected name with no image posts offers the picker, and the path is sta
   }
 });
 
+// #2906's acceptance table for an empty display name. The routes to publishing
+// are the steps under the grid, inside the same results region, rather than a
+// second copy in the panel (#2497): what is pinned is that Tab reaches both,
+// after the name, with the selected display name carried into Paint.
+const EMPTY_NAME_STATE = {
+  name: "Nova <b>",
+  title: "The display name “Nova <b>” has no image posts yet.",
+  picker: "Choose another display name",
+  paint: { id: "profile-paint-route", href: "/paint/?from=profile&author=Nova+%3Cb%3E" },
+  social: { id: "profile-publish-route", href: "/social.html#post-form" },
+};
+
+test("an empty display name is named as text, and Tab then reaches Paint and Social's composer", async () => {
+  const page = await people({ search: `?author=${encodeURIComponent(EMPTY_NAME_STATE.name)}` });
+  try {
+    const { document } = page;
+    assert.equal(drawnTiles(document).length, 0);
+    const empty = document.querySelector(".empty-state");
+    assert.equal(textOf(empty.querySelectorAll("h3")[0]), EMPTY_NAME_STATE.title);
+    assert.equal(empty.querySelectorAll("b").length, 0, "the display name was rendered as markup");
+    assert.match(textOf(document.querySelector("#profile-name")), /Nova <b>/, "the selected name left the screen");
+
+    const inRegion = (node) => {
+      for (let at = node; at; at = at.parentNode) if (at.getAttribute?.("aria-labelledby") === "grid-title") return true;
+      return false;
+    };
+    empty.querySelectorAll("a")[0].focus();
+    assert.equal(textOf(document.activeElement), EMPTY_NAME_STATE.picker);
+    const walked = [];
+    for (let step = 0; step < 6; step += 1) walked.push(pressTab(document));
+    const ids = walked.map((node) => node?.getAttribute?.("id"));
+    const toPaint = ids.indexOf(EMPTY_NAME_STATE.paint.id);
+    const toSocial = ids.indexOf(EMPTY_NAME_STATE.social.id);
+    assert.ok(toPaint >= 0 && toPaint < toSocial, `Tab after the empty state reached ${ids.join(", ")}`);
+    assert.equal(walked[toPaint].getAttribute("href"), EMPTY_NAME_STATE.paint.href);
+    assert.equal(walked[toSocial].getAttribute("href"), EMPTY_NAME_STATE.social.href);
+    assert.ok(inRegion(walked[toPaint]) && inRegion(walked[toSocial]), "a publishing route left the results region");
+    const order = documentOrder(document);
+    assert.ok(order.indexOf(document.querySelector("#profile-name")) < order.indexOf(empty));
+  } finally {
+    page.restore();
+  }
+});
+
 /* ------------------ the pictures before the provenance (#1789) ----------------- */
 
 // Tiles the grid actually drew. The loading skeleton carries .profile-tile too,
