@@ -122,7 +122,7 @@ test("the first focusable in the log precedes the first focusable in AI FinOps",
     `the log's first tab stop is number ${log} and AI FinOps' is ${finops}: reading order and tab order disagree`);
 
   // Keep the proof’s full-record link in the expected keyboard order.
-  // The eleven are the repository evidence block's two links — the cited pull
+  // The twelve include the historical build source and the repository block's two links — the cited pull
   // request and the route to every repository-backed decision (#2742) — the
   // route to the evaluation brief and blank pilot scorecard inside the offer
   // paragraph (#2540), the full decision record, the follow-up routes, the two
@@ -133,12 +133,12 @@ test("the first focusable in the log precedes the first focusable in AI FinOps",
   // counting here rather than in the markup: this page is booted without a
   // health reading, so the check cannot answer, and a control that would copy
   // a verdict nobody has is withdrawn rather than offered. It becomes the
-  // twelfth stop only once the comparison comes out one way or the other, which
+  // thirteenth stop only once the comparison comes out one way or the other, which
   // tests/homepage-deployment-copy.test.js drives directly.
   assert.equal(
     sequence.filter((element) => ancestorIds(element).includes("shiplog-entry")).length,
-    11,
-    "the log entry section must still offer its eleven tab stops, including both repository evidence links",
+    12,
+    "the log entry section offers twelve tab stops, including the last-verified public source",
   );
 });
 
