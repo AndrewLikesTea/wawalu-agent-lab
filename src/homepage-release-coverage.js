@@ -34,10 +34,12 @@
 //     and unreachable. This block says which of the two happened and defers to
 //     the recovery the page already owns, the history's own Retry.
 //
-// NO CONTROL, BY CONSTRAINT AND ON PURPOSE. The figures are static text: this
-// section's eight tab stops are pinned by homepage-log-leads.test.js, and the
-// sentence is already copyable from the evaluation summary below, which carries
-// it with its own scope attached. Every class here already ships, so the block
+// ONE NEXT STEP PER STATE, BESIDE THE RESULT (#2907). A count with uncovered
+// releases offers a link that opens Releases with its uncovered list already
+// revealed; a complete count says so in a status chip whose text carries the
+// number; a refused read offers a retry that re-reads the log; the wait offers
+// nothing. Each control exists only in its own state, so the section's pinned
+// tab stops move by at most one. Every class here already ships, so the block
 // costs nothing in styles.css, which is at its measured size budget.
 
 import { HISTORY_UNREAD_ANNOUNCEMENT } from "./app.js";
@@ -69,7 +71,26 @@ export const RELEASE_COVERAGE_IDS = Object.freeze({
   provenance: "reasoning-kept-provenance",
   rule: "reasoning-kept-rule",
   scope: "reasoning-kept-scope",
+  next: "reasoning-kept-next",
+  review: "reasoning-kept-review",
+  complete: "reasoning-kept-complete",
+  retry: "reasoning-kept-retry",
 });
+
+/** The Releases address that lands with the uncovered list revealed. */
+export const RELEASE_COVERAGE_REVIEW_HREF = "/releases.html#coverage-gap-worklist";
+
+const releasesNoun = (count) => (count === 1 ? "release" : "releases");
+
+/** "Review the 3 uncovered releases on Releases": the problem, the count, the destination. */
+export function releaseCoverageReviewLabel(uncovered) {
+  return `Review the ${uncovered} uncovered ${releasesNoun(uncovered)} on Releases`;
+}
+
+/** The complete state, with the number it is complete over. */
+export function releaseCoverageCompleteLabel(total) {
+  return total === 1 ? "The 1 release is covered" : `All ${total} releases covered`;
+}
 
 /** The same name the block carries on Releases, one heading level down. */
 export const RELEASE_COVERAGE_HEADING = REASONING_PROOF_HEADING;
@@ -131,7 +152,8 @@ export function releaseCoverageUnread() {
 }
 
 /**
- * The two lines this block paints: `{ claim, provenance }`.
+ * The lines this block paints, `{ claim, provenance }`, and the two counts its
+ * next step is chosen from, `{ total, uncovered }` — both null when unread.
  *
  * Pure, and the whole deliverable — no DOM, no clock, no storage. `unread` is
  * checked before anything is counted, because the composed log under a refused
@@ -141,9 +163,14 @@ export function releaseCoverageUnread() {
 export function releaseCoverageLines({
   releases = [], decisions = [], exampleIds = new Set(), unread = false,
 } = {}) {
-  if (unread) return { claim: releaseCoverageUnread(), provenance: "" };
+  if (unread) return { claim: releaseCoverageUnread(), provenance: "", total: null, uncovered: null };
   const counts = countReasoningKept(releases, decisions, exampleIds);
-  return { claim: reasoningKeptSentence(counts), provenance: reasoningProvenanceNote(counts) };
+  return {
+    claim: reasoningKeptSentence(counts),
+    provenance: reasoningProvenanceNote(counts),
+    total: counts.total,
+    uncovered: counts.total - counts.preserved,
+  };
 }
 
 /**
@@ -164,5 +191,34 @@ export function renderReleaseCoverage(root, state) {
   if (provenance && provenance.textContent !== lines.provenance) {
     provenance.textContent = lines.provenance;
   }
+  renderReleaseCoverageNext(root, lines);
   return lines;
+}
+
+/**
+ * Show the one next step the counted state offers, and strip the others.
+ *
+ * An empty log has nothing to be covered or short of, so it offers nothing.
+ * Labels are emptied rather than merely hidden, so a page holding no gap does
+ * not hold "Review the 0 uncovered releases" in its tree either.
+ */
+export function renderReleaseCoverageNext(root, { total = null, uncovered = null } = {}) {
+  const byId = (key) => root.querySelector(`#${RELEASE_COVERAGE_IDS[key]}`);
+  const failed = total === null;
+  const short = !failed && uncovered > 0;
+  const covered = !failed && total > 0 && uncovered === 0;
+  const review = byId("review");
+  if (review) {
+    review.hidden = !short;
+    review.textContent = short ? releaseCoverageReviewLabel(uncovered) : "";
+  }
+  const complete = byId("complete");
+  if (complete) {
+    complete.hidden = !covered;
+    complete.textContent = covered ? releaseCoverageCompleteLabel(total) : "";
+  }
+  const retry = byId("retry");
+  if (retry) retry.hidden = !failed;
+  const next = byId("next");
+  if (next) next.hidden = !(short || covered || failed);
 }

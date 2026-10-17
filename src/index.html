@@ -251,10 +251,12 @@
              region from the first paint rather than one filled on arrival,
              because a region that appears with its contents is announced by
              nothing, and recording a release moves these numbers.
-             NO CONTROL AND NO NEW TAB STOP. This section is held to eight tab
-             stops by tests/homepage-log-leads.test.js, and the same sentence is
-             already copyable from the evaluation summary further down, which
-             carries its own scope with it. The example records state that they
+             ONE CONTROL, ONLY IN THE STATE THAT NEEDS IT (#2907). The line
+             after the figure is hidden while counting. With uncovered releases
+             it is a link that opens Releases with that list revealed; a complete
+             count is a status chip that states the number; a refused read is a
+             retry. tests/homepage-log-leads.test.js counts the stop the booted
+             example log adds. The example records state that they
              are invented once in this section, in the panel above; this block
              says only which records it counted, so the caveat is not restated
              in a second set of words.
@@ -268,7 +270,8 @@
         <section class="hero-proof" id="reasoning-kept" aria-labelledby="reasoning-kept-title">
           <h3 id="reasoning-kept-title">Releases on this page that link a decision</h3>
           <p class="release-followup-lead" id="reasoning-kept-lead">Two numbers, counted from the releases loaded in this browser: how many of them link at least one decision the decision log holds, out of how many were loaded.</p>
-          <p class="release-followup-lead" id="reasoning-kept-claim" role="status" aria-live="polite" aria-atomic="true">Still counting the releases loaded in this browser…</p>
+          <p class="release-followup-lead" id="reasoning-kept-claim" role="status" aria-live="polite" aria-atomic="true" tabindex="-1">Still counting the releases loaded in this browser…</p>
+          <p class="release-followup-lead" id="reasoning-kept-next" hidden><a class="text-link" id="reasoning-kept-review" href="/releases.html#coverage-gap-worklist" hidden></a><span class="badge badge-accepted" id="reasoning-kept-complete" hidden></span><button class="secondary-button" id="reasoning-kept-retry" type="button" hidden>Count the releases again</button></p>
           <p class="detail-summary" id="reasoning-kept-provenance"></p>
           <p class="hint" id="reasoning-kept-rule">A release is covered when it links at least one decision the decision log holds; every other release is uncovered.</p>
           <p class="hint" id="reasoning-kept-scope">Both numbers are over every release loaded on this page, not the filtered view: the search and the filters below do not change them.</p>
