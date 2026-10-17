@@ -30,7 +30,7 @@ const visibleNavStops = (document) => tabSequence(document).filter((node) => {
 // own — so the header and the footer answered "is this page part of Shiplog?"
 // two different ways. The set, its order and its membership are unchanged.
 test("Shiplog leads and the secondary label only says there are more destinations", () => {
-  assert.deepEqual(NAV_SETS.map((set) => set.label), ["Shiplog", "More destinations"]);
+  assert.deepEqual(NAV_SETS.map((set) => set.label), ["Primary", "More destinations"]);
   const [, group] = NAV_SETS;
   assert.doesNotMatch(group.label, /Shiplog|lab|tool|demo|other|separate/i,
     "the group name must not classify the destinations inside it");
@@ -47,7 +47,8 @@ test("every global navigation exposes named lists and a native, keyboard-operabl
     assert.deepEqual(lists.map((list) => list.querySelectorAll("a").map(textOf)), [primary, secondary], file);
     for (const list of lists) {
       assert.equal(list.getAttribute("role"), "list");
-      assert.ok(document.getElementById(list.getAttribute("aria-labelledby")), file);
+      if (list === lists[0]) assert.equal(list.getAttribute("aria-label"), "Primary", file);
+      else assert.ok(document.getElementById(list.getAttribute("aria-labelledby")), file);
     }
     const details = nav.querySelector("details");
     const summary = details.querySelector("summary");
