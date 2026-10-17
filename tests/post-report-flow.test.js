@@ -169,6 +169,8 @@ test("Social: no reason is refused in page code, and a failed send keeps every e
 test("Social: the reporting route sits outside the composer and points at the explanation", async (t) => {
   const { document, id } = await bootSocial(t);
   const route = id("post-report-route");
+  assert.equal(textOf(route),
+    "Select Report post to ask the Wawalu team to review that post. How reporting works");
   const links = route.querySelectorAll("a");
   assert.equal(links.length, 1);
   assert.equal(links[0].getAttribute("href"), "#post-report-about");

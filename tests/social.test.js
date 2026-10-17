@@ -662,12 +662,11 @@ test("the feed says who wrote the posts, where the posts are", async (t) => {
   // warning four screens from the act, which is a warning a reader skims.
   assert.doesNotMatch(intro, /anyone can read a post you publish/,
     "the intro warns about publishing again, away from the control that publishes");
-  // One sentence, word for word People's, naming the control both feeds print
-  // on every card. Social had no such control and said nothing about opening a
-  // post; People told a reader to "select a post" and named nothing.
+  // Name the opening and sharing controls in separate steps.
+  // Social previously said nothing about opening a post.
   // Not "in full": a Social card is never shortened, so the post page adds its
   // own page and a link to share, not more of the text.
-  assert.match(intro, /Select Open post to see a post on its own page, with a link you can share\./,
+  assert.match(intro, /Select Open post to see a post on its own page\. Then select Copy link to this post to share its link\./,
     "the intro never says what Open post leads to");
 
   // The eyebrow describes public posts; the provenance sentence distinguishes

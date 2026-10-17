@@ -401,8 +401,8 @@ test("the permalink's reporting explanation is Social's, and none of it ships in
   // Social keeps the route that belongs to a page with the button on it. This
   // page must not ship it: it names a control that is not here, about "a post"
   // rather than the one being read.
-  const socialRoute = html.match(/To ask the Wawalu team[^<]*/)?.[0]?.trim();
-  assert.equal(socialRoute, "To ask the Wawalu team to review a post, select Report post on it.",
+  const socialRoute = html.match(/Select Report post to ask the Wawalu team[^<]*/)?.[0]?.trim();
+  assert.equal(socialRoute, "Select Report post to ask the Wawalu team to review that post.",
     `Social's own route to its button changed: ${socialRoute}`);
 
   // And not one of those sentences is in the permalink's shipped markup, which
