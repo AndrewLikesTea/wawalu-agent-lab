@@ -2263,21 +2263,29 @@ export async function initDecisionLog(root = document, storage = localStorage, o
   // redraws the failure and puts focus back on the freshly drawn Retry, so the
   // keyboard is not dropped to the top of the document by a button that a
   // re-render removed from under it.
-  const retryHistory = () => {
+  //
+  // The coverage figure's retry (#2907) is the same read, pressed from the top
+  // of the page: it keeps focus on itself if the read fails again, and on
+  // success lands on the figure's next step, or the figure when there is none.
+  const retryHistory = (fromCoverage = false) => {
     renderDecisionState(list, "loading");
     const next = readLog();
     if (!next) {
       renderDecisionState(list, "error");
       announce(HISTORY_UNREAD_ANNOUNCEMENT);
-      list.querySelector(".history-retry-action")?.focus?.({ preventScroll: true });
+      if (!fromCoverage) list.querySelector(".history-retry-action")?.focus?.({ preventScroll: true });
       return;
     }
     unread = false;
     recordedDecisions = next.decisions;
     recordedReleases = next.releases;
     refresh();
-    root.querySelector("#decisions-title")?.focus?.({ preventScroll: true });
+    const review = root.querySelector("#reasoning-kept-review");
+    const landing = !fromCoverage ? "#decisions-title"
+      : review && !review.hidden ? "#reasoning-kept-review" : "#reasoning-kept-claim";
+    root.querySelector(landing)?.focus?.({ preventScroll: true });
   };
+  root.querySelector("#reasoning-kept-retry")?.addEventListener("click", () => retryHistory(true));
 
   list.addEventListener("click", (event) => {
     const trigger = event.target.closest?.("[data-action]");

@@ -625,6 +625,9 @@ export function initReleasesPage(root = document, storage = localStorage, option
   checkDeployment();
 
   update();
+  // The home page's coverage link (#2907) lands here with the uncovered list
+  // revealed: the reveal's own press, so focus and the narrowed log follow it.
+  if (locationRef?.hash === "#coverage-gap-worklist") root.querySelector("#coverage-gap-toggle")?.click?.();
   const focusId = new URLSearchParams(locationRef?.search ?? "").get("focus");
   if (focusId) focusRelease(container, focusId, { expand: true });
   const documentElement = root.documentElement ?? globalThis.document?.documentElement;

@@ -29,6 +29,7 @@ import {
   RELEASE_COVERAGE_HEADING,
   RELEASE_COVERAGE_IDS,
   RELEASE_COVERAGE_LEAD,
+  RELEASE_COVERAGE_REVIEW_HREF,
   RELEASE_COVERAGE_RULE,
   RELEASE_COVERAGE_SCOPE,
   releaseCoverageLines,
@@ -40,7 +41,7 @@ import {
   REASONING_PROOF_SCOPE,
   reasoningKeptSentence,
 } from "../src/release-reasoning-proof.js";
-import { loadPage, parseHtml, tabSequence, textOf, typeText } from "./support/browser.js";
+import { loadPage, parseHtml, pressTab, tabSequence, textOf, typeText } from "./support/browser.js";
 
 const HOME_PAGE = new URL("../src/index.html", import.meta.url);
 const RELEASES_PAGE = new URL("../src/releases.html", import.meta.url);
@@ -214,15 +215,20 @@ test("the figures sit with the section's evidence and above the record and searc
     "the filtered coverage line must stay with the list it describes");
 });
 
-test("the block adds no focusable to a section held to its tab stops", async (t) => {
+test("while counting, the block offers no tab stop and ships no next-step label", async (t) => {
   const page = await loadPage(HOME_PAGE);
   t.after(() => page.restore());
-  const region = page.document.getElementById(RELEASE_COVERAGE_IDS.region);
+  const byId = (key) => page.document.getElementById(RELEASE_COVERAGE_IDS[key]);
 
-  // Counted, never compared against a node: an equal() on a parsed element
-  // stringifies the whole page and the run hangs instead of failing.
-  assert.equal(region.querySelectorAll("a,button,input,textarea,select,[tabindex]").length, 0,
-    "the figures are static text and may offer no control");
+  // Each control ships hidden, and the two whose words depend on a count ship
+  // with none: the wait is not a state with a next step.
+  for (const key of ["next", "review", "complete", "retry"]) {
+    assert.equal(byId(key).hasAttribute("hidden"), true, `#${RELEASE_COVERAGE_IDS[key]} ships visible`);
+  }
+  assert.equal(textOf(byId("review")), "");
+  assert.equal(textOf(byId("complete")), "");
+  assert.equal(byId("review").getAttribute("href"), RELEASE_COVERAGE_REVIEW_HREF);
+  assert.equal(byId("retry").getAttribute("type"), "button");
 
   const sequence = tabSequence(page.document);
   const inside = (node) => {
@@ -251,6 +257,7 @@ async function openHome(t, { decisions = [QUEUE, CACHE], releases = [KEPT, DANGL
     if (refuse && key === STORAGE_KEY) throw new Error("storage refused the read");
     return getItem(key);
   };
+  page.setRefusing = (value) => { refuse = value; };
   await initDecisionLog(page.document, page.storage, {
     seed,
     location: { pathname: "/", search: "", hash: "" },
@@ -440,4 +447,145 @@ test("the home page and the releases page count one browser's log identically", 
     textOf(home.document.getElementById(RELEASE_COVERAGE_IDS.rule)),
     textOf(releasesPage.document.getElementById("coverage-gap-definition")),
   );
+});
+
+/* ----------------------- the next step beside it (#2907) ----------------------- */
+
+const nodeOf = (page, key) => page.document.getElementById(RELEASE_COVERAGE_IDS[key]);
+const insideBlock = (node) => {
+  for (let walk = node; walk; walk = walk.parentNode) {
+    if (walk.getAttribute?.("id") === RELEASE_COVERAGE_IDS.region) return true;
+  }
+  return false;
+};
+
+test("uncovered releases get a link naming the count and Releases, singular and plural", async (t) => {
+  for (const [releases, label] of [
+    [[KEPT, DANGLING, BARE], "Review the 2 uncovered releases on Releases"],
+    [[KEPT, BARE], "Review the 1 uncovered release on Releases"],
+  ]) {
+    const page = await openHome(t, { releases });
+    const review = nodeOf(page, "review");
+    assert.equal(review.tagName, "A", "the next step is a link to a place, not a button");
+    assert.equal(review.hidden, false);
+    assert.equal(nodeOf(page, "next").hidden, false);
+    assert.equal(textOf(review), label);
+    assert.equal(review.getAttribute("href"), "/releases.html#coverage-gap-worklist");
+    assert.equal(nodeOf(page, "complete").hidden, true);
+    assert.equal(nodeOf(page, "retry").hidden, true);
+    // The link follows the result directly: nothing sits between them.
+    const siblings = nodeOf(page, "claim").parentNode.childElements;
+    assert.equal(siblings[siblings.indexOf(nodeOf(page, "claim")) + 1]?.getAttribute("id"),
+      RELEASE_COVERAGE_IDS.next);
+  }
+});
+
+test("a fully covered log states it is complete and offers no corrective link", async (t) => {
+  const page = await openHome(t, { releases: [KEPT, release("r-cache", "v2.0.0", ["d-cache"], "04")] });
+  assert.equal(textOf(nodeOf(page, "complete")), "All 2 releases covered");
+  assert.equal(nodeOf(page, "complete").hidden, false);
+  assert.equal(nodeOf(page, "review").hidden, true);
+  assert.equal(textOf(nodeOf(page, "review")), "", "a complete log still holds a corrective label");
+  assert.equal(nodeOf(page, "retry").hidden, true);
+  assert.equal(tabSequence(page.document).filter(insideBlock).length, 0, "a complete count offered a control");
+});
+
+test("an empty log offers no next step at all", async (t) => {
+  const page = await openHome(t, { releases: [] });
+  assert.equal(nodeOf(page, "next").hidden, true);
+  assert.equal(tabSequence(page.document).filter(insideBlock).length, 0);
+});
+
+test("a refused read keeps its explanation, offers a retry, and a successful retry recounts", async (t) => {
+  const page = await openHome(t, { refuse: true });
+  const retry = nodeOf(page, "retry");
+  assert.equal(claimOf(page), releaseCoverageUnread(), "the failure explanation changed");
+  assert.equal(retry.hidden, false);
+  assert.equal(retry.tagName, "BUTTON");
+  // A property, not the attribute: the harness reflects neither direction.
+  assert.equal(retry.type, "button");
+  assert.equal(textOf(retry), "Count the releases again");
+  assert.equal(nodeOf(page, "review").hidden, true);
+
+  // Still refused: the failure stays, and so does the keyboard.
+  retry.focus();
+  retry.click();
+  assert.equal(claimOf(page), releaseCoverageUnread());
+  assert.equal(retry.hidden, false);
+  assert.equal(page.document.activeElement?.getAttribute("id"), RELEASE_COVERAGE_IDS.retry);
+
+  page.setRefusing(false);
+  retry.click();
+  assert.equal(claimOf(page),
+    "1 of 3 releases in this release log links at least one decision the decision log holds.");
+  assert.equal(retry.hidden, true, "the retry outlived the failure it recovers");
+  assert.equal(textOf(nodeOf(page, "review")), "Review the 2 uncovered releases on Releases");
+  assert.equal(page.document.activeElement?.getAttribute("id"), RELEASE_COVERAGE_IDS.review,
+    "a recovered count must land focus on its next step");
+});
+
+test("the link and the retry are each the one tab stop after the result", async (t) => {
+  for (const [options, key] of [[{}, "review"], [{ refuse: true }, "retry"]]) {
+    const page = await openHome(t, options);
+    const sequence = tabSequence(page.document);
+    const stops = sequence.filter(insideBlock);
+    assert.equal(stops.length, 1, `the ${key} state offers ${stops.length} stops in the block`);
+    assert.equal(stops[0].getAttribute("id"), RELEASE_COVERAGE_IDS[key]);
+    // From the stop before the block, one press reaches it, and the next leaves.
+    const at = sequence.indexOf(stops[0]);
+    assert.ok(at > 0);
+    sequence[at - 1].focus();
+    assert.equal(pressTab(page.document)?.getAttribute("id"), RELEASE_COVERAGE_IDS[key]);
+    assert.equal(insideBlock(pressTab(page.document)), false);
+  }
+});
+
+test("following the link opens Releases with the uncovered list active", async (t) => {
+  const storage = {
+    [STORAGE_KEY]: JSON.stringify([QUEUE, CACHE]),
+    [RELEASE_STORAGE_KEY]: JSON.stringify([KEPT, DANGLING, BARE]),
+  };
+  const opened = [];
+  // Restored newest first: each page's restore puts back the globals it found.
+  t.after(() => { for (const page of opened.reverse()) page.restore(); });
+  const home = await loadPage(HOME_PAGE, { storage, location: { pathname: "/", search: "", hash: "" } });
+  opened.push(home);
+  await initDecisionLog(home.document, home.storage, {
+    seed: NO_SEED,
+    location: { pathname: "/", search: "", hash: "" },
+    history: { replaceState() {} },
+    clipboard: { writeText: async () => {} },
+  });
+  const target = new URL(nodeOf(home, "review").getAttribute("href"), "https://labs.wawalu.org");
+
+  const releasesPage = await loadPage(RELEASES_PAGE, { storage });
+  opened.push(releasesPage);
+  initReleasesPage(releasesPage.document, releasesPage.storage, {
+    seed: NO_SEED,
+    location: { pathname: target.pathname, origin: target.origin, search: target.search, hash: target.hash },
+    history: { replaceState() {} },
+    readHealth: async () => { throw new Error("no network in tests"); },
+  });
+  const byId = (id) => releasesPage.document.getElementById(id);
+  assert.equal(target.pathname, "/releases.html");
+  assert.equal(byId("coverage-gap-toggle").getAttribute("aria-expanded"), "true");
+  assert.equal(byId("coverage-gap-worklist").hidden, false);
+  assert.equal(byId("coverage-gap-list").querySelectorAll("li").length, 2,
+    "the home page's count and the list it opens disagree");
+  assert.equal(releasesPage.document.activeElement?.getAttribute("id"), "coverage-gap-worklist");
+});
+
+test("Releases opened without the address keeps the whole log", async (t) => {
+  const page = await loadPage(RELEASES_PAGE, {
+    storage: { [STORAGE_KEY]: JSON.stringify([QUEUE, CACHE]), [RELEASE_STORAGE_KEY]: JSON.stringify([KEPT, DANGLING, BARE]) },
+  });
+  t.after(() => page.restore());
+  initReleasesPage(page.document, page.storage, {
+    seed: NO_SEED,
+    location: { pathname: "/releases.html", origin: "https://labs.wawalu.org", search: "", hash: "" },
+    history: { replaceState() {} },
+    readHealth: async () => { throw new Error("no network in tests"); },
+  });
+  assert.equal(page.document.getElementById("coverage-gap-toggle").getAttribute("aria-expanded"), "false");
+  assert.equal(page.document.getElementById("coverage-gap-worklist").hidden, true);
 });

@@ -135,11 +135,18 @@ test("the first focusable in the log precedes the first focusable in AI FinOps",
   // a verdict nobody has is withdrawn rather than offered. It becomes the
   // thirteenth stop only once the comparison comes out one way or the other, which
   // tests/homepage-deployment-copy.test.js drives directly.
+  //
+  // The thirteenth is the coverage figure's corrective link (#2907): the example
+  // log this page boots with has one uncovered release, so the figure offers
+  // "Review the 1 uncovered release on Releases" directly after its result. It
+  // exists only while a release is uncovered; a covered or still-counting log
+  // offers twelve.
   assert.equal(
     sequence.filter((element) => ancestorIds(element).includes("shiplog-entry")).length,
-    12,
-    "the log entry section offers twelve tab stops, including the last-verified public source",
+    13,
+    "the log entry section offers thirteen tab stops, including the coverage figure's corrective link",
   );
+  assert.equal(sequence.filter((element) => element.getAttribute?.("id") === "reasoning-kept-review").length, 1);
 });
 
 // One assertion per block, so a regression names the block it dropped rather
