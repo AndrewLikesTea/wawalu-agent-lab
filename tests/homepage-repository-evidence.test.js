@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import {
-  RELEASE_PAIR_LOADED, RELEASE_PAIR_UNAVAILABLE, initDecisionLog, renderRepositoryEvidence,
+  verifyRepositoryReleasePair, RELEASE_PAIR_LOADED, RELEASE_PAIR_UNAVAILABLE, initDecisionLog, renderRepositoryEvidence,
   renderRepositoryReleasePair, repositoryReleasePair, STORAGE_KEY,
 } from "../src/app.js";
 import { bootHomepage } from "../src/homepage-bootstrap.js";
@@ -151,6 +151,7 @@ test("a build whose commit merged a repository decision's pull request renders t
   t.after(() => page.restore());
   const subject = "Agent: Mina — Mark every record row with whose record it is (#2547)";
   await initDecisionLog(page.document, page.storage, { buildStamp: stampFor(subject) });
+  await verifyRepositoryReleasePair(page.document, { buildStamp: stampFor(subject), readHealth: async () => ({ status: "healthy", version: SHA }) });
   const status = page.document.getElementById("repository-release-pair-status");
   const target = page.document.getElementById("repository-release-pair");
   assert.equal(status.getAttribute("role"), "status");
@@ -187,8 +188,8 @@ test("the pair is labelled as a real repository record, apart from the invented 
   const heading = page.document.getElementById("repository-release-pair-title");
   assert.equal(heading.tagName, "H4");
   assert.equal(page.document.getElementById("repository-release-pair").getAttribute("aria-labelledby"), heading.id);
-  assert.match(textOf(block), /Real repository record\. Read from this repository and the build this page came from, unlike the invented example below\./);
-  // Before the script runs the region claims nothing.
+  assert.match(textOf(block), /Real repository record\. Read from this repository’s recorded builds, unlike the invented example below\./);
+  // Before the script runs there is no current result; historical proof is separate.
   assert.equal(textOf(page.document.getElementById("repository-release-pair")), "");
   assert.doesNotMatch(textOf(page.document.getElementById("repository-release-pair-status")), /shipped in|accepted|#\d/i);
   // The invented example keeps its own caveat, word for word.
@@ -205,6 +206,8 @@ test("anything short of a proven link renders the unavailable sentence and no fi
   const cases = [
     ["the committed build", REPOSITORY_DECISIONS, BUILD_STAMP],
     ["no stamp", REPOSITORY_DECISIONS, null],
+    ["missing date", REPOSITORY_DECISIONS, stampFor(subject, { builtAt: null })],
+    ["invalid schema", REPOSITORY_DECISIONS, stampFor(subject, { schemaVersion: 2 })],
     ["an unstamped build", REPOSITORY_DECISIONS, stampFor(subject, { commitSha: null })],
     ["a subject with no pull request", REPOSITORY_DECISIONS, stampFor("Mark every record row")],
     ["a decision with no linked release", REPOSITORY_DECISIONS, stampFor("Unrelated work (#9999)")],
@@ -244,4 +247,63 @@ test("the pair renderer writes text, never markup, and wraps through shared clas
   assert.match(css, /\.hero-proof-facts \{[^}]*grid-template-columns:repeat\(auto-fit,minmax\(150px,1fr\)\)/);
   assert.match(css, /\.hero-proof-facts dd \{[^}]*overflow-wrap:anywhere/);
   assert.match(css, /\.release-followup-lead \{[^}]*overflow-wrap:anywhere/);
+});
+
+test("historical proof survives pending, current, failed and stale requests", async (t) => {
+  const page = await loadPage(home);
+  t.after(() => page.restore());
+  const fallback = page.document.getElementById("repository-last-verified");
+  assert.match(textOf(fallback), /Last verified/);
+  assert.match(textOf(fallback), /#2547.*28b2398ff49c/);
+  assert.equal(fallback.querySelector("time").getAttribute("datetime"), "2026-09-25T09:08:40.330Z");
+  const link = fallback.querySelector("a");
+  assert.equal(link.getAttribute("href"), "https://github.com/AndrewLikesTea/wawalu-agent-lab/blob/a1dc0a2dd45b24f8c114dfabed2a31f095f75557/src/build-stamp.js");
+  assert.ok(tabSequence(page.document).includes(link));
+  assert.equal(fallback.getAttribute("role"), "group");
+  const original = textOf(fallback);
+  const buildStamp = stampFor("Mark every record row (#2547)");
+  let finish;
+  const request = verifyRepositoryReleasePair(page.document, {
+    buildStamp, readHealth: () => new Promise(resolve => { finish = resolve; }),
+  });
+  await Promise.resolve();
+  assert.equal(page.document.getElementById("repository-release-pair").dataset.state, "pending");
+  assert.equal(textOf(fallback), original);
+  finish({ status: "healthy", version: SHA });
+  await request;
+  assert.match(textOf(page.document.getElementById("repository-release-pair")), /Current — confirmed by the live site/);
+  assert.equal(textOf(fallback), original);
+  for (const readHealth of [
+    async () => { throw new Error("offline"); },
+    ...[null, [], {}, { status: "healthy" }, { version: SHA },
+      { status: "unhealthy", version: SHA }, { status: "healthy", version: "different" }]
+      .map(value => async () => value),
+    () => new Promise(() => {}),
+  ]) {
+    await verifyRepositoryReleasePair(page.document, { buildStamp, readHealth, timeoutMs: 10 });
+    assert.equal(textOf(page.document.getElementById("repository-release-pair-status")), RELEASE_PAIR_UNAVAILABLE);
+    assert.equal(page.document.getElementById("repository-release-pair").dataset.state, "failed");
+    assert.equal(textOf(fallback), original);
+    assert.ok(tabSequence(page.document).includes(link));
+  }
+  const old = verifyRepositoryReleasePair(page.document, {
+    buildStamp, readHealth: () => new Promise(resolve => { finish = resolve; }),
+  });
+  await Promise.resolve();
+  await verifyRepositoryReleasePair(page.document, { readHealth: async () => null });
+  finish({ status: "healthy", version: SHA });
+  await old;
+  assert.equal(textOf(page.document.getElementById("repository-release-pair-status")), RELEASE_PAIR_UNAVAILABLE);
+  let rejectOld;
+  const staleFailure = verifyRepositoryReleasePair(page.document, {
+    buildStamp, readHealth: () => new Promise((_, reject) => { rejectOld = reject; }),
+  });
+  await Promise.resolve();
+  await verifyRepositoryReleasePair(page.document, {
+    buildStamp, readHealth: async () => ({ status: "healthy", version: SHA }),
+  });
+  rejectOld(new Error("late network error"));
+  await staleFailure;
+  assert.equal(textOf(page.document.getElementById("repository-release-pair-status")), RELEASE_PAIR_LOADED);
+  assert.equal(textOf(fallback), original);
 });

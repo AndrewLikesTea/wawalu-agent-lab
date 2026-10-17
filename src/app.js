@@ -33,7 +33,7 @@ import { copyHistoryLink, renderHistoryFilterChips, renderHistorySummary } from 
 import { renderHistoryTrend } from "./history-trend-view.js";
 import { renderDecisionTimelines } from "./decision-timeline-view.js";
 import { publishHistoryScope } from "./history-scope.js";
-import { initDeploymentStatus } from "./deployment-status-view.js";
+import { healthEndpointReader, initDeploymentStatus } from "./deployment-status-view.js";
 import { initLeadCapture } from "./lead-capture.js";
 import { initAskAboutShiplog } from "./ask-about-shiplog.js";
 import { retentionDeclined, retentionRefusal } from "./local-retention.js";
@@ -1432,8 +1432,8 @@ export function renderRepositoryEvidence(root, decisions = SEED_DECISIONS) {
   target.append(paragraph);
 }
 
-export const RELEASE_PAIR_LOADED = "Loaded: one repository decision and the release that shipped it.";
-export const RELEASE_PAIR_UNAVAILABLE = "No verifiable linked decision and release could be loaded. The build this page came from does not name a pull request that one of this repository’s decisions cites.";
+export const RELEASE_PAIR_LOADED = "Current result, confirmed by the live site: one repository decision and the running build that shipped it.";
+export const RELEASE_PAIR_UNAVAILABLE = "Current verification did not complete: the live site did not confirm a running build that ships one of this repository’s decisions. The last-verified example above is a recorded build, not a live result.";
 
 // THE ONE LINK THE DATA PROVES (#2805). No record in this repository stores a
 // decision-to-release link: every repository decision sets releaseInLog false,
@@ -1444,6 +1444,7 @@ export const RELEASE_PAIR_UNAVAILABLE = "No verifiable linked decision and relea
 // rather than one this page asserts. Any other build, any missing field, or two
 // decisions citing one number gives null, and null renders no field at all.
 export function repositoryReleasePair(decisions = REPOSITORY_DECISIONS, stamp = BUILD_STAMP) {
+  if (stamp?.schemaVersion !== 1 || !Number.isFinite(Date.parse(stamp?.builtAt))) return null;
   const release = deployedReleaseRecord(stamp);
   const pullNumber = parseShipReason(release?.commitSubject)?.pullNumber;
   if (!release || !pullNumber || !commitUrl(release.commitSha)) return null;
@@ -1460,7 +1461,9 @@ export function renderRepositoryReleasePair(root, pair = repositoryReleasePair()
   const status = root.querySelector("#repository-release-pair-status");
   if (!target || !status) return;
   target.replaceChildren();
-  status.textContent = pair ? RELEASE_PAIR_LOADED : RELEASE_PAIR_UNAVAILABLE;
+  const message = pair ? RELEASE_PAIR_LOADED : RELEASE_PAIR_UNAVAILABLE;
+  if (status.textContent !== message) status.textContent = message;
+  target.dataset.state = pair ? "current" : "failed";
   if (!pair) return;
   const { decision, release, pullNumber } = pair;
   const commit = shortCommit(release.commitSha);
@@ -1481,7 +1484,9 @@ export function renderRepositoryReleasePair(root, pair = repositoryReleasePair()
     row.append(dt, dd);
     facts.append(row);
   }
-  target.append(facts);
+  const heading = root.createElement("h5");
+  heading.textContent = "Current — confirmed by the live site";
+  target.append(heading, facts);
   for (const [href, text] of [
     [`/?source=repository#decision-${encodeURIComponent(decision.id)}`, `Read the full decision record: ${decision.title}`],
     [release.detailHref, `Open the deployment record for build ${commit} on the Releases page`],
@@ -1498,9 +1503,47 @@ export function renderRepositoryReleasePair(root, pair = repositoryReleasePair()
   }
 }
 
+// Request identity is per document. A retry invalidates both late success and
+// late failure; the static historical proof is never part of the live region.
+const repositoryVerificationRequests = new WeakMap();
+export async function verifyRepositoryReleasePair(root, {
+  buildStamp = BUILD_STAMP, readHealth = healthEndpointReader(), timeoutMs = 5000,
+} = {}) {
+  const target = root.querySelector("#repository-release-pair");
+  const status = root.querySelector("#repository-release-pair-status");
+  if (!target || !status) return;
+  const request = {};
+  repositoryVerificationRequests.set(root, request);
+  target.replaceChildren();
+  target.dataset.state = "pending";
+  const pending = "Checking the live site for a current result. The last-verified example above is a recorded build, not a live result.";
+  if (status.textContent !== pending) status.textContent = pending;
+  let timer;
+  try {
+    const health = await Promise.race([
+      Promise.resolve().then(readHealth),
+      new Promise((_, reject) => { timer = setTimeout(() => reject(new Error("timeout")), timeoutMs); }),
+    ]);
+    if (repositoryVerificationRequests.get(root) !== request) return;
+    const pair = repositoryReleasePair(REPOSITORY_DECISIONS, buildStamp);
+    const valid = health && !Array.isArray(health) && health.status === "healthy"
+      && typeof health.version === "string" && health.version === pair?.release.commitSha;
+    renderRepositoryReleasePair(root, valid ? pair : null);
+  } catch {
+    if (repositoryVerificationRequests.get(root) === request) renderRepositoryReleasePair(root, null);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function initDecisionLog(root = document, storage = localStorage, options = {}) {
+  // Both homepage proof surfaces verify the same response, including when the
+  // reader is injected. One request avoids competing snapshots of /healthz.
+  const readHealth = options.readHealth ?? healthEndpointReader();
+  let healthReading;
+  const readSharedHealth = () => healthReading ??= Promise.resolve().then(readHealth);
   renderRepositoryEvidence(root);
-  renderRepositoryReleasePair(root, repositoryReleasePair(REPOSITORY_DECISIONS, options.buildStamp ?? BUILD_STAMP));
+  void verifyRepositoryReleasePair(root, { ...options, readHealth: readSharedHealth });
   initLeadCapture(root);
   // The log entry's route to the follow-up form. Guarded inside, so a page that
   // mounts this log without the route or without the band gets nothing.
@@ -2418,7 +2461,7 @@ export async function initDecisionLog(root = document, storage = localStorage, o
   initDeploymentStatus(root, {
     release: options.deployedRelease,
     buildStamp: options.buildStamp,
-    readHealth: options.readHealth,
+    readHealth: readSharedHealth,
     now: options.deploymentNow,
     // Injected for the same reason as the reader and the clock: the block's
     // copy control writes to a clipboard, and a test drives that write rather
