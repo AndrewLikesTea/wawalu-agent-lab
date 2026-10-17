@@ -268,6 +268,25 @@
         </div>
       </section>
 
+      <!-- The real counterpart to the example story above (#2908): one decision
+           from this repository and the recorded build that contains it, filled
+           by releases-repository-proof.js. Only the status line is live. The
+           repository link is the failure state's way on: the module or
+           releases-bootstrap.js gives it its href only when the record cannot
+           load, so main authors no repository link of its own. -->
+      <section class="shiplog-proof shiplog-real" id="repository-proof" aria-labelledby="repository-proof-title" data-state="loading">
+        <div class="shiplog-proof-heading">
+          <div>
+            <h2 id="repository-proof-title">Real record from the Shiplog repository</h2>
+          </div>
+          <span class="badge badge-repository">Real record</span>
+        </div>
+        <p class="shiplog-proof-note">Read from this repository’s own development history: not invented, and not a customer result.</p>
+        <p class="shiplog-proof-note" id="repository-proof-status" role="status" aria-live="polite" aria-atomic="true">Loading the repository record.</p>
+        <div id="repository-proof-record"></div>
+        <a class="shiplog-real-link" id="repository-proof-repo" hidden>Open the public Shiplog repository on GitHub</a>
+      </section>
+
       <!-- THE SAME FOUR-STEP DEMO GUIDE THE HOME PAGE SHIPS (#2578), and the
            same module behind it. src/demo-progress.js owns the four sentences,
            their order, the status words and the derivation; this page passes it

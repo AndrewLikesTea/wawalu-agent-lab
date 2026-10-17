@@ -4,6 +4,14 @@ export async function bootReleases(root, load = () => import("./releases-page.js
   try {
     await load();
   } catch {
+    const proof = root.querySelector("#repository-proof");
+    if (proof?.dataset.state === "loading") {
+      proof.dataset.state = "failed";
+      root.querySelector("#repository-proof-status").textContent = "The repository record could not load, so no decision or build from it is shown here. The public Shiplog repository holds every decision and build.";
+      const repo = root.querySelector("#repository-proof-repo");
+      repo.setAttribute("href", "https://github.com/AndrewLikesTea/wawalu-agent-lab");
+      repo.hidden = false;
+    }
     const panel = root.querySelector("#shipped-build");
     if (!panel || panel.dataset.shippedBuild !== "loading") return;
     panel.dataset.shippedBuild = "failed";

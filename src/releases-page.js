@@ -35,6 +35,7 @@ import { decisionToLink } from "./decision-entry.js";
 import { initReleaseExport } from "./release-export.js";
 import { initReleaseReasoningProof } from "./release-reasoning-proof.js";
 import { initReleaseCoverageGaps } from "./release-coverage-gaps.js";
+import { renderRepositoryProof } from "./releases-repository-proof.js";
 
 const SAVE_FAILED = "This release could not be saved in this browser. Your entries are still here; free some browser storage and try again.";
 export const LOG_UNREAD = "Couldn’t save: the release log didn’t load. Retry loading releases, then record again.";
@@ -623,6 +624,7 @@ export function initReleasesPage(root = document, storage = localStorage, option
     if (!deploymentChecking) checkDeployment();
   });
   checkDeployment();
+  renderRepositoryProof(root, options.repositoryProof);
 
   update();
   // The home page's coverage link (#2907) lands here with the uncovered list
