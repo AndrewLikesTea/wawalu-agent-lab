@@ -43,7 +43,7 @@
 // `separate` in src/site-footer.js is the one place that says which
 // destinations are not Shiplog's, and a group name is not a second place.
 export const NAV_SETS = [
-  { key: "primary", id: "nav-set-own", label: "Shiplog" },
+  { key: "primary", label: "Primary" },
   { key: "secondary", id: "nav-set-demo", label: "More destinations" },
 ];
 
@@ -169,12 +169,12 @@ export function siteNavMarkup(current = null, indent = "        ") {
   const lines = NAV_SETS.flatMap(({ key, id, label }) => {
     const secondary = key === "secondary";
     const container = secondary ? "details" : "div";
-    const name = secondary ? "summary" : "span";
     const expanded = secondary && SITE_NAV.some((link) => link.set === key && link.href === current);
     return [
       `${pad(1)}<${container}${expanded ? " open" : ""} class="nav-set">`,
-      `${pad(2)}<${name} class="nav-set-name" id="${id}">${label}</${name}>`,
-      `${pad(2)}<ul role="list" aria-labelledby="${id}">`,
+      // The home link already names the brand; do not repeat it as a caption.
+      ...(secondary ? [`${pad(2)}<summary class="nav-set-name" id="${id}">${label}</summary>`] : []),
+      `${pad(2)}<ul role="list" ${secondary ? `aria-labelledby="${id}"` : `aria-label="${label}"`}>`,
       ...SITE_NAV.filter((link) => link.set === key && !link.subordinate).flatMap((link) => item(link, 3)),
       `${pad(2)}</ul>`,
       `${pad(1)}</${container}>`,
