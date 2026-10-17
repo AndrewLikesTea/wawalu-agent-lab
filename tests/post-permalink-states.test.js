@@ -1663,12 +1663,9 @@ test("the painted page tells a cold visitor what Social is, once, and no longer 
 
 /* ------------- the link the feeds promise, named on arrival --------------- */
 
-// Issue #2662. Social and People both close with "Select Open post to see a post
-// on its own page, with a link you can share", and the page that promise lands
-// on never mentioned a link at all: a reader who followed it for one was left to
-// work out that the address they arrived by was it. This is the destination
-// keeping the promise, in the feeds' own five words, so the two surfaces
-// describe one thing rather than two.
+// Both feeds explain opening a post and sharing its link. People names
+// "a link you can share"; Social now names the copy control in a separate step.
+// The destination still explains that its address is the post's link.
 //
 // Standing copy — no code in src/post-page.js writes this paragraph — which is
 // how it holds through a fetch that empties #post-detail and repaints the page
@@ -1711,7 +1708,7 @@ function assertAddressNoteStands(document, where) {
     `${where}: the note must read after the post and after the routes out`);
 }
 
-test("the post page names the link the feeds promised, in the feeds' own words", async () => {
+test("the post page explains the link both feeds promise", async () => {
   const html = await readFile(new URL("../src/post.html", import.meta.url), "utf8");
   // Shipped in the markup, so it is on screen at first paint and for a reader
   // whose script never runs.
@@ -1736,12 +1733,13 @@ test("the post page names the link the feeds promised, in the feeds' own words",
   assert.equal(html.match(/<div id="post-detail"[\s\S]*?<\/div>/)[0].includes(ADDRESS_NOTE), false,
     "the note must not sit in #post-detail");
 
-  // The promise this answers, still made, once, on both feeds — and quoted here
-  // only as the phrase, not as the whole sentence: this page is the destination,
-  // not a second telling of the instruction that leads to it.
+  // Both feeds explain opening and sharing once, in their own guidance.
   for (const file of ["social.html", "profile.html"]) {
     const source = await readFile(new URL(`../src/${file}`, import.meta.url), "utf8");
-    assert.equal(times(source, FEED_PROMISE), 1, `src/${file} no longer promises a link you can share exactly once`);
+    const promise = file === "social.html"
+      ? "Select Open post to see a post on its own page. Then select Copy link to this post to share its link."
+      : FEED_PROMISE;
+    assert.equal(times(source, promise), 1, `src/${file} no longer explains opening and sharing exactly once`);
   }
   assert.ok(FEED_PROMISE.includes(SHARED_PHRASE), "the phrase the feeds promise was reworded");
   assert.ok(ADDRESS_NOTE.includes(SHARED_PHRASE), "the note stopped borrowing the feeds' phrase word for word");
