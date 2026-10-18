@@ -311,6 +311,7 @@ export function initReleasesPage(root = document, storage = localStorage, option
   // recorder still work from what did load, and the recorder refuses to save
   // over a log it could not read.
   let unread = data === null;
+  let logState = unread ? "error" : "ready";
   data ??= loadReleaseData(storage, seed);
   let { decisions } = data;
   let releases = data.releases;
@@ -419,12 +420,12 @@ export function initReleasesPage(root = document, storage = localStorage, option
       reported: options.reportedUncovered,
       failed: unread || !decisionsRead,
     });
-    if (unread) {
+    if (unread || logState === "loading") {
       // Nothing is shown, so nothing is counted, exported or followed up.
       shown = [];
       container.replaceChildren();
-      container.setAttribute("aria-busy", "false");
-      announce("error");
+      container.setAttribute("aria-busy", String(logState === "loading"));
+      announce(logState === "loading" ? "loading" : "error");
       if (count) count.textContent = "";
       if (followUpSlot) renderReleaseFollowUp(followUpSlot, null);
       return;
@@ -445,6 +446,7 @@ export function initReleasesPage(root = document, storage = localStorage, option
     const listed = coverageGaps.uncoveredOnly() && gapView.actionable
       ? releases.filter((release) => uncoveredIds.has(release.id))
       : releases;
+    logState = listed.length === 0 ? "empty" : "ready";
     shown = view.render({ releases: listed, decisions, exampleIds: exampleReleaseIds }, filters);
     // One count, from the same computation that rendered the rows, and one
     // follow-up derived from exactly those rows — so the callout can never
@@ -476,11 +478,14 @@ export function initReleasesPage(root = document, storage = localStorage, option
     coverageGaps.setState("loading");
     const next = readLog();
     if (!next) {
-      announce("error");
+      unread = true;
+      logState = "error";
+      update();
       coverageGaps.setState("error");
       return false;
     }
     unread = false;
+    logState = next.releases.length ? "ready" : "empty";
     releases = next.releases;
     decisionsRead = decisionLogReadable();
     decisions = next.decisions;
@@ -507,8 +512,9 @@ export function initReleasesPage(root = document, storage = localStorage, option
   // bound to a button, because the button is relabelled from state to state; and
   // focus is moved off it before the state that offers it goes away. Resetting
   // returns focus to the search it just cleared, recording moves it to the first
-  // field of the form it names, and a retry that loaded lands on the log's
-  // heading. A retry that failed again says so and leaves focus where it is.
+  // field of the form it names. Retry stays under the reader's finger while the
+  // log loads; a load that withdraws it lands on the log's heading, and a retry
+  // that failed again says so and leaves focus where it is.
   //
   // The filters the retry re-reads come from the controls above the list, which
   // no state render can replace — the region below them holds the whole state
@@ -526,8 +532,20 @@ export function initReleasesPage(root = document, storage = localStorage, option
       search?.focus?.();
     } else if (action.dataset.action === "record-release") {
       root.querySelector("#release-version")?.focus?.();
-    } else if (action.dataset.action === "retry" && reload()) {
-      root.querySelector("#releases-title")?.focus?.();
+    } else if (action.dataset.action === "retry") {
+      if (logState === "loading") return;
+      logState = "loading";
+      update();
+      // Yield a rendering opportunity before the synchronous local-storage read.
+      // Keep the control mounted and focusable; aria-disabled blocks repeats.
+      const schedule = options.scheduleLogReload ?? ((read) => {
+        if (globalThis.requestAnimationFrame) {
+          globalThis.requestAnimationFrame(() => setTimeout(read, 0));
+        } else setTimeout(read, 0);
+      });
+      schedule(() => {
+        if (reload() && action.hidden) root.querySelector("#releases-title")?.focus?.();
+      });
     }
   });
 

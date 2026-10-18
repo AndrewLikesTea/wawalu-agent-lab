@@ -7,7 +7,7 @@
 // document, the wait is announced before every read of the log, and a submit
 // made while the log is unread never writes over the releases already stored.
 //
-// Determinism: no network, no timers. Every test seeds its own storage, and the
+// Determinism: no network. Every test seeds its own storage, and the
 // storage double records every setItem by key so "nothing was written" is an
 // observation rather than an inference from the stored bytes.
 
@@ -114,7 +114,7 @@ test("the log's one status region ships the loading text, and boot announces it 
   const markup = await readFile(RELEASES_PAGE, "utf8");
   // As shipped: one visible role="status" for the log, carrying the wait, and
   // the list below it is neither live nor holding a second copy of the state.
-  assert.match(markup, /<div class="list-state list-state-loading" id="release-list-status" role="status" aria-live="polite">/);
+  assert.match(markup, /<div class="list-state list-state-loading" id="release-list-status" role="status" aria-live="polite" aria-atomic="true">/);
   assert.match(markup, /<div id="release-list" aria-busy="true" aria-describedby="release-count"><\/div>/);
   assert.doesNotMatch(markup, /id="release-list"[^>]*aria-live/);
   // The shape this replaced: a hidden announcer beside an aria-hidden panel.
@@ -145,6 +145,7 @@ test("every state is drawn once, in one node, and the list holds nothing but row
 
   control.refuse = false;
   page.document.querySelector(".release-retry-action").click();
+  await new Promise((resolve) => setTimeout(resolve, 10));
   assert.equal(rows(page), 2);
   // Ready hides the region outright rather than leaving a stale sentence in a
   // live node that the next state would announce again on the way back.
@@ -284,6 +285,7 @@ test("a retry states the wait once more, in the same region, and clears it when 
   control.refuse = false;
   const counts = loadingCountsDuringRead(page);
   page.document.querySelector(".release-retry-action").click();
+  await new Promise((resolve) => setTimeout(resolve, 10));
   assert.deepEqual([...new Set(counts)], [1], `the wait was stated ${counts} times during the retry`);
 
   assert.equal(rows(page), 2);
@@ -324,7 +326,7 @@ test("no-match clears the search and every filter, announces the count, and land
 
 // --- acceptance 3: Retry ---------------------------------------------------
 
-test("Retry re-reads the log: a repeated failure keeps focus on Retry, a load lands on the log heading", async (t) => {
+test("Retry announces loading on the same control: a repeated failure keeps focus on Retry, a load lands on the log heading", async (t) => {
   const { page, control } = await openPage(t, { refuse: true });
   const retry = page.document.querySelector(".release-retry-action");
   assert.equal(retry.tagName, "BUTTON");
@@ -333,6 +335,9 @@ test("Retry re-reads the log: a repeated failure keeps focus on Retry, a load la
   retry.focus();
   const heard = listenToReads(page);
   retry.click();
+  assert.equal(regionText(page), LOADING);
+  assert.equal(retry.getAttribute("aria-disabled"), "true");
+  await new Promise((resolve) => setTimeout(resolve, 10));
   assert.equal(heard[0], LOADING, "a retry re-read the log without announcing the wait");
   assert.equal(regionText(page), FAILED);
   assert.ok(page.document.querySelector(".release-retry-action") === retry, "a failed retry re-drew the panel under Retry");
@@ -340,6 +345,9 @@ test("Retry re-reads the log: a repeated failure keeps focus on Retry, a load la
 
   control.refuse = false;
   retry.click();
+  assert.equal(regionText(page), LOADING);
+  assert.equal(retry.getAttribute("aria-disabled"), "true");
+  await new Promise((resolve) => setTimeout(resolve, 10));
   assert.equal(rows(page), 2);
   assert.equal(regionText(page), "");
   assert.equal(textOf(byId(page, "release-count")), "Showing 2 releases, newest first.");
@@ -364,6 +372,7 @@ test("Retry keeps the search and every filter the reader set while the log was u
 
   control.refuse = false;
   page.document.querySelector(".release-retry-action").click();
+  await new Promise((resolve) => setTimeout(resolve, 10));
 
   // What came back is the narrowed view, not the whole log re-widened.
   assert.equal(search.value, "Second");
@@ -431,6 +440,7 @@ test("recording while the log is unread writes nothing, keeps the entry, and sav
   // 6. The store recovers; Retry shows the two releases.
   control.refuse = false;
   page.document.querySelector(".release-retry-action").click();
+  await new Promise((resolve) => setTimeout(resolve, 10));
   assert.equal(rows(page), 2);
 
   // 7. The same entry, submitted again, joins the originals.
@@ -497,4 +507,37 @@ test("at a phone width the state text and its action wrap inside the panel, with
   // state with no glyph does not leave a blank line where one would be.
   assert.doesNotMatch(rule(sheet, ".list-state-glyph"), /color:/);
   assert.match(rule(sheet, ".list-state-glyph:empty"), /display:none/);
+});
+
+test("retry guards repeated activation, and recovers to empty in place", async (t) => {
+  const { page, control } = await openPage(t, { refuse: true, boot: false });
+  const pending = [];
+  initReleasesPage(page.document, page.storage, {
+    seed: NO_SEED, scheduleLogReload: (read) => pending.push(read),
+  });
+  const retry = page.document.querySelector(".release-retry-action");
+  retry.focus();
+  retry.click();
+  retry.click();
+  assert.equal(pending.length, 1);
+  assert.equal(regionText(page), LOADING);
+  assert.equal(countText(page.document.body, FAILED), 0);
+  assert.equal(byId(page, "release-list").getAttribute("aria-busy"), "true");
+  assert.equal(rows(page), 0);
+  assert.equal(region(page).getAttribute("aria-atomic"), "true");
+  pending.shift()();
+  assert.equal(rows(page), 0);
+  assert.equal(regionText(page), FAILED);
+  assert.equal(retry.getAttribute("aria-disabled"), "false");
+  assert.equal(page.document.activeElement, retry);
+
+  control.refuse = false;
+  page.storage.setItem(RELEASE_STORAGE_KEY, "[]");
+  retry.click();
+  pending.shift()();
+  assert.equal(regionText(page), EMPTY);
+  assert.equal(page.document.activeElement, retry);
+  assert.equal(textOf(retry), "Record a release");
+  retry.click();
+  assert.equal(activeId(page), "release-version");
 });

@@ -308,7 +308,7 @@ test("releases page is wired and linked from the decisions page", async () => {
   // Stated once, full stop. One visible live region shows the wait and
   // announces it, so there is no second copy to keep in step with the first.
   assert.equal(page.match(/Loading releases/g).length, 1, "the wait is stated more than once");
-  assert.match(page, /<div class="list-state list-state-loading" id="release-list-status" role="status" aria-live="polite">/);
+  assert.match(page, /<div class="list-state list-state-loading" id="release-list-status" role="status" aria-live="polite" aria-atomic="true">/);
   assert.match(page, /src="\/releases-bootstrap\.js"/);
   // No innerHTML anywhere in the interactive layers (no user-generated HTML).
   const component = await read("src/releases.js");
