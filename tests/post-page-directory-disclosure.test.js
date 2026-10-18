@@ -65,7 +65,7 @@ const FOLDED = ["post.html", "social.html", "profile.html", "coach.html", "relea
 const INTENT = "#site-footer-intent-availability_pricing";
 
 // The retrieval line the page ships in its markup, character for character.
-const LOADING = "The post is loading.";
+const LOADING = "Loading this Social post…";
 
 const open = (node) => node.hasAttribute("open");
 

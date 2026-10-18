@@ -124,37 +124,37 @@ function formatDateTime(iso) {
 // happened nor what this page is. A link arriving with no id, a truncated id,
 // or an id nobody ever posted under are one answer as far as a reader is
 // concerned — the link did not reach a post — so all three are headed "Post
-// not found" and chipped with the same live word. Only the sentence underneath
-// differs, because only it can say the true thing about *this* link.
+// unavailable" and chipped with the same live word.
+//
+// They share one sentence too (#2920). The page cannot tell a
+// mistyped link from a post that never existed, so it says only what it knows
+// and never guesses why: no "deleted", "removed", "expired" or "moved".
+export const POST_NOT_FOUND_DESCRIPTION = "No Social post exists at this link.";
+export const POST_ERROR_DESCRIPTION = "This Social post could not be loaded.";
 const POST_STATE_COPY = {
   empty: {
     state: "not-found",
     className: "detail-state-not-found",
     label: "Not found",
     title: "Post unavailable",
-    description: "This shared link may be unavailable or incomplete, so there is no post to show.",
+    description: POST_NOT_FOUND_DESCRIPTION,
   },
   "not-found": {
     state: "not-found",
     className: "detail-state-not-found",
     label: "Not found",
     title: "Post unavailable",
-    description: "This shared link may be unavailable, or the post may no longer be in Social.",
+    description: POST_NOT_FOUND_DESCRIPTION,
   },
-  // The error state names the thing that broke — the feed — rather than
-  // describing the post as "unavailable", which reads as a verdict about the
-  // post and tells a reader nothing about whether waiting would help.
-  //
-  // So the clause order is load-bearing: Social first, the link second. Opening
-  // "this shared link may be unavailable" is a verdict this state cannot
-  // support — the feed never answered, so the page learned nothing about the
-  // link it was handed. And "for now" is what keeps the retry below honest.
+  // The error state says the load failed and nothing about the post itself:
+  // the page learned nothing about the link it was handed, so Try again below
+  // is an honest offer.
   error: {
     state: "error",
     className: "empty-state-error detail-state-unavailable",
     label: "Unreachable",
     title: "Post could not be opened",
-    description: "Social did not respond, so this shared link is unavailable for now.",
+    description: POST_ERROR_DESCRIPTION,
   },
 };
 
@@ -187,8 +187,10 @@ function labelledState(key, actions = []) {
 // Not a "Return", either. This page is met cold, from a pasted link, with no
 // Social behind it to go back to (see POST_EXITS above), so the action names
 // its destination and points forward like every other route off this page.
+export const POST_FEED_ACTION = "Open the Social feed";
+export const POST_RETRY_ACTION = "Try again";
 function feedAction() {
-  const link = el("a", "empty-action empty-action-secondary detail-state-feed", "Go to the Social feed");
+  const link = el("a", "empty-action empty-action-secondary detail-state-feed", POST_FEED_ACTION);
   link.href = POST_EXITS.social.href;
   return link;
 }
@@ -354,7 +356,7 @@ function renderMissing(container, id) {
 // after the heading and the sentence that explain it — source order, not just
 // visual order — so a screen reader reaches the explanation before the action.
 function renderFailed(container, onRetry) {
-  const retry = el("button", "empty-action detail-retry", "Retry the shared post");
+  const retry = el("button", "empty-action detail-retry", POST_RETRY_ACTION);
   retry.type = "button";
   if (onRetry) retry.addEventListener("click", onRetry);
   container.append(labelledState("error", [retry, feedAction()]));
@@ -373,7 +375,9 @@ function renderFailed(container, onRetry) {
 // link, and the reader does not yet know what a Shiplog link is, that one post
 // is coming rather than a feed, or that it is public. Naming a composer to a
 // reader in that position would be an instruction before an orientation.
-export const POST_LOADING_STATUS = "The post is loading.";
+// It names the thing as a Social post (#2920): a cold reader learns what is
+// coming before it arrives.
+export const POST_LOADING_STATUS = "Loading this Social post…";
 
 // What the wait above promised, kept: the two parts of a post this page can
 // always point to, in the order the article renders them. Only the loaded state

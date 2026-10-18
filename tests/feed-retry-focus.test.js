@@ -377,7 +377,7 @@ test("the shared post keeps the reader in the region across a retry", async (t) 
   assert.equal(detail.getAttribute("aria-live"), "polite");
   assert.equal(detail.getAttribute("aria-atomic"), "true");
 
-  assert.ok(tabDistanceTo(document, isRetry("Retry the shared post")) >= 0,
+  assert.ok(tabDistanceTo(document, isRetry("Try again")) >= 0,
     "Retry is not in the tab order of the failed post page");
 
   answer = () => ({
