@@ -524,6 +524,6 @@ test("the hero's first step records a decision before its release, in the direct
 
   // The link now opens the interactive workspace on this page.
   const demo = document.getElementById("core-demo-link");
-  assert.equal(textOf(demo), "Explore the Decision log →");
-  assert.equal(demo.getAttribute("href"), "#record-history-title");
+  assert.equal(textOf(demo), "Record a decision →");
+  assert.equal(demo.getAttribute("href"), "#title");
 });

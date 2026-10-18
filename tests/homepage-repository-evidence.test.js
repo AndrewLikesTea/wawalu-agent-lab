@@ -67,8 +67,8 @@ test("homepage renders canonical repository evidence near the opening propositio
   t.after(() => page.restore());
   await initDecisionLog(page.document, page.storage);
   const block = page.document.getElementById("repository-evidence");
-  assert.equal(textOf(block.querySelector("h3")), "Repository-backed product evidence");
-  assert.equal(block.getAttribute("aria-labelledby"), block.querySelector("h3").id);
+  assert.equal(textOf(block.querySelector("h2")), "Repository-backed product evidence");
+  assert.equal(block.getAttribute("aria-labelledby"), block.querySelector("h2").id);
   assertDisclaimer(block);
   assert.doesNotMatch(textOf(block.querySelector("#repository-evidence-records")), /Loading repository-backed decisions|could not be loaded|unavailable/i);
   assert.doesNotMatch(textOf(block), /Customer success invented locally|saved|adoption|performance improvement/i);
@@ -186,7 +186,7 @@ test("the pair is labelled as a real repository record, apart from the invented 
   t.after(() => page.restore());
   const block = page.document.getElementById("repository-evidence");
   const heading = page.document.getElementById("repository-release-pair-title");
-  assert.equal(heading.tagName, "H4");
+  assert.equal(heading.tagName, "H3");
   assert.equal(page.document.getElementById("repository-release-pair").getAttribute("aria-labelledby"), heading.id);
   assert.match(textOf(block), /Real repository record\. Read from this repository’s recorded builds, unlike the invented example below\./);
   // Before the script runs there is no current result; historical proof is separate.

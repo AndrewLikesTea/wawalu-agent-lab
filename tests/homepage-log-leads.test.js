@@ -202,8 +202,8 @@ test("every in-page link on the painted front door still lands on a region that 
   assert.deepEqual(missing, [], "in-page links point at ids the painted page does not carry");
 
   // Both directions, by position rather than by prose. The AI FinOps block
-  // sends a reader down to the briefing; the log sends them down to the record
-  // panels. Neither may become a link back up the page.
+  // sends a reader down to the briefing; the evidence links back to the
+  // recording workspace that now leads the page.
   const inSection = (id, href) => document.getElementById(id)
     .querySelectorAll("a").some((link) => link.getAttribute("href") === href);
   assert.ok(inSection("additional-capability", "#landing-decision"),
@@ -212,8 +212,8 @@ test("every in-page link on the painted front door still lands on a region that 
     "the AI FinOps route to the briefing says 'below' and must stay pointing down");
   assert.ok(inSection("shiplog-entry", "#record-history"),
     "the log entry must still offer its route to the record panels");
-  assert.ok(positionOf(document, "shiplog-entry") < positionOf(document, "record-history"),
-    "the log entry sends a reader further down this page and must stay pointing down");
+  assert.ok(positionOf(document, "record-history") < positionOf(document, "shiplog-entry"),
+    "the evidence follows the complete recording workspace");
 });
 
 // #2827: a first-time visitor meets the promise before the form instructions.
@@ -238,8 +238,8 @@ test("the painted front door leads with the promise, then names the log", async 
   assert.equal(textOf(document.getElementById("home-log-title")), "Decision log");
   assert.match(textOf(blocks[at("home-log-title") + 1]), /^Browse existing decisions or record a new one/);
   const demo = document.getElementById("core-demo-link");
-  assert.equal(textOf(demo), "Explore the Decision log →");
-  assert.equal(demo.getAttribute("href"), "#record-history-title");
+  assert.equal(textOf(demo), "Record a decision →");
+  assert.equal(demo.getAttribute("href"), "#title");
   assert.equal(textOf(document.getElementById("record-history-title")), "Decision log");
 
   assert.doesNotMatch(textOf(main), /the product this page carries/);
@@ -248,17 +248,16 @@ test("the painted front door leads with the promise, then names the log", async 
   assert.equal(document.getElementById("shiplog-entry").getAttribute("aria-labelledby"), "home-log-title");
   assert.ok(!document.getElementById("shiplog-entry-title"), "the old promise heading id is still on the page");
 
-  // No tab stop moved: the promise adds none, the hero still offers only the
-  // demo link, and the log entry's first stop still follows it directly.
+  // The promise adds no stop, and the recorder follows the opening action.
   const sequence = tabSequence(document);
   const heroStops = sequence.filter((node) => ancestorIds(node).includes("top"));
   assert.deepEqual(heroStops.map((node) => node.id), ["core-demo-link"]);
   const demoAt = sequence.indexOf(demo);
   assert.ok(!ancestorIds(sequence[demoAt - 1]).includes("main-content"), "a stop was added above the demo link");
-  assert.ok(ancestorIds(sequence[demoAt + 1]).includes("shiplog-entry"), "a stop was added after the demo link");
+  assert.ok(ancestorIds(sequence[demoAt + 1]).includes("record-history"), "a stop was added after the demo link");
 
   // The directional sentence that is still true keeps its wording: the
-  // recorder, the filters, the export, and the import did not move.
+  // recorder, filters, export, and import still follow the opening section.
   assert.match(textOf(hero),
     /Recording, searching, filtering, exporting, and importing the log are all further down this page\./);
 });

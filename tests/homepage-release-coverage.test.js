@@ -184,7 +184,7 @@ test("the block ships its caveats, its wait, and no counted figure", async () =>
   assert.equal((section.match(/no customer or production data/g) ?? []).length, 1);
 });
 
-test("the figures sit with the section's evidence and above the record and search panels", async () => {
+test("the figures sit with the section's evidence and below the record and search panels", async () => {
   const html = await readFile(HOME_PAGE, "utf8");
   const document = parseHtml(html);
 
@@ -203,8 +203,8 @@ test("the figures sit with the section's evidence and above the record and searc
     "the figures must follow the worked decision they describe");
   assert.ok(at('id="deployment-status"') < at(block),
     "the figures must follow the deployment check");
-  assert.ok(at(block) < at('id="record-history"'),
-    "the figures must be readable before the record and search panels");
+  assert.ok(at(block) > at('id="record-history"'),
+    "the figures follow the complete recording workspace");
 
   // The list's own filtered line keeps the `release-coverage` id, and this
   // block deliberately does not take it: app.js resolves that node by id in

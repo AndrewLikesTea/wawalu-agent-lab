@@ -1,8 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { loadPage, textOf, pressEnter, pressSpace, tabSequence } from "./support/browser.js";
+import { loadPage, textOf, pressEnter, pressSpace, pressTab, tabSequence } from "./support/browser.js";
 import { SEED_DECISIONS, SEED_RELEASES, SAMPLE_DECISION_ID, SAMPLE_RELEASE_ID } from "../src/seed-records.js";
+import { initDecisionLog } from "../src/app.js";
 import { PILOT_SCORECARD_CRITERIA } from "../src/shiplog-pilot-scorecard.js";
 
 const root = process.env.SHIPLOG_E2E_BUILD_ROOT || "src";
@@ -14,8 +15,9 @@ test("homepage presents the promise, demo and proof before evaluation material",
   const doc = page.document;
   const html = await readFile(file("index.html"), "utf8");
   const markers = ['id="top"', 'id="core-demo-link"', 'class="hero-boundary"',
+    'id="record-history"', 'id="evaluation-path-title"', 'id="decision-form"',
     'id="shiplog-entry"', 'One recorded decision, and the release that shipped it',
-    'id="deployment-status"', 'id="record-history"', 'id="shiplog-evaluation-brief"',
+    'id="deployment-status"', 'id="reasoning-kept-title"', 'id="shiplog-evaluation-brief"',
     'id="shiplog-pilot-scorecard"', 'id="additional-capability"'];
   let previous = -1;
   for (const marker of markers) {
@@ -23,12 +25,28 @@ test("homepage presents the promise, demo and proof before evaluation material",
     assert.ok(position > previous, `${marker} must follow the previous section`);
     previous = position;
   }
+  await initDecisionLog(doc, page.storage, { readHealth: async () => { throw new Error("offline"); } });
+  const order = [];
+  const visit = (node) => { for (const child of node.children) { order.push(child); visit(child); } };
+  visit(doc.getElementById("main-content"));
+  const ids = ["home-log-title", "evaluation-path-title", "decision-form", "decision-record-next",
+    "decision-list", "repository-evidence", "featured-decision", "deployment-status", "reasoning-kept-title"];
+  for (let i = 1; i < ids.length; i++) {
+    const before = order.indexOf(doc.getElementById(ids[i - 1]));
+    const after = order.indexOf(doc.getElementById(ids[i]));
+    assert.ok(before >= 0 && after > before, `${ids[i]} follows ${ids[i - 1]} after rendering`);
+  }
+  const headings = order.filter((node) => /^H[1-6]$/.test(node.tagName));
+  for (let i = 1; i < headings.length; i++) {
+    assert.ok(Number(headings[i].tagName[1]) <= Number(headings[i - 1].tagName[1]) + 1,
+      `heading level must not skip at ${headings[i].id}`);
+  }
   const hero = doc.getElementById("top");
   assert.deepEqual(hero.querySelectorAll("a").map((a) => a.getAttribute("href")),
-    ["#record-history-title"]);
+    ["#title"]);
   const sections = doc.getElementById("main-content").children.filter((node) => node.tagName === "SECTION");
   assert.deepEqual(sections.slice(0, 5).map((node) => node.id),
-    ["top", "shiplog-entry", "record-history", "shiplog-evaluation-brief", "shiplog-pilot-scorecard"]);
+    ["top", "record-history", "shiplog-entry", "shiplog-evaluation-brief", "shiplog-pilot-scorecard"]);
 });
 
 test("scorecard headings stay visible and native instructions toggle with Enter and Space", async (t) => {
@@ -98,31 +116,36 @@ test("evaluation styles retain narrow layouts, wrapping, touch targets and focus
   assert.match(css, /#shiplog-pilot-scorecard \.share-button \{[^}]*max-width:100%;[^}]*min-height:44px;[^}]*white-space:normal/);
 });
 
-test("hero targets a visible native-focus heading before every workspace control", async (t) => {
+test("hero focuses the first form control with pointer and native Enter activation", async (t) => {
   const page = await loadPage(file("index.html"));
   t.after(() => page.restore());
   const doc = page.document;
   const hero = doc.getElementById("core-demo-link");
   const heading = doc.getElementById(hero.getAttribute("href").slice(1));
-  assert.equal(heading.tagName, "H2");
-  assert.equal(textOf(heading), "Decision log");
-  assert.equal(heading.getAttribute("tabindex"), "-1");
+  assert.equal(heading.tagName, "INPUT");
+  assert.equal(heading.getAttribute("tabindex"), null);
+  assert.equal(hero.tagName, "A");
+  await initDecisionLog(doc, page.storage);
   const workspace = doc.getElementById("record-history");
-  assert.equal(workspace.getAttribute("aria-labelledby"), heading.id);
+  assert.equal(workspace.getAttribute("aria-labelledby"), "record-history-title");
   for (let node = heading; node; node = node.parentNode) {
     assert.equal(node.hidden, false);
     assert.notEqual(node.tagName, "DETAILS");
   }
-  // The harness records native navigation; real fragment scrolling/focus is
-  // the browser's responsibility, with no script interception or load race.
+  for (const activate of [() => pressEnter(doc), () => hero.click()]) {
+    hero.focus();
+    activate();
+    assert.equal(doc.activeElement.id, "title");
+    pressTab(doc);
+    assert.equal(doc.activeElement.id, "context");
+    pressTab(doc, { shift: true });
+    assert.equal(doc.activeElement.id, "title");
+  }
   hero.focus();
-  pressEnter(doc);
-  hero.click();
-  assert.deepEqual(doc.navigations, ["#record-history-title", "#record-history-title"]);
-  heading.focus();
-  assert.equal(doc.activeElement.id, heading.id);
+  pressSpace(doc);
+  assert.equal(doc.activeElement.id, hero.id, "Space retains native link behavior");
   const sequence = tabSequence(doc);
-  assert.ok(!sequence.includes(heading), "heading adds no sequential tab stop");
+  assert.ok(sequence.includes(heading), "the first field remains a native tab stop");
   const controls = workspace.querySelectorAll("input,textarea,select,button,a,summary");
   const stops = sequence.filter((node) => controls.includes(node));
   assert.ok(stops.length > 10, "recording and browsing controls remain reachable");
@@ -135,8 +158,8 @@ test("hero targets a visible native-focus heading before every workspace control
   }
   assert.ok(workspace.querySelector("#sample-release-list"), "linked release experience travels too");
   const css = await readFile(file("styles.css"), "utf8");
-  assert.match(css, /#record-history-title:focus \{ outline:3px solid var\(--focus-ring\)/);
-  assert.match(css, /#record-history-title \{ scroll-margin-top:24px/);
+  assert.match(css, /input:focus-visible,[^}]*outline:3px solid var\(--focus-ring\)/);
+  assert.match(css, /#title \{ scroll-margin-top:24px/);
 });
 
 
@@ -182,4 +205,17 @@ test("featured proof uses fluid wrapping and the shared visible link focus treat
   assert.match(css, /\.featured-decision-reasoning \{ display:grid; gap:14px/);
   const shared = await readFile(file("styles.css"), "utf8");
   assert.match(shared, /a:focus-visible \{ outline:3px solid var\(--focus-ring\)/);
+});
+
+test("homepage workflow uses one column at every width and existing responsive fields", async () => {
+  const page = await loadPage(file("index.html"));
+  try {
+    assert.ok(page.document.getElementById("record-history").querySelector(".workspace").classList.contains("workspace-single"));
+    assert.equal(page.document.getElementById("evaluation-path-steps").querySelectorAll("li").length, 4);
+    const css = await readFile(file("styles.css"), "utf8");
+    assert.match(css, /\.workspace-single \{ grid-template-columns:1fr/);
+    assert.match(css, /#record-history \.form-panel \{ position:static/);
+    assert.match(css, /@media\(max-width:520px\)[^\n]*form\{grid-template-columns:1fr\}/);
+    assert.match(css, /\.hero-actions\s*\{[^}]*flex-wrap:wrap/);
+  } finally { page.restore(); }
 });
