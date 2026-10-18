@@ -336,7 +336,11 @@ test("the provenance sentence is the home page's, stated once, with no second ca
 
   const home = await loadPage(HOME_PAGE, { storage: {} });
   t.after(() => home.restore());
-  assert.equal(textOf(home.document.querySelector("#evaluation-path-scope")), DEMO_PROGRESS_SCOPE);
+  // #2922: the home page, which carries the complete-archive download, names
+  // that one exception; the provenance sentence after it is still the shared one.
+  const homeScope = textOf(home.document.querySelector("#evaluation-path-scope"));
+  assert.match(homeScope, /^Records you add stay in this browser unless you download the complete archive/);
+  assert.ok(homeScope.endsWith(DEMO_PROGRESS_SCOPE.split(". ").pop()));
 
   // Reused rather than rewritten, and it deliberately does not repeat the
   // example-records caveat: shiplog-proof.test.js counts that caveat once above

@@ -59,7 +59,7 @@
         <div class="hero-actions" data-conversion-slot="hero">
           <a class="button-link" id="core-demo-link" href="#title">Record a decision <span aria-hidden="true">→</span></a>
         </div>
-        <p class="hero-boundary">Record a decision, then link it to the release it shaped. The example records are invented and use no customer or production data. Records you add stay in this browser.</p>
+        <p class="hero-boundary">Record a decision, then link it to the release it shaped. The example records are invented and use no customer or production data. Records you add stay in this browser unless you download the complete archive, which sends them to the Shiplog server to build the file.</p>
         <!-- Historical build metadata, preserved at this immutable public source.
              This proves a build, not customer impact or current deployment. -->
         <div id="repository-last-verified" role="group" aria-labelledby="repository-last-verified-title">
@@ -104,7 +104,7 @@
             <div class="evaluation-path-next" id="evaluation-path-next">
               <p id="evaluation-path-next-lead">Nothing is recorded in this browser yet. Step one is the form below.</p>
             </div>
-            <p class="hint" id="evaluation-path-scope">Records you add stay in this browser only. This is a demo workflow, not a customer result.</p>
+            <p class="hint" id="evaluation-path-scope">Records you add stay in this browser unless you download the complete archive, which sends them to the Shiplog server to build the file. This is a demo workflow, not a customer result.</p>
             <!-- The one thing on this page that says a step changed without a
                  reload. It ships empty, and stays in the accessibility tree
                  from the first paint: a live region inserted at the moment its
@@ -501,11 +501,11 @@
             </select>
           </p>
           <span class="hint" id="export-shiplog-scope-hint">The file follows your history filters by default. Choose the second option to export every stored record, whatever the filters hide.</span>
-          <p class="hint">The JSON file includes only decisions, releases, and their preserved links stored in this browser.</p>
-          <p class="hint"><a class="text-link" href="/workspace.html">See what's stored in this browser</a> — the records, roughly how much space they use, and how to erase them.</p>
+          <p class="hint">Download JSON builds its file in this browser and sends nothing. The file includes only decisions, releases, and their preserved links stored in this browser.</p>
+          <p class="hint"><a class="text-link" href="/workspace.html">See what's stored in this browser</a> — the records, roughly how much space they use, and how to erase them. The complete archive download is the only control that sends records to a server.</p>
           <p id="export-shiplog-status" class="notice" role="status" aria-live="polite"></p>
         </div>
-        <p id="shiplog-archive-note" class="hint">Complete archive: every decision and release stored in this browser, regardless of filters. Shiplog processes these records on the server to create the file and does not retain them.</p>
+        <p id="shiplog-archive-note" class="hint">Complete archive: every decision and release stored in this browser, regardless of filters. This download sends those records to the Shiplog server to build the file, and the server does not retain them.</p>
         <button id="download-shiplog-archive" type="button" aria-describedby="shiplog-archive-note">Download complete Shiplog archive</button>
         <p id="shiplog-archive-status" role="status" aria-live="polite"></p>
         <button id="export-shiplog" type="button">Download JSON</button>

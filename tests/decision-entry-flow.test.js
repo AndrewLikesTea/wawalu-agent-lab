@@ -560,7 +560,7 @@ test("the painted page lists the four-step evaluation path above the recorder", 
   assert.ok(inside, "the path is not inside the recorder panel");
 
   const scope = textOf(byId(page, "evaluation-path-scope"));
-  assert.match(scope, /stay in this browser only/);
+  assert.match(scope, /stay in this browser unless you download the complete archive/);
   assert.match(scope, /demo workflow, not a customer result/);
   // Where records go, and nothing else: the recorder does not re-ask or re-defer
   // the shared-log question, which the evaluation brief answers once for the
