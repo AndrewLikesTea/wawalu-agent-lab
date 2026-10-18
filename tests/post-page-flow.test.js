@@ -634,8 +634,8 @@ test("an unknown id is named as a missing post, with the feed still the way out"
   const page = await openPostPage("?id=p-gone", seedOnly([SEED_POST]));
   try {
     assert.match(textOf(page.panel), /Post unavailable/);
-    assert.match(textOf(page.panel), /This shared link may be unavailable, or the post may no longer be in Social\./);
-    assert.doesNotMatch(textOf(page.panel), /removed|private|signed-in|your post/i);
+    assert.match(textOf(page.panel), /No Social post exists at this link\./);
+    assert.doesNotMatch(textOf(page.panel), /deleted|removed|expired|moved|private|signed-in|your post/i);
     assert.doesNotMatch(textOf(page.panel), /Display names on posts labelled/);
     // No post, no author: the h1 keeps the generic label it shipped with.
     assert.equal(textOf(page.document.querySelector("#page-title")), "Social post");
@@ -648,7 +648,7 @@ test("an unknown id is named as a missing post, with the feed still the way out"
     // feed is the one route this state offers.
     assertExits(page, null, "not found");
     const feed = page.panel.querySelector(".detail-state-feed");
-    assert.equal(textOf(feed), "Go to the Social feed");
+    assert.equal(textOf(feed), "Open the Social feed");
     assert.equal(feed.getAttribute("href"), "/social.html");
     assert.ok(tabSequence(page.document).includes(page.document.querySelector("#post-back")));
   } finally {
@@ -668,7 +668,7 @@ test("a missing post reached from a profile still offers the feed it belonged to
     // page for what to do about it.
     const feed = page.panel.querySelector(".detail-state-feed");
     assert.equal(feed.getAttribute("href"), "/social.html");
-    assert.equal(textOf(feed), "Go to the Social feed");
+    assert.equal(textOf(feed), "Open the Social feed");
     // The site's two directories are both excluded: the header nav and the
     // footer's site map name every destination on every page, and neither is a
     // route this page offers. What is counted is what the page itself says —
@@ -679,7 +679,7 @@ test("a missing post reached from a profile still offers the feed it belonged to
         && !link.closest(".site-nav") && !link.closest("#site-footer"));
     // The panel's own action reads first, because the panel is where the post
     // would have been and now stands above the page's standing routes out.
-    assert.deepEqual(toFeed.map(textOf), ["Go to the Social feed", SOCIAL.label]);
+    assert.deepEqual(toFeed.map(textOf), ["Open the Social feed", SOCIAL.label]);
 
     // Tab order agrees: the state's own next step, then the standing exit.
     const sequence = tabSequence(page.document);
@@ -697,21 +697,21 @@ test("a failed lookup names the feed it could not reach, and retry can recover",
   });
   try {
     assert.match(textOf(page.panel), /Post could not be opened/);
-    assert.match(textOf(page.panel), /Social did not respond, so this shared link is unavailable for now\./);
-    assert.equal(textOf(page.panel.querySelector(".detail-state-feed")), "Go to the Social feed");
+    assert.match(textOf(page.panel), /This Social post could not be loaded\./);
+    assert.equal(textOf(page.panel.querySelector(".detail-state-feed")), "Open the Social feed");
     // Whole-page, not just the panel: the error state's action and the standing
     // exit both land on /social.html, so they have to be two readable routes and
     // not one label printed twice on the screen a stuck reader is looking at.
     const errorFeed = page.document.querySelectorAll("a")
       .filter((link) => link.getAttribute("href") === "/social.html"
         && !link.closest(".site-nav") && !link.closest("#site-footer"));
-    assert.deepEqual(errorFeed.map(textOf), ["Go to the Social feed", SOCIAL.label]);
+    assert.deepEqual(errorFeed.map(textOf), ["Open the Social feed", SOCIAL.label]);
     assert.doesNotMatch(textOf(page.panel), /private|signed-in|your post/i);
     assertExits(page, null, "failed");
     assert.equal(page.document.title, "Social post · Wawalu Lab");
 
     const retry = page.panel.querySelector("button");
-    assert.equal(textOf(retry), "Retry the shared post");
+    assert.equal(textOf(retry), "Try again");
     // A button, not a link: retrying re-runs the fetch in place rather than
     // reloading the page and losing everything already on screen.
     assert.equal(retry.type, "button");
@@ -725,7 +725,8 @@ test("a failed lookup names the feed it could not reach, and retry can recover",
     assert.ok(page.requests.length > before, "the retry must actually re-run the fetch");
     assert.equal(textOf(page.document.querySelector("#page-title")), "Mina Okafor's Social post");
     assert.equal(textOf(page.panel.querySelector(".detail-caption")), "The middle card, ringed.");
-    assert.doesNotMatch(textOf(page.panel), /could not be reached/);
+    assert.doesNotMatch(textOf(page.panel), /could not be loaded|Try again/);
+    assert.equal(page.panel.querySelectorAll("button").filter((b) => textOf(b) === "Try again").length, 0);
     assert.equal(page.panel.dataset.postState, "loaded");
     assertExits(page, MINA, "recovered");
   } finally {
@@ -782,7 +783,7 @@ test("a retry re-enters the wait in the post's shape, then lands the post in it"
     assert.equal(panel.querySelectorAll(".detail-state-message").length, 0);
     assert.equal(panel.querySelectorAll("button").length, 0);
     assert.deepEqual(skeletonSlots(panel), ["author-metadata", "caption", "optional-image"]);
-    assert.equal(textOf(panel.querySelector(".detail-loading-text")), "The post is loading.");
+    assert.equal(textOf(panel.querySelector(".detail-loading-text")), "Loading this Social post…");
 
     await waitFor(() => release, "the retry issued its request");
     release();
@@ -804,11 +805,11 @@ test("a visit with no id is told what the page needs, and still has one way out"
     // who was handed a truncated URL is not in a different situation from one
     // handed a stale id, and should not have to work out that they are.
     assert.match(textOf(page.panel), /Post unavailable/);
-    assert.match(textOf(page.panel), /This shared link may be unavailable or incomplete/);
+    assert.match(textOf(page.panel), /No Social post exists at this link\./);
     assert.equal(page.requests.length, 0);
     assertExits(page, null, "no id");
     // The one next step, in the panel that explains why it is needed.
-    assert.equal(textOf(page.panel.querySelector(".detail-state-feed")), "Go to the Social feed");
+    assert.equal(textOf(page.panel.querySelector(".detail-state-feed")), "Open the Social feed");
   } finally {
     page.restore();
   }
@@ -830,7 +831,7 @@ test("the loading state is one announced line in the post's region, and takes no
     assert.equal(panel.getAttribute("role"), "status", "the state is announced without stealing focus");
     assert.equal(state.getAttribute("role"), null, "the update uses the page's persistent live region");
     assert.equal(page.document.activeElement, null, "nothing may take focus on load");
-    assert.equal(textOf(state.querySelector(".detail-loading-text")), "The post is loading.");
+    assert.equal(textOf(state.querySelector(".detail-loading-text")), "Loading this Social post…");
     assert.doesNotMatch(textOf(panel), /Display names on posts labelled/);
     // Nothing is named yet, so the h1 names the page — the same words a reader
     // sees in the shipped markup before any script runs.
@@ -884,7 +885,7 @@ test("the page opens already saying it is loading, and the post replaces that li
     assert.equal(panel.dataset.postState, "loading");
     assert.equal(panel.getAttribute("aria-busy"), "true");
     assert.equal(panel.querySelectorAll(".detail-loading").length, 1);
-    assert.equal(textOf(panel.querySelector(".detail-loading-text")), "The post is loading.");
+    assert.equal(textOf(panel.querySelector(".detail-loading-text")), "Loading this Social post…");
     assert.equal(panel.getAttribute("role"), "status");
     assert.equal(panel.querySelector(".detail-loading").getAttribute("role"), null);
     // The placeholder is in the markup too — the wait a cold visitor meets is
@@ -906,7 +907,7 @@ test("the page opens already saying it is loading, and the post replaces that li
 
     assert.equal(panel.dataset.postState, "loading", "the script agrees with the markup it replaced");
     assert.equal(panel.querySelectorAll(".detail-loading").length, 1, "one wait line, not the shipped one plus a second");
-    assert.equal(textOf(panel.querySelector(".detail-loading-text")), "The post is loading.");
+    assert.equal(textOf(panel.querySelector(".detail-loading-text")), "Loading this Social post…");
     assert.equal(panel.querySelectorAll(".detail-state-message").length, 0);
     // And one placeholder: the script redraws the wait the markup shipped, it
     // does not stack a second set of slots under the first.
@@ -943,7 +944,7 @@ test("a missing post leaves the loading state behind entirely", async () => {
     assert.equal(panel.querySelectorAll(".detail-state-message").length, 1);
     assert.equal(panel.getAttribute("aria-busy"), "false");
     // The body still carries a way forward, alongside the standing exit above.
-    assert.equal(textOf(panel.querySelector(".detail-state-feed")), "Go to the Social feed");
+    assert.equal(textOf(panel.querySelector(".detail-state-feed")), "Open the Social feed");
   } finally {
     page.restore();
   }
@@ -967,7 +968,7 @@ test("the failed state reads the post's region and its retry, then the back link
     // The panel offers both a way on to the feed and a retry.
     assert.equal(page.panel.querySelectorAll("button").length, 1);
     assert.equal(page.panel.querySelectorAll("a").length, 1);
-    assert.equal(textOf(page.panel.querySelector("a")), "Go to the Social feed");
+    assert.equal(textOf(page.panel.querySelector("a")), "Open the Social feed");
   } finally {
     page.restore();
   }
@@ -1336,10 +1337,12 @@ for (const status of [400, 404, 410]) {
     assert.deepEqual(page.requests, [`/api/social-posts/${SHARED_UUID}`]);
     assert.equal(page.panel.dataset.postState, "not-found");
     assert.match(textOf(page.panel), /Post unavailable/);
+    assert.match(textOf(page.panel), /No Social post exists at this link\./);
+    assert.doesNotMatch(textOf(page.panel), /deleted|removed|expired|moved|Try again/i);
     assert.equal(page.panel.querySelector(".detail-retry"), null);
     const feed = page.panel.querySelector(".detail-state-feed");
     assert.equal(feed.getAttribute("href"), "/social.html");
-    assert.equal(textOf(feed), "Go to the Social feed");
+    assert.equal(textOf(feed), "Open the Social feed");
   });
 }
 
@@ -1364,12 +1367,12 @@ for (const outcome of ["loaded", "error", "not-found"]) {
     t.after(() => page.restore());
     assert.equal(page.panel.dataset.postState, "error");
     const retry = page.panel.querySelector(".detail-retry");
-    assert.equal(textOf(retry), "Retry the shared post");
+    assert.equal(textOf(retry), "Try again");
     retry.focus();
     pressKey(page.document, "Enter");
     assert.equal(page.document.activeElement, page.panel, "focus stays at the persistent post region while waiting");
     assert.equal(page.panel.dataset.postState, "loading");
-    assert.match(textOf(page.panel), /The post is loading\./);
+    assert.match(textOf(page.panel), /Loading this Social post…/);
     assert.equal(page.panel.querySelector(".detail-retry"), null);
     assert.equal(page.panel.querySelector(".detail-state-feed"), null);
     assert.equal(page.panel.getAttribute("aria-live"), "polite");
@@ -1384,6 +1387,12 @@ for (const outcome of ["loaded", "error", "not-found"]) {
     assert.equal(page.panel.dataset.postState, outcome);
     assert.equal(page.panel.getAttribute("aria-busy"), "false");
     assert.equal(page.document.activeElement, exit);
+    // A second failure is the failure state again, once: one Try again, one
+    // feed link, never a stack left over from the first attempt (#2920).
+    const actions = { loaded: [0, 0], error: [1, 1], "not-found": [0, 1] }[outcome];
+    assert.deepEqual([page.panel.querySelectorAll(".detail-retry").length,
+      page.panel.querySelectorAll(".detail-state-feed").length], actions);
+    if (outcome === "error") assert.equal((textOf(page.panel).match(/This Social post could not be loaded\./g) ?? []).length, 1);
   });
 }
 

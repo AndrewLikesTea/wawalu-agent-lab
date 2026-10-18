@@ -238,15 +238,17 @@ test("a missing post is named in plain language, with no id or code echoed back"
   renderPostDetail(missing, null, { id: "p-gone", author: "Mina" });
   assert.equal(first(missing, "detail-state-label").textContent, "Not found");
   assert.equal(first(missing, "empty-title").textContent, "Post unavailable");
-  assert.match(missing.textContent, /This shared link may be unavailable, or the post may no longer be in Social\./);
-  assert.doesNotMatch(missing.textContent, /removed|private|signed-in|your post/i);
+  assert.match(missing.textContent, /No Social post exists at this link\./);
+  // It never guesses why the post is missing (#2920).
+  assert.doesNotMatch(missing.textContent, /deleted|removed|expired|moved|private|signed-in|your post/i);
   assert.equal(missing.getAttribute("role"), "status");
   assert.equal(missing.getAttribute("aria-live"), "polite");
   assert.equal(missing.firstChild.getAttribute("role"), null);
   assert.ok(ids(missing).includes(missing.firstChild.getAttribute("aria-labelledby")));
   const feed = first(missing, "detail-state-feed");
-  assert.equal(feed.textContent, "Go to the Social feed");
+  assert.equal(feed.textContent, "Open the Social feed");
   assert.equal(feed.href, "/social.html");
+  assert.equal(tags(missing, "BUTTON").length, 0, "not-found offers no retry");
   // The reader is told the post is gone, not shown the string they typed.
   assert.doesNotMatch(missing.textContent, /p-gone|404|null|undefined/);
 });
@@ -257,15 +259,9 @@ test("a failed load says what happened once, offers a retry, and leaks no error 
   renderPostDetail(failed, null, { state: "error", id: "p-gone", author: "Mina", onRetry: () => { retried += 1; } });
   assert.equal(first(failed, "detail-state-label").textContent, "Unreachable");
   assert.equal(first(failed, "empty-title").textContent, "Post could not be opened");
-  assert.match(failed.textContent, /Social did not respond, so this shared link is unavailable for now\./);
-  // Social first, the link second, and "for now" holding the retry's meaning
-  // open. The feed never answered, so this state learned nothing about the link
-  // it was handed and must not open on a verdict about it; and a sentence that
-  // called the link unavailable outright would contradict the button below.
-  const sentence = failed.textContent;
-  assert.ok(sentence.indexOf("Social did not respond") < sentence.indexOf("unavailable"),
-    "the error state names what failed before it says what that means for the link");
-  assert.match(sentence, /unavailable for now/, "and leaves the retry something to be for");
+  assert.match(failed.textContent, /This Social post could not be loaded\./);
+  // The load failed; nothing was learned about the post, so no verdict on it.
+  assert.doesNotMatch(failed.textContent, /deleted|removed|expired|moved|No Social post exists/i);
   assert.doesNotMatch(failed.textContent, /private|signed-in|your post/i);
   assert.equal(failed.getAttribute("role"), "status");
   assert.equal(failed.getAttribute("aria-live"), "polite");
@@ -273,12 +269,14 @@ test("a failed load says what happened once, offers a retry, and leaks no error 
   assert.equal(failed.firstChild.getAttribute("role"), null);
   assert.doesNotMatch(failed.textContent, /p-gone|\b[45]\d\d\b|Error:|fetch|TypeError/);
   // The state offers both ways forward: leave for the feed or retry in place.
-  assert.match(failed.textContent, /Retry the shared post/);
-  assert.equal(tags(failed, "BUTTON")[0].textContent, "Retry the shared post");
+  assert.equal(tags(failed, "BUTTON").length, 1);
+  assert.equal(tags(failed, "BUTTON")[0].textContent, "Try again");
+  assert.equal(tags(failed, "BUTTON")[0].type, "button");
   // The panel's action reads in the panel's own words, not the standing exit's.
   // It used to borrow POST_EXITS.social.label, so the error state — the one a
   // reader most needs a way out of — printed the standing exit's words twice.
-  assert.equal(first(failed, "detail-state-feed").textContent, "Go to the Social feed");
+  assert.equal(first(failed, "detail-state-feed").textContent, "Open the Social feed");
+  assert.equal(first(failed, "detail-state-feed").href, "/social.html");
   assert.notEqual(first(failed, "detail-state-feed").textContent, POST_EXITS.social.label);
   tags(failed, "BUTTON")[0].dispatch("click");
   assert.equal(retried, 1, "a failed load offers a retry");
@@ -293,14 +291,13 @@ test("an id-less visit is headed by the same not-found words, and offers the fee
   assert.equal(first(container, "empty-title").textContent, "Post unavailable");
   assert.equal(first(container, "detail-state-label").textContent, "Not found");
   assert.equal(first(container, "detail-state-panel").getAttribute("data-post-state-panel"), "not-found");
-  // Only the sentence differs, because only it can say what is true of *this*
-  // link: nothing was asked for, as against something that was not there.
-  assert.match(container.textContent, /This shared link may be unavailable or incomplete, so there is no post to show\./);
-  assert.doesNotMatch(container.textContent, /post may no longer be in Social/);
+  // And the same sentence: the page cannot tell why the link reached no post.
+  assert.match(container.textContent, /No Social post exists at this link\./);
+  assert.doesNotMatch(container.textContent, /deleted|removed|expired|moved/i);
   // And one next step, named where the problem is explained. This state used to
   // offer none at all, leaving a dead end with nothing pointing out of it.
   const feed = first(container, "detail-state-feed");
-  assert.equal(feed.textContent, "Go to the Social feed");
+  assert.equal(feed.textContent, "Open the Social feed");
   assert.equal(feed.href, "/social.html");
   assert.equal(byClass(container, "empty-action").length, 1, "one action, not a stack");
   // Nothing to retry: no id was asked for, so a second attempt asks nothing.
@@ -325,7 +322,7 @@ test("the loading state says the wait in words and reserves three distinct conte
   assert.equal(container.getAttribute("role"), "status");
   assert.equal(status.getAttribute("role"), null);
   assert.equal(first(status, "detail-loading-text").textContent, POST_LOADING_STATUS);
-  assert.equal(POST_LOADING_STATUS, "The post is loading.");
+  assert.equal(POST_LOADING_STATUS, "Loading this Social post…");
 
   // The three regions distinguish identity, words, and optional media.
   // A line of text used to be the whole wait, so every post that arrived pushed
@@ -725,7 +722,7 @@ test("the standing exits remain while unavailable states add a clear feed action
   for (const [name, value, options] of PANEL_STATES) {
     const container = createElement("div");
     renderPostDetail(container, value, options);
-    const backish = tags(container, "A").filter((link) => /Back to|Go to|Open the full/.test(link.textContent));
+    const backish = tags(container, "A").filter((link) => /Back to|Go to|Open the/.test(link.textContent));
     // Every state that resolved without a post carries the feed action, the
     // id-less one included: it is as much a dead end as a stale id is.
     assert.equal(backish.length, ["missing", "error", "id-less"].includes(name) ? 1 : 0);
@@ -772,11 +769,11 @@ test("loading and unavailable states say what happened in words", () => {
   const missingWords = words(missing);
   const failedWords = words(failed);
   const only = (a, b) => [...a].filter((word) => !b.has(word));
-  assert.ok(only(missingWords, failedWords).includes("longer"), "the missing state says the post may no longer be available");
-  assert.ok(only(failedWords, missingWords).includes("respond"), "the failed state must say the feed did not respond");
+  assert.ok(only(missingWords, failedWords).includes("exists"), "the missing state says no post exists at the link");
+  assert.ok(only(failedWords, missingWords).includes("loaded"), "the failed state must say the post could not be loaded");
 
   // Neither state makes the temporary failure sound like confirmed deletion.
-  assert.doesNotMatch(missing.textContent, /removed|private|signed-in|your post|try again/i);
+  assert.doesNotMatch(missing.textContent, /deleted|removed|expired|moved|private|signed-in|your post|try again/i);
   assert.doesNotMatch(failed.textContent, /removed|incomplete|may have been/i);
 });
 
@@ -808,7 +805,7 @@ test("a missing post reaches the feed even when the standing exit does not", () 
   const feed = first(fromProfile, "detail-state-feed");
   assert.equal(feed.tagName, "A");
   assert.equal(feed.href, "/social.html");
-  assert.equal(feed.textContent, "Go to the Social feed");
+  assert.equal(feed.textContent, "Open the Social feed");
   // It comes after the words that explain it, so it is not tabbed to first.
   assert.equal(fromProfile.firstChild.lastChild, feed);
 

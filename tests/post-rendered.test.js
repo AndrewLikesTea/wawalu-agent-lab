@@ -62,7 +62,7 @@ test("standalone post: rendered states, keyboard recovery and media at phone and
       await page.goto(`http://127.0.0.1:${server.address().port}/post.html?id=rendered-post`);
       await state("loading");
       assert.equal(await page.locator("#post-detail").getAttribute("role"), "status");
-      assert.equal(await page.locator(".detail-loading-text").innerText(), "The post is loading.");
+      assert.equal(await page.locator(".detail-loading-text").innerText(), "Loading this Social post…");
       await answer(503);
       await state("error");
       assert.equal(await page.locator(".detail-retry").count(), 1);
