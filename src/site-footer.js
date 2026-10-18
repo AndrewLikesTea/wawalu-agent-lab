@@ -112,13 +112,22 @@ export const PITCH_HREF = "/decision.html?id=demo-queue";
  * act turns on: where Paint's PNG goes, what order People's posts come in. AI
  * FinOps keeps "in this browser tab", a promise about where an export is read.
  *
- * `separate` renders SEPARATE_TOOL on each row IDENTITY says is not Shiplog.
+ * `separate` renders SEPARATE_TOOL on each row IDENTITY says is not Shiplog,
+ * and PART_OF_SHIPLOG on the rest, which lead the list.
  *
  * `filedUnder` marks the one row the navigation has no door for: src/site-nav.js
  * files /personal-history.html inside Prompt coach's section, so the header
  * never spells the name. The field records that the two tables disagree.
  */
 export const DEMOS = Object.freeze([
+  Object.freeze({
+    label: "Decision log",
+    href: "/",
+    purpose: "record a decision, then link it to the release it shaped",
+    // The only row that says where to start: a list with no order is no list.
+    note: "start here:",
+  }),
+  Object.freeze({ label: "Releases", href: "/releases.html", purpose: "see every release and its linked decisions" }),
   Object.freeze({ label: "AI FinOps", href: "/evolution.html", purpose: "score your provider export in this browser tab", separate: true }),
   Object.freeze({ label: "Prompt coach", href: "/coach.html", purpose: "grade a prompt, then revise and grade again", separate: true }),
   // Beneath Prompt coach in the navigation, beside it here. Its browser-tab
@@ -130,14 +139,6 @@ export const DEMOS = Object.freeze([
     filedUnder: "Prompt coach",
     separate: true,
   }),
-  Object.freeze({
-    label: "Decision log",
-    href: "/",
-    purpose: "record a decision, then link it to the release it shaped",
-    // The only row that says where to start: a list with no order is no list.
-    note: "start here:",
-  }),
-  Object.freeze({ label: "Releases", href: "/releases.html", purpose: "see every release and its linked decisions" }),
   Object.freeze({ label: "Social", href: "/social.html", purpose: "read short posts about shipped work, or publish one", separate: true }),
   Object.freeze({ label: "People", href: "/profile.html", purpose: "pick a display name, see its image posts, newest first", separate: true }),
   Object.freeze({ label: "Paint", href: "/paint/", purpose: "crop or draw an image, export a PNG, publish it on Social", separate: true }),
@@ -145,6 +146,7 @@ export const DEMOS = Object.freeze([
 ]);
 
 export const SEPARATE_TOOL = "Separate lab tool.";
+export const PART_OF_SHIPLOG = "Part of Shiplog.";
 
 /**
  * Default introduction above the form. The post page supplies its own
@@ -281,7 +283,7 @@ function demoListLines(collapsed = false) {
   const list = [
     '    <ul class="site-footer-demos">',
     ...DEMOS.map(({ label, href, purpose, note, separate }) =>
-      `      <li><a href="${href}">${label}</a> — ${note ? `${note} ` : ""}${purpose}${separate ? `. ${SEPARATE_TOOL}` : ""}</li>`),
+      `      <li><a href="${href}">${label}</a> — ${note ? `${note} ` : ""}${purpose}. ${separate ? SEPARATE_TOOL : PART_OF_SHIPLOG}</li>`),
     "    </ul>",
   ];
   if (!collapsed) return list;
