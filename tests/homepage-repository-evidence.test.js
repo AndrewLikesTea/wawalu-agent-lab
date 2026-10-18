@@ -8,7 +8,7 @@ import {
 import { bootHomepage } from "../src/homepage-bootstrap.js";
 import { BUILD_STAMP } from "../src/build-stamp.js";
 import { REPOSITORY_DECISIONS, SEED_DECISIONS, pullRequestUrl } from "../src/seed-records.js";
-import { loadPage, textOf, tabSequence } from "./support/browser.js";
+import { loadPage, textOf, tabSequence, pressEnter } from "./support/browser.js";
 
 const home = new URL(`../${process.env.SHIPLOG_E2E_BUILD_ROOT || "src"}/index.html`, import.meta.url);
 
@@ -256,7 +256,7 @@ test("historical proof survives pending, current, failed and stale requests", as
   assert.match(textOf(fallback), /Last verified/);
   assert.match(textOf(fallback), /#2547.*28b2398ff49c/);
   assert.equal(fallback.querySelector("time").getAttribute("datetime"), "2026-09-25T09:08:40.330Z");
-  const link = fallback.querySelector("a");
+  const link = fallback.querySelectorAll("a")[1];
   assert.equal(link.getAttribute("href"), "https://github.com/AndrewLikesTea/wawalu-agent-lab/blob/a1dc0a2dd45b24f8c114dfabed2a31f095f75557/src/build-stamp.js");
   assert.ok(tabSequence(page.document).includes(link));
   assert.equal(fallback.getAttribute("role"), "group");
@@ -306,4 +306,42 @@ test("historical proof survives pending, current, failed and stale requests", as
   await staleFailure;
   assert.equal(textOf(page.document.getElementById("repository-release-pair-status")), RELEASE_PAIR_LOADED);
   assert.equal(textOf(fallback), original);
+});
+
+
+test("opening product section keeps named repository proof and native links without live data", async (t) => {
+  const page = await loadPage(home);
+  t.after(() => page.restore());
+  const proof = page.document.getElementById("repository-last-verified");
+  assert.equal(proof.closest("section").id, "top");
+  assert.equal(page.document.getElementById(proof.getAttribute("aria-labelledby")).tagName, "H3");
+  const pair = repositoryReleasePair(REPOSITORY_DECISIONS,
+    (await import("../src/releases-repository-proof.js")).LAST_VERIFIED_BUILD);
+  assert.ok(textOf(proof).includes(pair.decision.title));
+  assert.ok(textOf(proof).includes(pair.release.commitSha.slice(0, 12)));
+  assert.match(textOf(proof), /Repository evidence/);
+  assert.match(textOf(proof), /not a customer outcome or testimonial/);
+  assert.match(textOf(proof), /not a claim about what runs today/);
+  const original = textOf(proof);
+  const links = proof.querySelectorAll("a");
+  assert.equal(links[0].getAttribute("href"), `/decision.html?id=${pair.decision.id}`);
+  const { loadDecisionDetail } = await import("../src/decision-page.js");
+  assert.equal(loadDecisionDetail(pair.decision.id, page.storage).decision.title, pair.decision.title);
+  for (const link of links) {
+    assert.ok(tabSequence(page.document).includes(link));
+    assert.equal(link.getAttribute("tabindex"), null);
+    assert.ok(textOf(link).length > 20);
+    link.focus();
+    pressEnter(page.document);
+    assert.equal(page.document.navigations.at(-1), link.getAttribute("href"));
+  }
+  await bootHomepage(page.document, async () => { throw new Error("module unavailable"); });
+  assert.equal(textOf(proof), original);
+  for (const buildStamp of [null, {}, [], { schemaVersion: 1, builtAt: "invalid" }]) {
+    await verifyRepositoryReleasePair(page.document, { buildStamp, readHealth: async () => null });
+    assert.equal(textOf(proof), original);
+    for (const link of links) assert.ok(tabSequence(page.document).includes(link));
+  }
+  const css = await readFile(new URL("../src/landing-decision.css", import.meta.url), "utf8");
+  assert.match(css, /#repository-last-verified \{[^}]*min-width:0;[^}]*max-width:100%;[^}]*overflow-wrap:anywhere/);
 });
