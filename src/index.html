@@ -57,7 +57,7 @@
         <h2 id="home-log-title">Decision log</h2>
         <p>Browse existing decisions or record a new one with its context, alternatives, and owner. Link a decision to the release it shaped.</p>
         <div class="hero-actions" data-conversion-slot="hero">
-          <a class="button-link" id="core-demo-link" href="#record-history-title">Explore the Decision log <span aria-hidden="true">→</span></a>
+          <a class="button-link" id="core-demo-link" href="#title">Record a decision <span aria-hidden="true">→</span></a>
         </div>
         <p class="hero-boundary">Record a decision, then link it to the release it shaped. The example records are invented and use no customer or production data. Records you add stay in this browser.</p>
         <!-- Deliberately no repository or follow-up link here. This page already
@@ -69,225 +69,11 @@
              site-footer.test.js forbids on every page. -->
       </section>
 
-      <!-- THE LOG, WHOLE, AND BEFORE THE SECOND CAPABILITY.
-           Every Shiplog workflow stays on this page and keeps its own ids: the
-           call to action below still lands on the populated record list at
-           #record-history, and the story, the recorder, the filters, the
-           export, and the import all follow it unchanged.
-           The proof point quotes the sample decision and the release that
-           carried it from seed-records.js, so this block, the story cards
-           below, and the record list all describe the same two records.
-           Change the seed and change these words with it. The
-           synthetic-data line is part of this block and stays inside it: the
-           records may never appear without it.
-           Keep raw tag markup and double hyphens out of this note. Either one
-           ends the comment early and paints the rest of the paragraph, and its
-           closing marker, as visitor copy. -->
-      <section class="shiplog-entry" id="shiplog-entry" aria-labelledby="home-log-title">
-        <article class="hero-proof" id="repository-evidence" aria-labelledby="repository-evidence-title">
-          <h3 id="repository-evidence-title">Repository-backed product evidence</h3>
-          <p class="release-followup-lead">These decisions document this repository’s own development. This is neither an invented example nor a customer result.</p>
-          <div id="repository-evidence-records" data-state="loading" role="status"><p class="release-followup-lead">Loading repository-backed decisions.</p></div>
-          <p class="release-followup-lead"><a class="text-link" href="/?source=repository#record-history">Browse all repository-backed Shiplog decisions</a></p>
-          <h4 id="repository-release-pair-title">A decision from this repository, and the release that shipped it</h4>
-          <p class="release-followup-lead"><strong>Real repository record.</strong> Read from this repository’s recorded builds, unlike the invented example below.</p>
-          <!-- Historical build metadata, preserved at this immutable public source.
-               This proves a build, not customer impact or current deployment. -->
-          <div id="repository-last-verified" role="group" aria-labelledby="repository-last-verified-title">
-            <h5 id="repository-last-verified-title">Last verified — recorded build</h5>
-            <p class="release-followup-lead">The decision “Mark every record row with whose record it is” (pull request #2547) is in build <strong>28b2398ff49c</strong>, built <time datetime="2026-09-25T09:08:40.330Z">25 September 2026, 09:08 UTC</time>. This is a recorded build, not a claim about what runs today.</p>
-            <p class="release-followup-lead"><a class="text-link" href="https://github.com/AndrewLikesTea/wawalu-agent-lab/blob/a1dc0a2dd45b24f8c114dfabed2a31f095f75557/src/build-stamp.js">Open the build stamp for 28b2398ff49c on GitHub</a></p>
-          </div>
-          <p class="release-followup-lead" id="repository-release-pair-status" role="status">Checking the live site for a current result. The last-verified example above is a recorded build, not a live result.</p>
-          <div id="repository-release-pair" aria-labelledby="repository-release-pair-title" role="group"></div>
-        </article>
-        <p>How a team gets Shiplog: by asking the team that operates it. There is no self-serve signup and no published price — Shiplog is a demonstration product built and operated by Wawalu, so whether it is available for your team and what it would cost are both answered on request. The <a href="#shiplog-evaluation-brief">evaluation brief and blank pilot scorecard</a> are further down this page. The brief says what Shiplog records and who operates it; the scorecard is a blank form your evaluating team fills in during a pilot. The follow-up form at the foot of this page sends your work email to that team and nothing else.</p>
-        <!-- TWO ROUTES, BECAUSE THE TOPIC IS THE CHOICE (#2623). This row
-             carried one route for both errands, so a buyer who had already
-             decided scrolled the rest of the page to reach the pair that names
-             them. Each route now names one errand, lands the visitor in the
-             work-email field, and records that topic where they can read it
-             back before sending. Both drive the same state the pair lower down
-             the page drives, so the page holds one choice and not two, and the
-             address is the one the evaluation brief publishes for this question.
-             ONE STYLE FOR THE TWO: peers, not a primary and a fallback. Nothing
-             here knows which errand a given buyer wants, so weighting one would
-             be a guess drawn in type. They reuse the hero's classes, which
-             already wrap at narrow widths, because styles.css is at its
-             measured size budget.
-             NOT IN THE HERO: the ask belongs with the answer about availability
-             and pricing, which is the paragraph above and not that one.
-             NO SECOND ROUTE TO THE SCORECARD: the paragraph above links the
-             evaluation brief and blank pilot scorecard two sentences up, and
-             this section's tab stops are counted by homepage-log-leads.test.js.
-             The two lines below promise no schedule, price, availability or
-             customer: what Shiplog costs and whether it is available stay
-             answered on request in the paragraph above, and what the request
-             sends is said once, in the line the routes describe themselves
-             with. -->
-        <div class="hero-actions">
-          <a class="text-link" id="ask-about-shiplog" data-buyer-intent="demo" href="#site-footer-panel" aria-describedby="ask-about-shiplog-description">Request a Shiplog demonstration</a>
-          <a class="text-link" id="discuss-pilot" data-buyer-intent="pilot" href="#site-footer-panel" aria-describedby="ask-about-shiplog-description">Discuss a Shiplog pilot</a>
-          <p class="hint" id="ask-about-shiplog-offers">“A product demonstration” is a walkthrough: the Wawalu team that operates Shiplog shows you the log and answers your questions. “A pilot evaluation” is your own team trying Shiplog and scoring it on the blank pilot scorecard further down this page.</p>
-          <p class="hint" id="ask-about-shiplog-description">Both actions move you to the follow-up form at the foot of this page and name your chosen topic above its field. The form sends your work email address and nothing else.</p>
-        </div>
-        <article class="hero-proof" id="featured-decision" aria-labelledby="featured-decision-title">
-          <h3 class="eyebrow" id="featured-decision-title">One recorded decision, and the release that shipped it</h3>
-          <p class="hero-proof-boundary"><strong>Example records</strong> <span>These invented records demonstrate Shiplog. They use no customer or production data.</span></p>
-          <dl class="hero-proof-facts">
-            <div><dt>Decision</dt><dd>Adopt a durable job queue · Accepted</dd></div>
-            <div><dt>Shipped in</dt><dd>Release v1.3.0 · Throughput and latency · Completed</dd></div>
-            <div><dt>Owner</dt><dd>Kai</dd></div>
-          </dl>
-          <dl class="featured-decision-reasoning">
-            <div><dt>Context</dt><dd>Background work was lost on deploys; move to an at-least-once durable queue.</dd></div>
-            <div><dt>Considered alternatives</dt><dd>Database polling and in-process retries.</dd></div>
-          </dl>
-          <a class="text-link" href="/decision.html?id=demo-queue">Inspect the full decision record: Adopt a durable job queue</a>
-        </article>
-
-        <!-- THE DEPLOYMENT CHECK.
-             The featured example above is invented; this block reads the deployment
-             that is serving this page and compares what it reports against the
-             newest release record in the log. It is the SAME check the releases
-             page runs, not a second opinion about the same question: the ids
-             below are the ones src/deployment-status-view.js fills, the
-             sentence is written by verdictSentence() in src/deployment-status.js,
-             and the metric under it by verdictMetricText(), so the two pages
-             given one reading cannot word one answer two ways. src/app.js boots
-             it from the composed log, so both pages also compare against the
-             same newest record. No second network read: the check reads the
-             same health endpoint it already reads on releases.html, and nothing
-             on this page waits for it.
-             THE LEAD STATES THE COMPARISON, IT NO LONGER ASKS IT (#2512). It
-             used to open with a question a reader had to carry until the
-             verdict answered it, and it named the compared record in words two
-             other surfaces worded differently. It now names the two versions
-             and what a match would prove, in the one name the record carries
-             everywhere: the deployment record.
-             THE WAITING LINE IS AUTHORED AND THE ANSWER IS NOT. The document
-             ships one waiting sentence and no verdict, because a verdict in
-             these bytes would be a comparison nobody ran. Every settled state,
-             including a check that could not complete, replaces that sentence
-             with a full sentence naming both versions.
-             WHAT EACH OUTCOME MEANS IS AUTHORED TOO (#2681). The lead says what
-             a match proves; the line under it says what the other two outcomes
-             mean and what to do about each. A reader needs that most in the
-             state where the check never answers, which is the one state no
-             rendered copy arrives in — so it ships in these bytes. The three
-             sentences are DEPLOYMENT_OUTCOMES in src/deployment-status.js and
-             the releases page ships them byte for byte. The mismatch
-             sentence names the record link at the foot of this block, which
-             used to point at the releases page's copy of this check (#2808):
-             same focusable, so the first screen's tab count is unchanged.
-             THE CAVEAT IS SAID ONCE IN THIS SECTION. The panel above states
-             that the records are invented; this one states only the contrast
-             the check needs, so a reader is not told the same thing twice in
-             two sets of words.
-             THE COMMIT LINK IS AUTHORED AS THE REPOSITORY AND NARROWED BY THE
-             MODULE, the way the releases page authors the same link: the
-             repository is true whatever the stamp says, and
-             src/deployment-status-view.js narrows it to the exact commit this
-             build was made from and names it in the words that page names it
-             in. It is painted before the check runs and no verdict rewrites it,
-             so it is there while the check is still working and there when the
-             check could not complete. An unstamped build withdraws it rather
-             than pointing at a commit nobody made.
-             Every class here already ships and NO RULE was added: styles.css is
-             at its measured size budget. The one stylesheet change is a single
-             declaration on the metric line's existing class, so a long build
-             identifier wraps instead of running off a 360px screen.
-             THE ANSWER LEAVES THE PAGE NOW (#2555). The copy control, its
-             confirmation and the evidence disclosure are the releases page's,
-             id for id and word for word, filled by the same module: an answer
-             a reader can only keep by retyping it is an answer that evaporates
-             when the tab closes. The control ships disabled under a line saying
-             when it becomes usable, because the check has not run in these
-             bytes; a check that cannot answer withdraws it and says so, since
-             there is then no verdict to take away. The metric line above it
-             names both compared versions, which is what the failure message
-             points at, so this block needs no separate identifiers line. -->
-        <section class="hero-proof" id="deployment-status" aria-labelledby="deployment-status-title">
-          <h3 id="deployment-status-title">Deployment check</h3>
-          <p class="release-followup-lead" id="deployment-status-proof">The deployment check compares the running site version with the deployment record version. Confirmed: the running site is the recorded deployment.</p>
-          <p class="release-followup-lead" id="deployment-outcomes">Not a match: the running site is a different build from the recorded deployment. See the deployment record for the build that should be running. Did not complete: this page cannot say which version is running. Check again later.</p>
-          <p class="release-followup-lead" id="deployment-verdict" role="status" aria-describedby="deployment-checked-at">Checking: the result appears here in a few seconds.</p>
-          <p class="detail-summary" id="deployment-checked-at" hidden></p>
-          <p class="detail-summary" id="deployment-metric"></p>
-          <div class="share-control">
-            <button class="share-button" id="deployment-copy" type="button" disabled aria-describedby="deployment-copy-status deployment-copy-availability">Copy the deployment check verdict and both versions</button>
-            <span class="share-status" id="deployment-copy-status" role="status" aria-live="polite" aria-atomic="true"></span>
-          </div>
-          <p class="hint" id="deployment-copy-availability">The copy control becomes available once the check answers.</p>
-          <details class="supersede-disclosure" id="deployment-evidence" data-disclosure="collapsed">
-            <summary class="supersede-disclosure-summary" id="deployment-evidence-summary" aria-expanded="false" aria-controls="deployment-evidence-body">Evidence: what the running build answered, and the deployment record it was compared with</summary>
-            <dl class="supersede-disclosure-body" id="deployment-evidence-body"></dl>
-          </details>
-          <p class="hero-proof-boundary"><span>The example decision and release above are invented; this answer is not.</span></p>
-          <p><a class="text-link" id="deployment-commit" href="https://github.com/AndrewLikesTea/wawalu-agent-lab">Open the public repository this site is built from</a></p>
-          <p><a class="text-link" href="/releases.html#shipped-build">Open the deployment record</a></p>
-        </section>
-
-        <!-- HOW TYPICAL THE EXAMPLE ABOVE IS, IN TWO NUMBERS (#2605).
-             The panel above shows one decision that reached one release. This
-             block says how many of the loaded releases keep their reasoning that
-             way, out of how many there are, so a reader does not have to take
-             one worked example as the rule.
-             THEY ARE THE RELEASES PAGE'S NUMBERS, NOT A SECOND OPINION. The
-             split is countReasoningKept() in src/release-reasoning-proof.js and
-             the sentence is reasoningKeptSentence() from the same module — the
-             function and the string that page renders — so the two surfaces
-             cannot report different figures for one browser. src/app.js hands
-             the complete loaded log to src/homepage-release-coverage.js from
-             refresh(), never the filtered selection, which is what makes the
-             scope line below true rather than merely stated.
-             THE RULE AND THE SCOPE ARE AUTHORED; THE FIGURE IS NOT. Both
-             caveats are true before any module runs, and they are the releases
-             page's own sentences word for word, so the site does not draw one
-             line two ways. The figure is a claim the page cannot make until the
-             log has loaded, so the sentence node ships saying the counting is
-             still going on — the deployment check above states its wait the
-             same way — and never a zero, a dash, or an empty line. It is a live
-             region from the first paint rather than one filled on arrival,
-             because a region that appears with its contents is announced by
-             nothing, and recording a release moves these numbers.
-             ONE CONTROL, ONLY IN THE STATE THAT NEEDS IT (#2907). The line
-             after the figure is hidden while counting. With uncovered releases
-             it is a link that opens Releases with that list revealed; a complete
-             count is a status chip that states the number; a refused read is a
-             retry. tests/homepage-log-leads.test.js counts the stop the booted
-             example log adds. The example records state that they
-             are invented once in this section, in the panel above; this block
-             says only which records it counted, so the caveat is not restated
-             in a second set of words.
-             THE IDS ARE NOT release dash coverage. That name is already taken,
-             by the line above the record list that reports the same subject
-             over the FILTERED view; src/app.js resolves it by id in document
-             order, so a block named that up here would be found first and
-             overwritten with the filtered sentence.
-             Every class here already ships and no rule was added: styles.css is
-             at its measured size budget. -->
-        <section class="hero-proof" id="reasoning-kept" aria-labelledby="reasoning-kept-title">
-          <h3 id="reasoning-kept-title">Releases on this page that link a decision</h3>
-          <p class="release-followup-lead" id="reasoning-kept-lead">Two numbers, counted from the releases loaded in this browser: how many of them link at least one decision the decision log holds, out of how many were loaded.</p>
-          <p class="release-followup-lead" id="reasoning-kept-claim" role="status" aria-live="polite" aria-atomic="true" tabindex="-1">Still counting the releases loaded in this browser…</p>
-          <p class="release-followup-lead" id="reasoning-kept-next" hidden><a class="text-link" id="reasoning-kept-review" href="/releases.html#coverage-gap-worklist" hidden></a><span class="badge badge-accepted" id="reasoning-kept-complete" hidden></span><button class="secondary-button" id="reasoning-kept-retry" type="button" hidden>Count the releases again</button></p>
-          <p class="detail-summary" id="reasoning-kept-provenance"></p>
-          <p class="hint" id="reasoning-kept-rule">A release is covered when it links at least one decision the decision log holds; every other release is uncovered.</p>
-          <p class="hint" id="reasoning-kept-scope">Both numbers are over every release loaded on this page, not the filtered view: the search and the filters below do not change them.</p>
-        </section>
-
-        <div class="hero-actions">
-          <a class="button-link" href="#record-history">Record and search the Decision log on this page <span aria-hidden="true">→</span></a>
-          <a class="text-link" href="#decision-to-release">See how a decision reaches a release</a>
-        </div>
-      </section>
-
       <section id="record-history" aria-labelledby="record-history-title">
         <div class="section-heading">
           <h2 id="record-history-title" tabindex="-1">Decision log</h2>
         </div>
-      <div class="workspace">
+      <div class="workspace workspace-single">
         <div class="form-panel" aria-labelledby="decision-form-title">
           <div class="section-heading">
             <p class="eyebrow">New decision</p>
@@ -404,7 +190,7 @@
                  decision, write its context and its alternatives, and type all
                  of it in before anything downstream — the release link, the
                  export, the history — could be tried at all. This control loads
-                 the example decision this page already displays above the log
+                 the example decision this page already displays below the workflow
                  into the five fields, so step two is one press away.
                  IT FILLS AND NOTHING ELSE. type="button", so it neither submits
                  nor becomes the form's default button for Enter in a text
@@ -421,7 +207,7 @@
                  presses in the order they are done, and the tab stop it adds is
                  inside the form, so nothing above the browser-tool entry links
                  lower down the page changes order. -->
-            <p class="hint field-wide" id="fill-example-decision-hint">Loads the example decision shown above the log. The fields stay editable afterwards, and nothing is recorded until you press “Record decision”.</p>
+            <p class="hint field-wide" id="fill-example-decision-hint">Loads the example decision shown below the workflow. The fields stay editable afterwards, and nothing is recorded until you press “Record decision”.</p>
             <button class="recorder-exit" id="fill-example-decision" type="button" aria-describedby="fill-example-decision-hint">Fill this form with the example decision</button>
             <button type="submit">Record decision</button>
             <button class="recorder-exit" id="exit-decision-recorder" type="button">Back to decision history</button>
@@ -787,6 +573,207 @@
           </div>
         </div>
       </section>
+      </section>
+
+      <!-- Repository evidence and the worked example follow the complete workflow. -->
+      <section class="shiplog-entry" id="shiplog-entry" aria-labelledby="home-log-title">
+        <article class="hero-proof" id="repository-evidence" aria-labelledby="repository-evidence-title">
+          <h2 id="repository-evidence-title">Repository-backed product evidence</h2>
+          <p class="release-followup-lead">These decisions document this repository’s own development. This is neither an invented example nor a customer result.</p>
+          <div id="repository-evidence-records" data-state="loading" role="status"><p class="release-followup-lead">Loading repository-backed decisions.</p></div>
+          <p class="release-followup-lead"><a class="text-link" href="/?source=repository#record-history">Browse all repository-backed Shiplog decisions</a></p>
+          <h3 id="repository-release-pair-title">A decision from this repository, and the release that shipped it</h3>
+          <p class="release-followup-lead"><strong>Real repository record.</strong> Read from this repository’s recorded builds, unlike the invented example below.</p>
+          <!-- Historical build metadata, preserved at this immutable public source.
+               This proves a build, not customer impact or current deployment. -->
+          <div id="repository-last-verified" role="group" aria-labelledby="repository-last-verified-title">
+            <h4 id="repository-last-verified-title">Last verified — recorded build</h4>
+            <p class="release-followup-lead">The decision “Mark every record row with whose record it is” (pull request #2547) is in build <strong>28b2398ff49c</strong>, built <time datetime="2026-09-25T09:08:40.330Z">25 September 2026, 09:08 UTC</time>. This is a recorded build, not a claim about what runs today.</p>
+            <p class="release-followup-lead"><a class="text-link" href="https://github.com/AndrewLikesTea/wawalu-agent-lab/blob/a1dc0a2dd45b24f8c114dfabed2a31f095f75557/src/build-stamp.js">Open the build stamp for 28b2398ff49c on GitHub</a></p>
+          </div>
+          <p class="release-followup-lead" id="repository-release-pair-status" role="status">Checking the live site for a current result. The last-verified example above is a recorded build, not a live result.</p>
+          <div id="repository-release-pair" aria-labelledby="repository-release-pair-title" role="group"></div>
+        </article>
+        <p>How a team gets Shiplog: by asking the team that operates it. There is no self-serve signup and no published price — Shiplog is a demonstration product built and operated by Wawalu, so whether it is available for your team and what it would cost are both answered on request. The <a href="#shiplog-evaluation-brief">evaluation brief and blank pilot scorecard</a> are further down this page. The brief says what Shiplog records and who operates it; the scorecard is a blank form your evaluating team fills in during a pilot. The follow-up form at the foot of this page sends your work email to that team and nothing else.</p>
+        <!-- TWO ROUTES, BECAUSE THE TOPIC IS THE CHOICE (#2623). This row
+             carried one route for both errands, so a buyer who had already
+             decided scrolled the rest of the page to reach the pair that names
+             them. Each route now names one errand, lands the visitor in the
+             work-email field, and records that topic where they can read it
+             back before sending. Both drive the same state the pair lower down
+             the page drives, so the page holds one choice and not two, and the
+             address is the one the evaluation brief publishes for this question.
+             ONE STYLE FOR THE TWO: peers, not a primary and a fallback. Nothing
+             here knows which errand a given buyer wants, so weighting one would
+             be a guess drawn in type. They reuse the hero's classes, which
+             already wrap at narrow widths, because styles.css is at its
+             measured size budget.
+             NOT IN THE HERO: the ask belongs with the answer about availability
+             and pricing, which is the paragraph above and not that one.
+             NO SECOND ROUTE TO THE SCORECARD: the paragraph above links the
+             evaluation brief and blank pilot scorecard two sentences up, and
+             this section's tab stops are counted by homepage-log-leads.test.js.
+             The two lines below promise no schedule, price, availability or
+             customer: what Shiplog costs and whether it is available stay
+             answered on request in the paragraph above, and what the request
+             sends is said once, in the line the routes describe themselves
+             with. -->
+        <div class="hero-actions">
+          <a class="text-link" id="ask-about-shiplog" data-buyer-intent="demo" href="#site-footer-panel" aria-describedby="ask-about-shiplog-description">Request a Shiplog demonstration</a>
+          <a class="text-link" id="discuss-pilot" data-buyer-intent="pilot" href="#site-footer-panel" aria-describedby="ask-about-shiplog-description">Discuss a Shiplog pilot</a>
+          <p class="hint" id="ask-about-shiplog-offers">“A product demonstration” is a walkthrough: the Wawalu team that operates Shiplog shows you the log and answers your questions. “A pilot evaluation” is your own team trying Shiplog and scoring it on the blank pilot scorecard further down this page.</p>
+          <p class="hint" id="ask-about-shiplog-description">Both actions move you to the follow-up form at the foot of this page and name your chosen topic above its field. The form sends your work email address and nothing else.</p>
+        </div>
+        <article class="hero-proof" id="featured-decision" aria-labelledby="featured-decision-title">
+          <h3 class="eyebrow" id="featured-decision-title">One recorded decision, and the release that shipped it</h3>
+          <p class="hero-proof-boundary"><strong>Example records</strong> <span>These invented records demonstrate Shiplog. They use no customer or production data.</span></p>
+          <dl class="hero-proof-facts">
+            <div><dt>Decision</dt><dd>Adopt a durable job queue · Accepted</dd></div>
+            <div><dt>Shipped in</dt><dd>Release v1.3.0 · Throughput and latency · Completed</dd></div>
+            <div><dt>Owner</dt><dd>Kai</dd></div>
+          </dl>
+          <dl class="featured-decision-reasoning">
+            <div><dt>Context</dt><dd>Background work was lost on deploys; move to an at-least-once durable queue.</dd></div>
+            <div><dt>Considered alternatives</dt><dd>Database polling and in-process retries.</dd></div>
+          </dl>
+          <a class="text-link" href="/decision.html?id=demo-queue">Inspect the full decision record: Adopt a durable job queue</a>
+        </article>
+
+        <!-- THE DEPLOYMENT CHECK.
+             The featured example above is invented; this block reads the deployment
+             that is serving this page and compares what it reports against the
+             newest release record in the log. It is the SAME check the releases
+             page runs, not a second opinion about the same question: the ids
+             below are the ones src/deployment-status-view.js fills, the
+             sentence is written by verdictSentence() in src/deployment-status.js,
+             and the metric under it by verdictMetricText(), so the two pages
+             given one reading cannot word one answer two ways. src/app.js boots
+             it from the composed log, so both pages also compare against the
+             same newest record. No second network read: the check reads the
+             same health endpoint it already reads on releases.html, and nothing
+             on this page waits for it.
+             THE LEAD STATES THE COMPARISON, IT NO LONGER ASKS IT (#2512). It
+             used to open with a question a reader had to carry until the
+             verdict answered it, and it named the compared record in words two
+             other surfaces worded differently. It now names the two versions
+             and what a match would prove, in the one name the record carries
+             everywhere: the deployment record.
+             THE WAITING LINE IS AUTHORED AND THE ANSWER IS NOT. The document
+             ships one waiting sentence and no verdict, because a verdict in
+             these bytes would be a comparison nobody ran. Every settled state,
+             including a check that could not complete, replaces that sentence
+             with a full sentence naming both versions.
+             WHAT EACH OUTCOME MEANS IS AUTHORED TOO (#2681). The lead says what
+             a match proves; the line under it says what the other two outcomes
+             mean and what to do about each. A reader needs that most in the
+             state where the check never answers, which is the one state no
+             rendered copy arrives in — so it ships in these bytes. The three
+             sentences are DEPLOYMENT_OUTCOMES in src/deployment-status.js and
+             the releases page ships them byte for byte. The mismatch
+             sentence names the record link at the foot of this block, which
+             used to point at the releases page's copy of this check (#2808):
+             same focusable, so the first screen's tab count is unchanged.
+             THE CAVEAT IS SAID ONCE IN THIS SECTION. The panel above states
+             that the records are invented; this one states only the contrast
+             the check needs, so a reader is not told the same thing twice in
+             two sets of words.
+             THE COMMIT LINK IS AUTHORED AS THE REPOSITORY AND NARROWED BY THE
+             MODULE, the way the releases page authors the same link: the
+             repository is true whatever the stamp says, and
+             src/deployment-status-view.js narrows it to the exact commit this
+             build was made from and names it in the words that page names it
+             in. It is painted before the check runs and no verdict rewrites it,
+             so it is there while the check is still working and there when the
+             check could not complete. An unstamped build withdraws it rather
+             than pointing at a commit nobody made.
+             Every class here already ships and NO RULE was added: styles.css is
+             at its measured size budget. The one stylesheet change is a single
+             declaration on the metric line's existing class, so a long build
+             identifier wraps instead of running off a 360px screen.
+             THE ANSWER LEAVES THE PAGE NOW (#2555). The copy control, its
+             confirmation and the evidence disclosure are the releases page's,
+             id for id and word for word, filled by the same module: an answer
+             a reader can only keep by retyping it is an answer that evaporates
+             when the tab closes. The control ships disabled under a line saying
+             when it becomes usable, because the check has not run in these
+             bytes; a check that cannot answer withdraws it and says so, since
+             there is then no verdict to take away. The metric line above it
+             names both compared versions, which is what the failure message
+             points at, so this block needs no separate identifiers line. -->
+        <section class="hero-proof" id="deployment-status" aria-labelledby="deployment-status-title">
+          <h3 id="deployment-status-title">Deployment check</h3>
+          <p class="release-followup-lead" id="deployment-status-proof">The deployment check compares the running site version with the deployment record version. Confirmed: the running site is the recorded deployment.</p>
+          <p class="release-followup-lead" id="deployment-outcomes">Not a match: the running site is a different build from the recorded deployment. See the deployment record for the build that should be running. Did not complete: this page cannot say which version is running. Check again later.</p>
+          <p class="release-followup-lead" id="deployment-verdict" role="status" aria-describedby="deployment-checked-at">Checking: the result appears here in a few seconds.</p>
+          <p class="detail-summary" id="deployment-checked-at" hidden></p>
+          <p class="detail-summary" id="deployment-metric"></p>
+          <div class="share-control">
+            <button class="share-button" id="deployment-copy" type="button" disabled aria-describedby="deployment-copy-status deployment-copy-availability">Copy the deployment check verdict and both versions</button>
+            <span class="share-status" id="deployment-copy-status" role="status" aria-live="polite" aria-atomic="true"></span>
+          </div>
+          <p class="hint" id="deployment-copy-availability">The copy control becomes available once the check answers.</p>
+          <details class="supersede-disclosure" id="deployment-evidence" data-disclosure="collapsed">
+            <summary class="supersede-disclosure-summary" id="deployment-evidence-summary" aria-expanded="false" aria-controls="deployment-evidence-body">Evidence: what the running build answered, and the deployment record it was compared with</summary>
+            <dl class="supersede-disclosure-body" id="deployment-evidence-body"></dl>
+          </details>
+          <p class="hero-proof-boundary"><span>The example decision and release above are invented; this answer is not.</span></p>
+          <p><a class="text-link" id="deployment-commit" href="https://github.com/AndrewLikesTea/wawalu-agent-lab">Open the public repository this site is built from</a></p>
+          <p><a class="text-link" href="/releases.html#shipped-build">Open the deployment record</a></p>
+        </section>
+
+        <!-- HOW TYPICAL THE EXAMPLE ABOVE IS, IN TWO NUMBERS (#2605).
+             The panel above shows one decision that reached one release. This
+             block says how many of the loaded releases keep their reasoning that
+             way, out of how many there are, so a reader does not have to take
+             one worked example as the rule.
+             THEY ARE THE RELEASES PAGE'S NUMBERS, NOT A SECOND OPINION. The
+             split is countReasoningKept() in src/release-reasoning-proof.js and
+             the sentence is reasoningKeptSentence() from the same module — the
+             function and the string that page renders — so the two surfaces
+             cannot report different figures for one browser. src/app.js hands
+             the complete loaded log to src/homepage-release-coverage.js from
+             refresh(), never the filtered selection, which is what makes the
+             scope line below true rather than merely stated.
+             THE RULE AND THE SCOPE ARE AUTHORED; THE FIGURE IS NOT. Both
+             caveats are true before any module runs, and they are the releases
+             page's own sentences word for word, so the site does not draw one
+             line two ways. The figure is a claim the page cannot make until the
+             log has loaded, so the sentence node ships saying the counting is
+             still going on — the deployment check above states its wait the
+             same way — and never a zero, a dash, or an empty line. It is a live
+             region from the first paint rather than one filled on arrival,
+             because a region that appears with its contents is announced by
+             nothing, and recording a release moves these numbers.
+             ONE CONTROL, ONLY IN THE STATE THAT NEEDS IT (#2907). The line
+             after the figure is hidden while counting. With uncovered releases
+             it is a link that opens Releases with that list revealed; a complete
+             count is a status chip that states the number; a refused read is a
+             retry. tests/homepage-log-leads.test.js counts the stop the booted
+             example log adds. The example records state that they
+             are invented once in this section, in the panel above; this block
+             says only which records it counted, so the caveat is not restated
+             in a second set of words.
+             THE IDS ARE NOT release dash coverage. That name is already taken,
+             by the line above the record list that reports the same subject
+             over the FILTERED view; src/app.js resolves it by id in document
+             order, so a block named that up here would be found first and
+             overwritten with the filtered sentence.
+             Every class here already ships and no rule was added: styles.css is
+             at its measured size budget. -->
+        <section class="hero-proof" id="reasoning-kept" aria-labelledby="reasoning-kept-title">
+          <h3 id="reasoning-kept-title">Releases on this page that link a decision</h3>
+          <p class="release-followup-lead" id="reasoning-kept-lead">Two numbers, counted from the releases loaded in this browser: how many of them link at least one decision the decision log holds, out of how many were loaded.</p>
+          <p class="release-followup-lead" id="reasoning-kept-claim" role="status" aria-live="polite" aria-atomic="true" tabindex="-1">Still counting the releases loaded in this browser…</p>
+          <p class="release-followup-lead" id="reasoning-kept-next" hidden><a class="text-link" id="reasoning-kept-review" href="/releases.html#coverage-gap-worklist" hidden></a><span class="badge badge-accepted" id="reasoning-kept-complete" hidden></span><button class="secondary-button" id="reasoning-kept-retry" type="button" hidden>Count the releases again</button></p>
+          <p class="detail-summary" id="reasoning-kept-provenance"></p>
+          <p class="hint" id="reasoning-kept-rule">A release is covered when it links at least one decision the decision log holds; every other release is uncovered.</p>
+          <p class="hint" id="reasoning-kept-scope">Both numbers are over every release loaded on this page, not the filtered view: the search and the filters below do not change them.</p>
+        </section>
+
+        <div class="hero-actions">
+          <a class="button-link" href="#record-history">Record and search the Decision log on this page <span aria-hidden="true">→</span></a>
+          <a class="text-link" href="#decision-to-release">See how a decision reaches a release</a>
+        </div>
       </section>
 
       <section class="hero-proof" id="shiplog-evaluation-brief" tabindex="-1" aria-labelledby="shiplog-evaluation-brief-title">

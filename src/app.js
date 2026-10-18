@@ -1549,6 +1549,13 @@ export async function initDecisionLog(root = document, storage = localStorage, o
   // mounts this log without the route or without the band gets nothing.
   initAskAboutShiplog(root);
   const form = root.querySelector("#decision-form");
+  root.querySelector("#core-demo-link")?.addEventListener("click", (event) => {
+    if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+    const title = root.querySelector("#title");
+    if (!title) return;
+    event.preventDefault();
+    title.focus();
+  });
   const list = root.querySelector("#decision-list");
   const count = root.querySelector("#decision-count");
   // The same figure split by provenance. A second node rather than more text in

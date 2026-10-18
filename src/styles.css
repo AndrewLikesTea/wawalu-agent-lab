@@ -988,3 +988,7 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 /* Author display rules must never expose hidden retry controls or receipts. */
 .site-footer [hidden] { display:none !important; }
 .site-footer-form[data-state="submitting"] .site-footer-status { border-radius:9px; padding:11px 13px; background:#eef5fc; color:#2c2c28; }
+
+/* Keep the homepage workflow above evidence at every width. */
+#record-history .form-panel { position:static; }
+#record-history #title { scroll-margin-top:24px; }

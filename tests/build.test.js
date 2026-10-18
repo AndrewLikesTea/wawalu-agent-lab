@@ -166,8 +166,8 @@ test("the homepage names the Decision log and explains browsing and recording", 
   assert.doesNotMatch(ledeText, /reasoning/);
   for (const term of ["context", "alternatives", "owner", "release"]) assert.match(ledeText, new RegExp(term));
   const primary = hero.querySelector(".button-link");
-  assert.equal(primary.getAttribute("href"), "#record-history-title");
-  assert.match(primary.textContent, /Explore the Decision log/);
+  assert.equal(primary.getAttribute("href"), "#title");
+  assert.match(primary.textContent, /Record a decision/);
   assert.match(hero.textContent, /invented and use no customer or production data/);
   // Distinct labels distinguish the hero's demo invitation from the
   // explanation's record-and-search shortcut to the same workspace.
@@ -499,7 +499,7 @@ test("the core demo call to action is reachable by Tab alone and opens on Enter"
   for (let press = 0; press < 20 && reached !== primary; press += 1) reached = pressTab(document);
   assert.equal(reached, primary, "the core demo link must sit in the natural tab order");
   pressEnter(document);
-  assert.deepEqual(document.navigations, ["#record-history-title"]);
+  assert.deepEqual(document.navigations, ["#title"]);
 });
 
 test("security headers ship with the site", async () => {
