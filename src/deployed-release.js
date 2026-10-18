@@ -225,7 +225,7 @@ export function deployedReleaseRecord(stamp) {
     sourceUrl: commitUrl(commitSha),
     detailHref: "/releases.html#shipped-build",
     actionLabel: REAL_RECORD_LINK_LABEL,
-    actionTarget: "It names the build this site should be running.",
+    actionTarget: "It identifies the recorded build expected to be live.",
     decisionIds: Object.freeze([]),
   });
 }

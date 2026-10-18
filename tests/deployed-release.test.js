@@ -315,7 +315,7 @@ test("an unstamped build shows no record and withdraws the real marking", async 
   assert.match(verdictText(page), /no deployment record to compare/);
   assert.equal(
     textOf(page.document.querySelector("#deployment-identifiers")),
-    "Running build version: 0123456789abcdef0123456789abcdef01234567. Deployment record version: not available.",
+    "Running build: 0123456789abcdef0123456789abcdef01234567. Recorded build: not available.",
   );
   assert.doesNotMatch(verdictText(page), /^Confirmed:/);
 });
@@ -328,7 +328,7 @@ test("an unstamped build shows no record and withdraws the real marking", async 
 // with, which is what the question directly above it already says. One fetch,
 // one sentence, on both pages — and the record's name is asserted where the
 // band actually states it, in the settled verdict below.
-const WAITING_LINE = "Checking: the result appears here in a few seconds.";
+const WAITING_LINE = "Checking the running build against the recorded build: the result appears here in a few seconds.";
 
 test("the check waits in the site's one waiting sentence, and announces the answer in place", async (t) => {
   // A probe that never answers: the state a visitor on a slow network meets,
@@ -349,18 +349,18 @@ test("the deployment check's verdict names a record the page marks as real", asy
   const page = await open(t);
   assert.equal(
     verdictText(page),
-    `Confirmed: this site is running ${SHA}, the version ${REAL_RECORD_NAME} names.`,
+    `Confirmed: the running build is ${SHA}, matching the recorded build.`,
   );
   // The record the verdict names is the one carrying the build-generated
   // marking — and it is never one of the invented rows.
-  assert.ok(verdictText(page).includes(REAL_RECORD_NAME));
+  assert.ok(verdictText(page).includes("recorded build"));
   assert.equal(marking(page), REAL_MARKING);
   assert.doesNotMatch(verdictText(page), /newest release record/);
   for (const version of ["v1.4.0", "v1.3.0", "v1.2.1", "v1.2.0"]) {
     assert.doesNotMatch(verdictText(page), new RegExp(version.replace(/\./g, "\\.")),
       "the check named an invented demonstration record");
   }
-  assert.match(textOf(page.document.querySelector("#deployment-metric")), new RegExp(`^Running ${SHA} · Deployment record ${SHA} ·`));
+  assert.match(textOf(page.document.querySelector("#deployment-metric")), new RegExp(`^Running build ${SHA} · Recorded build ${SHA} ·`));
 });
 
 test("a page and a deployment built from different commits read as a mismatch with one action", async (t) => {
@@ -369,7 +369,7 @@ test("a page and a deployment built from different commits read as a mismatch wi
   assert.equal(page.document.querySelector("#deployment-status").dataset.deploymentState, "drift");
   assert.equal(
     verdictText(page),
-    `Not a match: this site is running ${other}, but ${REAL_RECORD_NAME} names ${SHA}.`,
+    `Not a match: the running build is ${other}, but the recorded build is ${SHA}.`,
   );
   const actions = page.document.querySelectorAll("[data-deployment-action]");
   assert.equal(actions.length, 1, "drift must name exactly one next action");
@@ -379,7 +379,7 @@ test("a page and a deployment built from different commits read as a mismatch wi
   assert.equal(textOf(actions[0]), REAL_RECORD_LINK_LABEL);
   assert.equal(
     textOf(page.document.querySelector("#deployment-identifiers")),
-    `Running build version: ${other}. Deployment record version: ${SHA}.`,
+    `Running build: ${other}. Recorded build: ${SHA}.`,
   );
 });
 
@@ -387,7 +387,7 @@ test("the proof names both compared version values and sits in the record's own 
   const page = await open(t);
   assert.equal(
     textOf(page.document.querySelector("#deployment-identifiers")),
-    `Running build version: ${SHA}. Deployment record version: ${SHA}.`,
+    `Running build: ${SHA}. Recorded build: ${SHA}.`,
   );
   // No link back to the record (#2487): the check is a subsection of the block
   // the record heads, so the record is already beside it.
@@ -461,16 +461,16 @@ test("the body the endpoint really serves is one this band reads, and it resolve
 
   assert.equal(
     textOf(page.document.querySelector("#deployment-identifiers")),
-    `Running build version: ${SHA}. Deployment record version: ${SHA}.`,
+    `Running build: ${SHA}. Recorded build: ${SHA}.`,
   );
   assert.equal(page.document.querySelector("#deployment-status").dataset.deploymentState, "match");
-  assert.match(verdictText(page), /^Confirmed: this site is running [0-9a-f]{40}, the version/);
+  assert.match(verdictText(page), /^Confirmed: the running build is [0-9a-f]{40}, matching the recorded build/);
   // And the copy a buyer takes away carries the same two values, from the same
   // check, rather than a second reading of it — followed by where it was taken
   // from, so a pasted note can be re-checked at the address that made it.
   assert.equal(
     page.document.querySelector("#deployment-copy").dataset.copyText,
-    `Deployment check verdict: ${verdictText(page)}\nRunning build version: ${SHA}. Deployment record version: ${SHA}.`
+    `Deployment check verdict: ${verdictText(page)}\nRunning build: ${SHA}. Recorded build: ${SHA}.`
       + `\n${textOf(page.document.querySelector("#deployment-checked-at"))}`
       + "\nCopied from: https://labs.wawalu.org/",
   );

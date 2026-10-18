@@ -96,7 +96,7 @@ test("the three regions are labelled and stay in authored order whichever loader
 
 test("each region's waiting and failed text names that region, and only failures offer a retry", async (t) => {
   const { page, control, health } = await openPage(t, { refuse: true });
-  assert.equal(textOf(byId(page, "deployment-verdict")), "Checking: the result appears here in a few seconds.");
+  assert.equal(textOf(byId(page, "deployment-verdict")), "Checking the running build against the recorded build: the result appears here in a few seconds.");
   assert.equal(byId(page, "deployment-retry").hidden, true);
   assert.match(textOf(byId(page, "coverage-gap-result")), /^Couldn’t count coverage\./);
   assert.equal(byId(page, "coverage-gap-retry").hidden, false);
@@ -140,7 +140,7 @@ test("the deployment check's retry re-runs only the health probe", async (t) => 
   pressEnter(page.document);
   assert.equal(health.calls, 2);
   assert.equal(control.releaseReads, reads, "the log and the count were not read again");
-  assert.equal(textOf(byId(page, "deployment-verdict")), "Checking: the result appears here in a few seconds.");
+  assert.equal(textOf(byId(page, "deployment-verdict")), "Checking the running build against the recorded build: the result appears here in a few seconds.");
   assert.equal(retry.hidden, false, "the pressed button stays under focus while the probe runs");
   pressEnter(page.document);
   assert.equal(health.calls, 2, "a second press during the probe starts nothing");

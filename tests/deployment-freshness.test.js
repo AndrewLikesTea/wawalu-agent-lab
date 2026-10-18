@@ -38,7 +38,7 @@ for (const surface of ["index", "releases"]) {
       assert.ok(zone?.value);
       assert.ok(displayed.includes(zone.value));
       assert.equal(get("copy").dataset.copyText,
-        `Deployment check verdict: ${textOf(get("verdict"))}\nRunning build version: ${version}. Deployment record version: v1.\n${displayed}\nCopied from: https://labs.wawalu.org/`);
+        `Deployment check verdict: ${textOf(get("verdict"))}\nRunning build: ${version}. Recorded build: v1.\n${displayed}\nCopied from: https://labs.wawalu.org/`);
     };
     await check(async () => ({ status: "ok", build: "v1" }));
     assertSuccess(first, "v1");

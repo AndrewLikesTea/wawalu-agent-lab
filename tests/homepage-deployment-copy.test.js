@@ -123,9 +123,9 @@ test("the copied result names the verdict, both versions, and the page it was co
   // (1) the verdict, (2) the running build, (3) the version in the record,
   // (4) where it was read — the four facts a pasted incident note needs to be
   // re-checkable by somebody who was not at the screen.
-  assert.match(text, /^Deployment check verdict: Not a match: this site is running v2\.0\.0/);
-  assert.match(text, /Running build version: v2\.0\.0\./);
-  assert.match(text, /Deployment record version: v2\.1\.0\./);
+  assert.match(text, /^Deployment check verdict: Not a match: the running build is v2\.0\.0/);
+  assert.match(text, /Running build: v2\.0\.0\./);
+  assert.match(text, /Recorded build: v2\.1\.0\./);
   assert.match(text, /\nCopied from: https:\/\/labs\.wawalu\.org\/$/);
 });
 

@@ -695,9 +695,9 @@
              points at, so this block needs no separate identifiers line. -->
         <section class="hero-proof" id="deployment-status" aria-labelledby="deployment-status-title">
           <h3 id="deployment-status-title">Deployment check</h3>
-          <p class="release-followup-lead" id="deployment-status-proof">The deployment check compares the running site version with the deployment record version. Confirmed: the running site is the recorded deployment.</p>
-          <p class="release-followup-lead" id="deployment-outcomes">Not a match: the running site is a different build from the recorded deployment. See the deployment record for the build that should be running. Did not complete: this page cannot say which version is running. Check again later.</p>
-          <p class="release-followup-lead" id="deployment-verdict" role="status" aria-describedby="deployment-checked-at">Checking: the result appears here in a few seconds.</p>
+          <p class="release-followup-lead" id="deployment-status-proof">The deployment check compares the recorded build with the running build. Confirmed: the running build matches the recorded build.</p>
+          <p class="release-followup-lead" id="deployment-outcomes">Not a match: the running build differs from the recorded build. See the deployment record for the recorded build. Did not complete: this page cannot confirm whether the running build matches the recorded build. Check again later.</p>
+          <p class="release-followup-lead" id="deployment-verdict" role="status" aria-describedby="deployment-checked-at">Checking the running build against the recorded build: the result appears here in a few seconds.</p>
           <p class="detail-summary" id="deployment-checked-at" hidden></p>
           <p class="detail-summary" id="deployment-metric"></p>
           <div class="share-control">

@@ -30,7 +30,7 @@
 // N ago"), not a claim about when a drift began — which nothing on this page
 // could know without persisting past verdicts.
 
-import { REAL_RECORD_NAME, sameSiteHref } from "./deployed-release.js";
+import { sameSiteHref } from "./deployed-release.js";
 import { releaseDetailHref } from "./releases.js";
 
 // The fields a health response may name its build in, in order. `/healthz`
@@ -61,14 +61,14 @@ export const DEPLOYMENT_STATES = Object.freeze(["match", "drift", "unknown"]);
  * block above, and the front door links it at the foot of the check.
  */
 export const DEPLOYMENT_OUTCOMES = Object.freeze({
-  match: "Confirmed: the running site is the recorded deployment.",
-  drift: "Not a match: the running site is a different build from the recorded deployment."
-    + " See the deployment record for the build that should be running.",
-  unknown: "Did not complete: this page cannot say which version is running. Check again later.",
+  match: "Confirmed: the running build matches the recorded build.",
+  drift: "Not a match: the running build differs from the recorded build."
+    + " See the deployment record for the recorded build.",
+  unknown: "Did not complete: this page cannot confirm whether the running build matches the recorded build. Check again later.",
 });
 
 // What the verdict line says while the check is still reading.
-export const CHECKING_LINE = "Checking: the result appears here in a few seconds.";
+export const CHECKING_LINE = "Checking the running build against the recorded build: the result appears here in a few seconds.";
 
 // Why the answer is unknown, in plain language and never as an error object: a
 // reader gets a sentence, not a stack trace.
@@ -179,7 +179,7 @@ function elapsed(fromIso, nowIso) {
 function nextActionFor(release) {
   if (!release?.id) {
     return {
-      label: "Record the release that is running",
+      label: "Record the running build",
       href: "/releases.html#record-release",
       target: "There is no deployment record, so there is nothing to compare against yet.",
       releaseId: null,
@@ -196,7 +196,7 @@ function nextActionFor(release) {
     // same reason, as the real record's own link (src/deployed-release.js).
     href: sameSiteHref(release.detailHref) || releaseDetailHref(release.id),
     target: text(release.actionTarget)
-      ?? `Open ${name} and re-record it if what is running is correct, or ship the recorded build if it is not.`,
+      ?? `Open ${name} and re-record it if the running build is correct, or ship the recorded build if it is not.`,
     releaseId: release.id,
   };
 }
@@ -260,12 +260,12 @@ export function verdictSentence(verdict) {
   const deployed = verdict.deployedBuild ?? "an unreported build";
   const recorded = verdict.recordedBuild ?? "no recorded build";
   if (verdict.state === "match") {
-    return `Confirmed: this site is running ${deployed}, the version ${REAL_RECORD_NAME} names.`;
+    return `Confirmed: the running build is ${deployed}, matching the recorded build.`;
   }
   if (verdict.state === "drift") {
-    return `Not a match: this site is running ${deployed}, but ${REAL_RECORD_NAME} names ${recorded}.`;
+    return `Not a match: the running build is ${deployed}, but the recorded build is ${recorded}.`;
   }
-  return `The check did not complete, so nothing here says which version this site is running. ${verdict.reason}`;
+  return `The check did not complete, so this page cannot confirm whether the running build matches the recorded build. ${verdict.reason}`;
 }
 
 // The single headline metric: both identifiers and how long the state has held.
@@ -273,7 +273,7 @@ export function verdictMetricText(verdict) {
   const deployed = verdict.deployedBuild ?? "not reported";
   const recorded = verdict.recordedBuild ?? "none recorded";
   const held = verdict.recordedAt ? `recorded ${verdict.heldFor} ago` : "never recorded";
-  return `Running ${deployed} · Deployment record ${recorded} · ${held}`;
+  return `Running build ${deployed} · Recorded build ${recorded} · ${held}`;
 }
 
 /**
@@ -287,7 +287,7 @@ export function verdictMetricText(verdict) {
 export function comparedVersionsText(verdict) {
   const running = verdict?.deployedBuild ?? "not reported";
   const recorded = verdict?.recordedBuild ?? "not available";
-  return `Running build version: ${running}. Deployment record version: ${recorded}.`;
+  return `Running build: ${running}. Recorded build: ${recorded}.`;
 }
 
 // Format once per rendered result; copying reuses this exact snapshot.
@@ -331,4 +331,4 @@ export function verdictCopyText(verdict, pageUrl = null, snapshot = deploymentRe
 }
 
 // What a matching verdict says instead of offering an action.
-export const NO_ACTION_TEXT = `No action is needed: the version running is the one ${REAL_RECORD_NAME} names.`;
+export const NO_ACTION_TEXT = `No action is needed: the running build matches the recorded build.`;
