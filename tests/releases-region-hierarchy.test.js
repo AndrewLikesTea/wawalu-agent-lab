@@ -114,6 +114,7 @@ test("each region's waiting and failed text names that region, and only failures
   control.refuse = false;
   page.document.querySelector(".release-retry-action").focus();
   pressEnter(page.document);
+  await new Promise((resolve) => setTimeout(resolve, 10));
   assert.equal(byId(page, "coverage-gap-retry").hidden, true);
   assert.equal(page.document.querySelectorAll(".release-retry-action").filter((b) => !b.hidden).length, 0);
   assert.equal(byId(page, "deployment-retry").hidden, false, "the check's retry belongs to the check alone");

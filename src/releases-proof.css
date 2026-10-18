@@ -34,7 +34,10 @@
  * on this page measures the viewport in script, so the narrow-width behaviour
  * lives here and is asserted here. */
 #release-list-status { min-width:0; overflow-wrap:anywhere; }
-#release-list-status .empty-action { max-width:100%; line-height:1.3; }
+#release-list-status .empty-action { max-width:100%; min-height:44px; white-space:normal; line-height:1.3; }
+/* The wait is a dynamic state, so it takes the page's existing blue wash. */
+#release-list-status.list-state-loading { background:#eef2fb; border-radius:11px; }
+#release-list-status [aria-disabled="true"] { cursor:wait; }
 /* The decorative shape each state carries above its heading, so which state the
  * log is in is told by a silhouette as well as by words — never by colour
  * alone. It takes the panel's own ink (the .list-state colours in styles.css),

@@ -1195,6 +1195,7 @@ function statusParts(node) {
 export function renderReleaseListStatus(node, state, options = {}) {
   const parts = statusParts(node);
   const [heading, body] = releaseListStateCopy(state, options);
+  parts.action.setAttribute("aria-disabled", String(state === "loading"));
   if (state === "ready") {
     // Emptied as well as hidden. A region that kept its last sentence would
     // announce that sentence again the moment the next state unhid it.

@@ -488,6 +488,8 @@ test("a log that could not be read offers Retry and no coverage claim, and the r
   // A Retry that loads re-runs the read and brings the reveal with the rows.
   control.refuse = false;
   retry.click();
+  assert.equal(textOf(status.querySelector("h3")), "Loading releases…");
+  await new Promise((resolve) => setTimeout(resolve, 10));
   assert.equal(rowIds(page).length, 4, "the retry did not recover the log");
   assert.equal(byId(page, "coverage-gap-toggle").hidden, false);
   assert.equal(textOf(byId(page, "coverage-gap-toggle")), "Review 2 uncovered releases");
