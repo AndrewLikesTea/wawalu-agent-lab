@@ -166,3 +166,7 @@
 .featured-decision-reasoning { display:grid; gap:14px; margin:20px 0; }
 .featured-decision-reasoning dt { color:#245643; font-size:14px; font-weight:700; }
 .featured-decision-reasoning dd { margin:4px 0 0; font-size:16px; line-height:1.6; }
+
+/* Recorded evidence stays readable even when a title or URL cannot break. */
+#repository-last-verified { min-width:0; max-width:100%; overflow-wrap:anywhere; margin-top:24px; }
+#repository-last-verified a { white-space:normal; }

@@ -136,15 +136,16 @@ test("the first focusable in the log precedes the first focusable in AI FinOps",
   // thirteenth stop only once the comparison comes out one way or the other, which
   // tests/homepage-deployment-copy.test.js drives directly.
   //
-  // The thirteenth is the coverage figure's corrective link (#2907): the example
+  // The recorded-build link now lives in the opening section.
+  // The twelfth here is the coverage figure's corrective link (#2907): the example
   // log this page boots with has one uncovered release, so the figure offers
   // "Review the 1 uncovered release on Releases" directly after its result. It
   // exists only while a release is uncovered; a covered or still-counting log
-  // offers twelve.
+  // offers eleven.
   assert.equal(
     sequence.filter((element) => ancestorIds(element).includes("shiplog-entry")).length,
-    13,
-    "the log entry section offers thirteen tab stops, including the coverage figure's corrective link",
+    12,
+    "the log entry section offers twelve tab stops, including the coverage figure's corrective link",
   );
   assert.equal(sequence.filter((element) => element.getAttribute?.("id") === "reasoning-kept-review").length, 1);
 });
@@ -248,13 +249,13 @@ test("the painted front door leads with the promise, then names the log", async 
   assert.equal(document.getElementById("shiplog-entry").getAttribute("aria-labelledby"), "home-log-title");
   assert.ok(!document.getElementById("shiplog-entry-title"), "the old promise heading id is still on the page");
 
-  // The promise adds no stop, and the recorder follows the opening action.
+  // The opening action leads, followed by direct evidence links and the recorder.
   const sequence = tabSequence(document);
   const heroStops = sequence.filter((node) => ancestorIds(node).includes("top"));
-  assert.deepEqual(heroStops.map((node) => node.id), ["core-demo-link"]);
+  assert.deepEqual(heroStops, [demo, ...document.getElementById("repository-last-verified").querySelectorAll("a")]);
   const demoAt = sequence.indexOf(demo);
   assert.ok(!ancestorIds(sequence[demoAt - 1]).includes("main-content"), "a stop was added above the demo link");
-  assert.ok(ancestorIds(sequence[demoAt + 1]).includes("record-history"), "a stop was added after the demo link");
+  assert.ok(ancestorIds(sequence[sequence.indexOf(heroStops.at(-1)) + 1]).includes("record-history"), "the recorder follows the evidence links");
 
   // The directional sentence that is still true keeps its wording: the
   // recorder, filters, export, and import still follow the opening section.

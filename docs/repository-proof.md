@@ -24,3 +24,9 @@ the identical commit SHA. Most builds do not merge one of the three canonical
 decisions; those correctly retain historical proof without a current claim.
 A five-second deadline and per-document request identity protect failure and
 retry states. Only status text is live-announced; historical proof stays static.
+
+The homepage promotes this static record into its opening product section.
+Its decision link opens the canonical detail route; its build link opens the
+immutable stamp. Neither link depends on live verification or script loading.
+Tests compare the authored decision and build names against the shared historical
+stamp used on Releases, and retain both links through pending and failed checks.
