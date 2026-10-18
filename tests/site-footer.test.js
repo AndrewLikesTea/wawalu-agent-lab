@@ -23,7 +23,7 @@ import { readFile, readdir } from "node:fs/promises";
 import {
   ASSETS_DESCRIPTION, ASSETS_HREF, ASSETS_LINK_LABEL,
   DEMOS, DIRECTORY_SUMMARY, FOLLOW_UP_REDIRECT, IDENTITY, INVITATION, PITCH, PITCH_HREF, PITCH_LINK,
-  REPOSITORY_LINK_LABEL, SEPARATE_TOOL, siteFooterMarkup, SOURCE_LINK_LABEL,
+  PART_OF_SHIPLOG, REPOSITORY_LINK_LABEL, SEPARATE_TOOL, siteFooterMarkup, SOURCE_LINK_LABEL,
 } from "../src/site-footer.js";
 import { initDecisionDetail } from "../src/decision-page.js";
 import { EXAMPLE_LABEL } from "../src/seed-records.js";
@@ -517,7 +517,7 @@ test("the footer is a site map: every destination the navigation offers, each on
     }
     const decisionsRow = items[DEMOS.findIndex((demo) => demo.label === "Decision log")];
     assert.match(textOf(decisionsRow), /^Decision log — start here: /, "the list must say where to start");
-    assert.match(textOf(items[0]), /^AI FinOps/, "the rows keep the navigation's order");
+    assert.match(textOf(items[0]), /^Decision log/, "Shiplog's own rows lead the list");
 
     // A site map, not an essay. The rule used to be a flat eight-word cap, which
     // said "shorter" by picking a number; it is stated against the thing it
@@ -584,7 +584,8 @@ test("the footer is a site map: every destination the navigation offers, each on
     // The AI FinOps row is a fragment now, but this clause is a promise about
     // where a visitor's export is read, so it survives the trim on both.
     const guideRow = guideRows.find((row) => row.querySelector('a[href="/evolution.html"]'));
-    for (const row of [items[0], guideRow])
+    const finopsRow = items[DEMOS.findIndex((demo) => demo.href === "/evolution.html")];
+    for (const row of [finopsRow, guideRow])
       assert.match(textOf(row), /provider export in this browser tab/,
         "the AI FinOps destination must preserve its local-analysis disclosure");
     // The home page's own row still names the action; the footer points, and
@@ -914,7 +915,7 @@ test("every page's directory says start here once, on Decisions, and AI FinOps s
   assert.deepEqual(DEMOS.filter((demo) => demo.note).map((demo) => demo.label), ["Decision log"]);
   assert.equal(decisions.purpose, "record a decision, then link it to the release it shaped");
   assert.equal(finops.purpose, "score your provider export in this browser tab");
-  const HREFS = ["/evolution.html", "/coach.html", "/personal-history.html", "/", "/releases.html",
+  const HREFS = ["/", "/releases.html", "/evolution.html", "/coach.html", "/personal-history.html",
     "/social.html", "/profile.html", "/paint/", "/agents.html"];
   assert.deepEqual(DEMOS.map((demo) => demo.href), HREFS, "the directory's doors changed");
   assert.equal(DIRECTORY_SUMMARY, "Where else to go in the lab — all 9 destinations");
@@ -927,7 +928,7 @@ test("every page's directory says start here once, on Decisions, and AI FinOps s
       `${where}: the directory's doors changed`);
     assert.equal((textOf(lists[0]).match(/start here/gi) ?? []).length, 1, `${where}: "start here" is not said exactly once`);
     const marked = rows.filter((row) => /start here/i.test(textOf(row)));
-    assert.equal(textOf(marked[0]), `Decision log — start here: ${decisions.purpose}`, `${where}: the marker is not on Decisions`);
+    assert.equal(textOf(marked[0]), `Decision log — start here: ${decisions.purpose}. ${PART_OF_SHIPLOG}`, `${where}: the marker is not on Decisions`);
     assert.equal(textOf(rows[HREFS.indexOf("/evolution.html")]), `AI FinOps — ${finops.purpose}. ${SEPARATE_TOOL}`,
       `${where}: the AI FinOps row`);
     const summary = document.querySelectorAll("#site-footer-directory-summary");
@@ -936,7 +937,7 @@ test("every page's directory says start here once, on Decisions, and AI FinOps s
 
   for (const file of PAGES) {
     const html = await read(file);
-    assert.ok(html.includes(`<a href="/">Decision log</a> — start here: ${decisions.purpose}</li>`), `${file}: the authored Decisions row`);
+    assert.ok(html.includes(`<a href="/">Decision log</a> — start here: ${decisions.purpose}. ${PART_OF_SHIPLOG}</li>`), `${file}: the authored Decisions row`);
     assert.ok(!html.includes("AI FinOps</a> — start here"), `${file} still starts a visitor at AI FinOps`);
     directory(parseHtml(html), `${file} as authored`);
 
@@ -968,6 +969,8 @@ test("the directory is headed by the lab, and every destination outside Shiplog 
   // The band's own sentence is what the mark has to agree with, in its words.
   assert.match(IDENTITY, /is a separate lab tool, not part of Shiplog/);
   assert.equal(SEPARATE_TOOL, "Separate lab tool.");
+  assert.equal(PART_OF_SHIPLOG, "Part of Shiplog.");
+  assert.deepEqual(SHIPLOG_LABELS, ["Decision log", "Releases"]);
   assert.doesNotMatch(DIRECTORY_SUMMARY, /Shiplog/,
     "the heading still puts the nine destinations on Shiplog, which the band denies");
   assert.match(DIRECTORY_SUMMARY, /^Where else to go in the lab — all \d+ destinations$/);
@@ -988,8 +991,15 @@ test("the directory is headed by the lab, and every destination outside Shiplog 
       } else {
         assert.equal(text.includes(SEPARATE_TOOL), false,
           `${where}: the ${demo.label} row calls a Shiplog surface a separate tool`);
+        // #2923: Shiplog's own rows lead the list and say so, in the same place
+        // and shape as the mark on the others.
+        assert.equal(index < SHIPLOG_LABELS.length, true, `${where}: the ${demo.label} row does not lead the list`);
+        assert.equal(text, `${demo.label} — ${demo.note ? `${demo.note} ` : ""}${demo.purpose}. ${PART_OF_SHIPLOG}`,
+          `${where}: the ${demo.label} row must say it is part of Shiplog`);
       }
     }
+    assert.equal((textOf(document.querySelector(".site-footer-demos")).match(/Part of Shiplog/g) ?? []).length,
+      SHIPLOG_LABELS.length, `${where}: "Part of Shiplog." is not on exactly Shiplog's own rows`);
     assert.equal((textOf(document.querySelector(".site-footer-demos")).match(/Separate lab tool/g) ?? []).length,
       SEPARATE.length, `${where}: the mark is not on exactly the seven destinations`);
     assert.doesNotMatch(textOf(document.querySelector("#site-footer")), /tool in the lab|Wawalu Lab project/,
