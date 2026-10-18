@@ -54,6 +54,34 @@ function assertComponents(list, ariaLabel) {
   for (const label of labels) assert.match(label, COMPONENT);
 }
 
+test("the initial page explains the overall score before grading, with and without scripts", async () => {
+  const page = await loadPage(PAGE);
+  try {
+    const { document } = page;
+    const assertGuidance = () => {
+      const guidance = byId(document, "prompt-coaching-score-guidance");
+      assert.equal(textOf(guidance), "The overall score ranges from 0 to 100. Higher is better: your prompt more closely meets this page’s rubric for intent, efficiency, and model fit.");
+      for (let node = guidance; node && node.nodeType === 1; node = node.parentNode) {
+        assert.equal(node.hidden, false, "score guidance is visible without opening a disclosure");
+        assert.notEqual(node.tagName, "DETAILS");
+      }
+      const elements = document.querySelectorAll("[id]");
+      assert.ok(elements.indexOf(guidance) < elements.indexOf(byId(document, "prompt-coaching-grade")),
+        "the explanation precedes the grading action");
+      assert.equal(byId(document, "prompt-coaching").dataset.state, "idle");
+      assert.equal(byId(document, "lab-identity").textContent,
+        "A separate lab tool, not part of Shiplog, the decision and release log.");
+    };
+    assertGuidance();
+    await importPageModule("/prompt-coaching-page.js");
+    await waitFor(() => byId(document, "prompt-coach-sample-body").dataset.loadState === "ready",
+      "bundled example painted");
+    assertGuidance();
+  } finally {
+    page.restore();
+  }
+});
+
 test("the bundled example labels its overall score, letter grade, and component scores", async () => {
   const page = await openCoach();
   try {
