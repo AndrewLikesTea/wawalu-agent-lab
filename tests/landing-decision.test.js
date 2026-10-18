@@ -520,7 +520,7 @@ test("the hero's first step records a decision before its release, in the direct
   // The reorder keeps all three boundaries, in plain words.
   assert.match(step, /The example records are invented/);
   assert.match(step, /use no customer or production data/);
-  assert.match(step, /Records you add stay in this browser\./);
+  assert.match(step, /Records you add stay in this browser unless you download the complete archive/);
 
   // The link now opens the interactive workspace on this page.
   const demo = document.getElementById("core-demo-link");

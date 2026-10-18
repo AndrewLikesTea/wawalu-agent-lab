@@ -102,7 +102,7 @@ test("Team handoff names the page's export and import controls and claims no sha
   assert.match(handoff, /send the file to your teammate/);
   assert.match(handoff, /in their own browser/);
   assert.doesNotMatch(handoff, /shar|sync|host|upload|cloud|server|online|account|sign.?in|same (log|record)|workspace/i);
-  assert.ok(textOf(doc.querySelector(".hero-boundary")).includes("Records you add stay in this browser."));
+  assert.ok(textOf(doc.querySelector(".hero-boundary")).includes("Records you add stay in this browser unless"));
   assert.equal(row.querySelectorAll("a,button,input,select,textarea").length, 0);
 });
 
