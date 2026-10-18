@@ -118,6 +118,7 @@
           </div>
           <span class="badge badge-real" id="shipped-build-marking" hidden></span>
         </div>
+        <p class="shiplog-proof-note" id="deployment-record-definition">The deployment record identifies the build expected to be live: the recorded build. The running build is the build currently served by this site. Release-log entries can be planned, completed or cancelled; they do not necessarily represent production deployments.</p>
         <p class="shiplog-proof-note" id="shipped-build-note" role="status" aria-live="polite" aria-atomic="true">Loading the deployment record.</p>
         <dl class="shiplog-proof-facts" id="shipped-build-facts"></dl>
         <div class="shiplog-proof-share">
@@ -184,9 +185,9 @@
       <section class="release-followup-slot" id="deployment-status" aria-labelledby="deployment-status-title" tabindex="-1">
         <div class="release-followup" id="deployment-status-callout">
           <h3 class="release-followup-title" id="deployment-status-title">Deployment check</h3>
-          <p class="release-followup-lead" id="deployment-status-proof">The deployment check compares the running site version with the deployment record version. Confirmed: the running site is the recorded deployment.</p>
-          <p class="release-followup-lead" id="deployment-outcomes">Not a match: the running site is a different build from the recorded deployment. See the deployment record for the build that should be running. Did not complete: this page cannot say which version is running. Check again later.</p>
-          <p class="release-followup-lead" id="deployment-verdict" role="status" aria-describedby="deployment-checked-at">Checking: the result appears here in a few seconds.</p>
+          <p class="release-followup-lead" id="deployment-status-proof">The deployment check compares the recorded build with the running build. Confirmed: the running build matches the recorded build.</p>
+          <p class="release-followup-lead" id="deployment-outcomes">Not a match: the running build differs from the recorded build. See the deployment record for the recorded build. Did not complete: this page cannot confirm whether the running build matches the recorded build. Check again later.</p>
+          <p class="release-followup-lead" id="deployment-verdict" role="status" aria-describedby="deployment-checked-at">Checking the running build against the recorded build: the result appears here in a few seconds.</p>
           <p class="detail-summary" id="deployment-checked-at" hidden></p>
           <!-- The check's own recovery (#2806), shown only while it could not
                complete, and re-running this probe alone: the record above, the
@@ -712,7 +713,7 @@
       </div>
 
         <!-- The recorder, below the log it writes into. It keeps the id the
-             deployment check's "Record the release that is running" link has
+             deployment check's "Record the running build" link has
              always pointed at, moved off the section and onto the panel that
              actually holds the form, and carries tabindex="-1" so following
              that link — or the hero's — lands focus on a region named by the

@@ -422,7 +422,7 @@ const PAGE_STAMP = Object.freeze({
 // and the record is the same one in every run. `settle: false` stops at the
 // state a visitor meets while the probe is outstanding — which is where the
 // waiting line still says what is being retrieved.
-async function openReleasesPage(t, { settle = true } = {}) {
+async function openReleasesPage(t, { settle = true, readHealth } = {}) {
   const page = await loadPage(RELEASES_PAGE, {
     storage: { [STORAGE_KEY]: JSON.stringify([]), [RELEASE_STORAGE_KEY]: JSON.stringify([]) },
   });
@@ -431,9 +431,9 @@ async function openReleasesPage(t, { settle = true } = {}) {
     location: { pathname: "/releases.html", origin: "https://labs.wawalu.org", search: "", hash: "" },
     history: { replaceState() {} },
     buildStamp: PAGE_STAMP,
-    readHealth: settle
+    readHealth: readHealth ?? (settle
       ? async () => ({ status: "healthy", version: PAGE_SHA })
-      : () => new Promise(() => {}),
+      : () => new Promise(() => {})),
     now: () => "2026-08-17T12:00:00.000Z",
   });
   await waitFor(
@@ -554,7 +554,6 @@ const RETIRED_NAMES = [
   // control offered "this real release", and the check's evidence called the
   // thing it compared against "the release record". A reader met four names for
   // one artifact on one screen and had to work out that they were one.
-  "The running build",
   "this real release",
   "the release record it was compared with",
   // And the last one, which outlived those three: the badge beside the record's
@@ -601,13 +600,13 @@ test("the deployment record has one name everywhere the page names it", async (t
   // naming the compared-against record in those same words, in its lead, its
   // verdict and the heading of its evidence.
   assert.match(check, /^Deployment check /);
-  assert.match(check, /The deployment check compares the running site version with the deployment record version\./);
-  assert.match(check, /the version the deployment record names\./);
+  assert.match(check, /The deployment check compares the recorded build with the running build\./);
+  assert.match(check, /matching the recorded build\./);
   assert.match(check, /Evidence: what the running build answered, and the deployment record it was compared with/);
 
   // "Running" only ever names the side the check reads a version from, never
   // the record it is compared with.
-  assert.doesNotMatch(record, /running build/i, "the record is named after the build again");
+  assert.match(record, /The running build is the build currently served by this site\./);
   for (const region of [record, check]) {
     assert.match(region, /[Dd]eployment record/, "a region reaches for a second name for the record");
   }
@@ -648,8 +647,8 @@ test("the deployment proof renders one record heading without losing its verific
   assert.equal(textOf(page.document.querySelector("#deployment-status-title")), "Deployment check");
   assert.equal(
     textOf(page.document.querySelector("#deployment-status-proof")),
-    "The deployment check compares the running site version with the deployment record version."
-      + " Confirmed: the running site is the recorded deployment.",
+    "The deployment check compares the recorded build with the running build."
+      + " Confirmed: the running build matches the recorded build.",
   );
 
   // What is compared is stated once. It opens the band, which is the place a
@@ -657,7 +656,7 @@ test("the deployment proof renders one record heading without losing its verific
   // reader reading the same comparison twice before reaching the answer.
   const check = textOf(page.document.querySelector("#deployment-status"));
   assert.equal(
-    check.match(/compares the running site version with the deployment record version\./g)?.length,
+    check.match(/compares the recorded build with the running build\./g)?.length,
     1,
     "the deployment check states what it compares more than once",
   );
@@ -671,7 +670,7 @@ test("the deployment proof renders one record heading without losing its verific
 // made by the question one line above it, so a reader waiting on the probe read
 // the same thing twice in different words, and a reader following the front
 // door's link met a third wording of the wait they had just left.
-const WAITING_LINE = "Checking: the result appears here in a few seconds.";
+const WAITING_LINE = "Checking the running build against the recorded build: the result appears here in a few seconds.";
 const DELETED_WAITING_LINE = "Retrieving the running build’s version…";
 
 test("the page waits in the site's one waiting sentence, before the check answers", async (t) => {
@@ -700,7 +699,7 @@ test("the deployment check and the record it compares name themselves one way ea
   const check = textOf(doc.querySelector("#deployment-status"));
 
   assert.equal(textOf(doc.querySelector("#deployment-status-title")), "Deployment check");
-  assert.match(textOf(doc.querySelector("#deployment-status-proof")), /^The deployment check compares the running site version/);
+  assert.match(textOf(doc.querySelector("#deployment-status-proof")), /^The deployment check compares the recorded build/);
   assert.equal(
     textOf(doc.querySelector("#deployment-copy")),
     "Copy the deployment check verdict and both versions",
@@ -937,4 +936,32 @@ test("the real record and the deployment check share one block, with the example
     assert.equal(isInside(reached, block), true, "Tab left the block before reaching all of its controls");
   }
   assert.equal(isInside(pressTab(doc), block), false, "Tab stayed in the block after its last control");
+});
+
+
+test("Releases defines both builds before loading and keeps those terms in every check state", async (t) => {
+  const definition = "The deployment record identifies the build expected to be live: the recorded build. The running build is the build currently served by this site. Release-log entries can be planned, completed or cancelled; they do not necessarily represent production deployments.";
+  const initial = await loadPage(RELEASES_PAGE);
+  assert.equal(textOf(initial.document.querySelector("#deployment-record-definition")), definition);
+  const record = textOf(initial.document.querySelector("#shipped-build"));
+  assert.ok(record.indexOf(definition) < record.indexOf("Loading the deployment record."));
+  initial.restore();
+
+  for (const [state, options, expected] of [
+    ["checking", { settle: false }, /^Checking the running build against the recorded build:/],
+    ["confirmed", {}, /^Confirmed: the running build is .+, matching the recorded build\./],
+    ["mismatch", { readHealth: async () => ({ status: "healthy", version: "different-build" }) }, /^Not a match: the running build is different-build, but the recorded build is /],
+    ["failure", { readHealth: async () => { throw new Error("offline"); } }, /^The check did not complete, so this page cannot confirm whether the running build matches the recorded build\./],
+  ]) {
+    await t.test(state, async (t) => {
+      const page = await openReleasesPage(t, options);
+      const get = (id) => textOf(page.document.querySelector(`#${id}`));
+      assert.equal(get("deployment-record-definition"), definition);
+      assert.match(get("deployment-verdict"), expected);
+      assert.match(get("deployment-status-proof"), /compares the recorded build with the running build/);
+      assert.match(get("deployment-outcomes"), /running build differs from the recorded build/);
+      assert.match(get("deployment-outcomes"), /cannot confirm whether the running build matches the recorded build/);
+      assert.doesNotMatch(get("real-deployment"), /running site version|deployment record version|version this site is running|the running site|recorded deployment|the version running/i);
+    });
+  }
 });

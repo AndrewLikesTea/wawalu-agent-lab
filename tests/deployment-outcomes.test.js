@@ -87,14 +87,14 @@ test("the outcome copy covers every state the check can reach, and invents no ot
   // link, so no outcome restates it.
   assert.match(DEPLOYMENT_OUTCOMES.match, /^Confirmed: [^.]+\.$/);
   assert.equal(DEPLOYMENT_OUTCOMES.drift,
-    "Not a match: the running site is a different build from the recorded deployment."
-      + " See the deployment record for the build that should be running.");
+    "Not a match: the running build differs from the recorded build."
+      + " See the deployment record for the recorded build.");
   assert.equal(DEPLOYMENT_OUTCOMES.unknown,
-    "Did not complete: this page cannot say which version is running. Check again later.");
+    "Did not complete: this page cannot confirm whether the running build matches the recorded build. Check again later.");
   for (const sentence of Object.values(DEPLOYMENT_OUTCOMES)) {
     assert.doesNotMatch(sentence, /repository|[Rr]eload/, "an outcome offers a competing next step");
   }
-  assert.match(CHECKING_LINE, /^Checking: [^.]+\.$/);
+  assert.match(CHECKING_LINE, /^Checking the running build against the recorded build: [^.]+\.$/);
 });
 
 /* ----------------------- both documents, same words ----------------------- */
@@ -150,7 +150,7 @@ test("both documents ship the three outcome explanations before the check runs",
     // must never read as one nobody ran.
     assert.doesNotMatch(
       textOf(outcomes),
-      /Confirmed: this site is running|Not a match: this site is running|The check did not complete/,
+      /Confirmed: the running build is|Not a match: the running build is|The check did not complete/,
       `${file} states a verdict the page has not reached`,
     );
 
@@ -238,12 +238,12 @@ test("a copied result states the verdict in words, not two bare versions", () =>
       `the copied ${state} result is not a sentence`,
     );
     // Both compared values survive beside it, whichever way it came out.
-    assert.match(copied, /Running build version: /);
-    assert.match(copied, /Deployment record version: v2\.1\.0\./);
+    assert.match(copied, /Running build: /);
+    assert.match(copied, /Recorded build: v2\.1\.0\./);
   }
 
   const drifted = verdictCopyText(deploymentVerdict(readings.drift, RECORD, NOW));
-  assert.match(drifted, /^Deployment check verdict: Not a match: this site is running v2\.0\.0, but the deployment record names v2\.1\.0\./);
+  assert.match(drifted, /^Deployment check verdict: Not a match: the running build is v2\.0\.0, but the recorded build is v2\.1\.0\./);
 });
 
 test("the releases page hands over a worded result even when the check could not complete", async (t) => {
@@ -257,6 +257,6 @@ test("the releases page hands over a worded result even when the check could not
   });
 
   const copied = page.document.querySelector("#deployment-copy").dataset.copyText;
-  assert.match(copied, /^Deployment check verdict: The check did not complete, so nothing here says which version this site is running\./);
-  assert.match(copied, /Running build version: not reported\. Deployment record version: v2\.1\.0\./);
+  assert.match(copied, /^Deployment check verdict: The check did not complete, so this page cannot confirm whether the running build matches the recorded build\./);
+  assert.match(copied, /Running build: not reported\. Recorded build: v2\.1\.0\./);
 });
