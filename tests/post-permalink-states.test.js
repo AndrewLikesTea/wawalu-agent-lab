@@ -621,7 +621,7 @@ test("a post with no image renders no image element and no empty frame to hold o
 // either way — so this is asserted in the missing state as well as the loaded
 // one, not just in the state that happens to work.
 const SOCIAL_LINK = "Read the Social feed";
-const PEOPLE_LINK = "See Mina Okafor’s image posts on People";
+const PEOPLE_LINK = "See image posts by Mina Okafor on People";
 // Both routes name Social; their labels explain whether to read or publish.
 const PUBLISH_LINK = "Publish a post on Social";
 const CHROME_LINKS = [SOCIAL_LINK, PEOPLE_LINK, PUBLISH_LINK];
@@ -1798,11 +1798,25 @@ test("the shared image post exit carries special-character display names as text
   try {
     const link = page.document.querySelector("#post-people");
     assert.equal(link.hidden, false);
-    assert.equal(textOf(link), `See ${author}’s image posts on People`);
+    assert.equal(link.textContent, `See image posts by ${author} on People`);
     assert.equal(new URL(link.href, "https://labs.wawalu.org").searchParams.get("author"), author);
     assert.ok(tabSequence(page.document).includes(link));
     const stops = tabSequence(page.document);
     assert.ok(stops.indexOf(page.document.querySelector("#post-back")) < stops.indexOf(link));
     assert.ok(stops.indexOf(link) < stops.indexOf(page.document.querySelector("#post-publish")));
   } finally { page.restore(); }
+});
+
+
+test("the standalone image link preserves padded and long display names", async () => {
+  for (const author of ["  Mina  ", "N".repeat(60)]) {
+    const page = await openPostPage(`?id=${IMAGE_POST.id}`, seedOnly([{ ...IMAGE_POST, author }]));
+    try {
+      const link = page.document.querySelector("#post-people");
+      assert.equal(link.hidden, false);
+      assert.equal(link.textContent, `See image posts by ${author} on People`);
+      assert.equal(new URL(link.href, "https://labs.wawalu.org").searchParams.get("author"), author);
+      assert.ok(tabSequence(page.document).includes(link));
+    } finally { page.restore(); }
+  }
 });

@@ -64,23 +64,15 @@ export const POST_EXITS = {
   people: { href: "/profile.html" },
   publish: { href: "/social.html#post-form", label: "Publish a post on Social" },
 };
-const MAX_RETURN_AUTHOR_LENGTH = 60;
-
+// Display names are data, not slugs: preserve the same value in words and URL.
+// A blank name is no name, so neither half may promise one.
 export function postPeopleLabel(author = "") {
-  const name = String(author).trim();
-  return name && name.length <= MAX_RETURN_AUTHOR_LENGTH ? peopleImagePostsLabel(name) : "";
+  return String(author).trim() ? peopleImagePostsLabel(author) : "";
 }
 
-// Where the People link goes. The words promise one display name's image posts,
-// so the destination narrows to that name whenever the page can honestly name
-// one — from the loaded post first, and otherwise from the ?author= that
-// profile.js writes into its tiles. With no usable name it is People plainly,
-// rather than a filter parameter standing for a name nobody supplied. An author
-// string longer than a display name can be is not a name.
 export function postPeopleHref(search = "", author = "") {
-  const params = new URLSearchParams(String(search).replace(/^\?/, ""));
-  const name = String(author || params.get("author") || "").trim();
-  return name && name.length <= MAX_RETURN_AUTHOR_LENGTH ? profileHref(name) : POST_EXITS.people.href;
+  const name = String(author || new URLSearchParams(search).get("author") || "");
+  return name.trim() ? profileHref(name) : POST_EXITS.people.href;
 }
 
 export function findPostById(posts, id) {
@@ -579,7 +571,7 @@ export function renderPostDetail(container, post, options = {}) {
   const caption = captionFor(post);
   // The name is a link to that person's People view, and its text is the name
   // itself — not a generic "profile" label.
-  const author = postDisplayName(post);
+  const author = typeof post.author === "string" ? post.author : "";
   if (author) {
     const byline = el("p", "detail-byline");
     const link = el("a", "detail-author-link", author);

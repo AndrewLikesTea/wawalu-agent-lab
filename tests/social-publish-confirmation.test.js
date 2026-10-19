@@ -184,7 +184,7 @@ test("an image post offers People, and a text post says it is on Social only", a
   const links = noticeLinks(withImage.document);
   assert.equal(links.length, 2, "permalink plus the display name's People page");
   assert.equal(links[1].getAttribute("href"), "/profile.html?author=Remy");
-  assert.equal(textOf(links[1]), "See Remy’s image posts on People");
+  assert.equal(textOf(links[1]), "See image posts by Remy on People");
   assert.doesNotMatch(textOf(notice(withImage.document)), /Social only/);
 
   const textOnly = await composer(t);

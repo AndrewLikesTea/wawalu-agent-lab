@@ -485,23 +485,17 @@ test("both destinations ship as constants, and only the People link's target nar
 
   // No name, a name longer than a display name can be, and a value shaped like
   // an injection all land on the same honest default: People, unfiltered.
-  for (const search of ["", "?id=p-image", "?id=p-image&author=", `?author=${"n".repeat(61)}`, "?author=%20%20"]) {
+  for (const search of ["", "?id=p-image", "?id=p-image&author=", "?author=%20%20"]) {
     assert.equal(postPeopleHref(search), POST_EXITS.people.href, `"${search}" must fall back to People`);
   }
 
-  // The label carries the display name the destination narrows to, so the two
-  // have to refuse the same names. A name good enough for one and not the other
-  // is a link with words about a person and a destination about nobody, or —
-  // worse, because a screen reader has nothing at all to announce — a link on
-  // the page with no words in it. post-page.js only offers the link where there
-  // is a post, and the normalizers drop a post whose author is unusable, so
-  // neither shape is reachable today; this is what keeps that true if the
-  // display-name limit these two both hard-code ever moves in one of them.
-  assert.equal(postPeopleLabel("Mina Okafor"), "See Mina Okafor’s image posts on People");
-  assert.equal(postPeopleLabel("  Mina Okafor  "), postPeopleLabel("Mina Okafor"), "a padded name is the same name");
-  for (const author of ["", "   ", "n".repeat(61)]) {
-    assert.equal(postPeopleLabel(author), "", `"${author.slice(0, 12)}" is not a name this link can promise`);
-    assert.equal(postPeopleHref("", author), POST_EXITS.people.href, "the destination must refuse what the label refuses");
+  for (const author of ["Mina Okafor", "  Mina Okafor  ", "n".repeat(600), "<b>&"]) {
+    assert.equal(postPeopleLabel(author), `See image posts by ${author} on People`);
+    assert.equal(new URL(postPeopleHref("", author), "https://labs.wawalu.org").searchParams.get("author"), author);
+  }
+  for (const author of ["", "   "]) {
+    assert.equal(postPeopleLabel(author), "");
+    assert.equal(postPeopleHref("", author), POST_EXITS.people.href);
   }
 });
 

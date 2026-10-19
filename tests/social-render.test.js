@@ -104,7 +104,7 @@ test("an image post renders as a figure with the description as its figcaption",
   const people = first(card, "post-people");
   assert.equal(people.tagName, "A");
   assert.equal(people.href, "/profile.html?author=Mina");
-  assert.equal(people.textContent, "See Mina’s image posts on People");
+  assert.equal(people.textContent, "See image posts by Mina on People");
   // Labelled in words, and the description itself is a node of its own holding
   // the identical string the alt above it holds — the label is a sibling span,
   // never a prefix in the same text node, so the two can be compared with ===.
