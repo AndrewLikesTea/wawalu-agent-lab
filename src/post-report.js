@@ -40,7 +40,18 @@ export const REPORT_SENT_NOTE = "Send report sends this post, your reason, your 
 // repository sends the reporter mail, so the follow-up form's "a person replies
 // … usually within two working days" would be false here.
 export const REPORT_EMAIL_NOTE = "Your email address is required, and the Wawalu team uses it only to contact you about this report. It is not published with the post, and whoever published the post never sees it. The team sends no automatic confirmation.";
-export const REPORT_RECEIVED = "Report sent. The Wawalu team will review this post, and it stays up while they do.";
+// How to file a report, one step per control a reader meets, each named as it
+// is drawn: the card's Report post button, the "Reason" radios, the optional
+// "Note for the team", the "Your email address" field and Send report (#2932).
+// Social ships these as its list under "Reporting a post"; src/post-page.js
+// draws the same list, and tests/post-page-flow.test.js holds the two together.
+export const REPORT_STEPS = Object.freeze([
+  "Select Report post on the post you want reviewed.",
+  "Choose a reason.",
+  "Add a note for the team if you want to.",
+  "Enter your email address, then select Send report.",
+]);
+export const REPORT_RECEIVED ="Report sent. The Wawalu team will review this post, and it stays up while they do.";
 export const REPORT_NOT_SENT = "Your report was not sent.";
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 

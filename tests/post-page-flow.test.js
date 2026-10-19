@@ -12,7 +12,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { loadPage, pressKey, pressTab, tabSequence, textOf } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
-import { REPORT_EMAIL_NOTE, REPORT_POST_LABEL } from "../src/post-report.js";
+import { REPORT_EMAIL_NOTE, REPORT_POST_LABEL, REPORT_STEPS } from "../src/post-report.js";
 
 const SEED_URL = "/social-demo-data.json";
 
@@ -355,14 +355,12 @@ test("the permalink opens with the post in every state, not with its caveats", a
 // The handle's words and the explanation are Social's, read back out of
 // src/social.html by the test below rather than trusted from these lines.
 //
-// The middle three sentences are src/post-report.js's REPORT_EMAIL_NOTE (#2745),
+// Since #2932 the explanation is a numbered list (src/post-report.js's
+// REPORT_STEPS) and then paragraphs. The first is REPORT_EMAIL_NOTE (#2745),
 // imported rather than typed out, because the form renders the same string
 // beside its email field: a reword there has to reach Social's note and this
 // page's quote of it, or fail here.
 const REPORT_SUMMARY = "How reporting works";
-const REPORT_ABOUT = "Report post opens a short form about that one post. Choose a reason, add a note if you want to, and give your email address. "
-  + `${REPORT_EMAIL_NOTE} `
-  + "The report goes only to the Wawalu team, who review each one. The post stays up unless the team decides after review to remove it.";
 // What happens to a report and what it can lead to: the account this page states
 // once, and the bytes every other surface that mentions a report uses.
 //
@@ -371,6 +369,9 @@ const REPORT_ABOUT = "Report post opens a short form about that one post. Choose
 // review (#2626). One sentence carries both now, in the outcome a reader can
 // see: the post stays up.
 const REPORT_CONSEQUENCE = "The report goes only to the Wawalu team, who review each one. The post stays up unless the team decides after review to remove it.";
+const REPORT_PARAGRAPHS = [REPORT_EMAIL_NOTE, REPORT_CONSEQUENCE];
+const REPORT_CLAUSES = Object.fromEntries([...REPORT_STEPS, ...REPORT_PARAGRAPHS]
+  .map((clause, index) => [`explanation part ${index + 1}`, clause]));
 // The two sentences the follow-up invitation gains with the post, each naming a
 // control the loaded state draws. Held byte for byte in
 // tests/post-follow-up-copy.test.js, which drives the form they sit above.
@@ -388,11 +389,15 @@ test("the permalink's reporting explanation is Social's, and none of it ships in
   // carries. Both are quoted whole by src/post-page.js, so a reword on Social
   // fails here rather than leaving the two surfaces explaining a report
   // differently.
-  const note = html.match(/<p class="hint" id="post-report-about">([^<]*)<\/p>/)?.[1];
+  const steps = [...(html.match(/<ol class="hint" id="post-report-steps">([\s\S]*?)<\/ol>/)?.[1] ?? "")
+    .matchAll(/<li>([^<]*)<\/li>/g)].map((match) => match[1]);
+  assert.deepEqual(steps, [...REPORT_STEPS], `Social reworded the steps the permalink quotes: ${steps.join(" | ")}`);
+  const privacy = html.match(/<p class="hint" id="post-report-privacy">([^<]*)<\/p>/)?.[1];
+  const outcome = html.match(/<p class="hint" id="post-report-outcome">([^<]*)<\/p>/)?.[1];
+  assert.deepEqual([privacy, outcome], REPORT_PARAGRAPHS, "Social reworded the paragraphs the permalink quotes");
+  const note = [...steps, privacy, outcome].join(" ");
   const handle = html.match(/<a class="text-link" href="#post-report-about">([^<]*)<\/a>/)?.[1];
-  assert.equal(REPORT_ABOUT, note, `Social reworded the note the permalink quotes: ${note}`);
   assert.equal(REPORT_SUMMARY, handle, `Social renamed the words the permalink's handle carries: ${handle}`);
-  assert.ok(REPORT_ABOUT.includes(REPORT_CONSEQUENCE), "the permalink's explanation reworded the shared consequence");
   // Social is not part of Shiplog (#2874), so the team a report email goes to
   // is named without it — on Social, here, and beside the form's field.
   assert.ok(REPORT_EMAIL_NOTE.includes("the Wawalu team uses it only to contact you about this report"),
@@ -410,7 +415,7 @@ test("the permalink's reporting explanation is Social's, and none of it ships in
   // it is drawn yet, so no instruction to select one can be followed.
   const post = (await readFile(new URL("../src/post.html", import.meta.url), "utf8")).replace(/<!--[\s\S]*?-->/g, "");
   const shippedClauses = {
-    explanation: REPORT_ABOUT,
+    ...REPORT_CLAUSES,
     handle: REPORT_SUMMARY,
     "follow-up route": INVITATION_REPORT,
     "follow-up copy step": INVITATION_COPY,
@@ -481,10 +486,14 @@ function assertReportingFollowsThePost(document, where, drawn) {
   // descendant selector this harness does not take.
   const handles = document.querySelectorAll("summary").filter((node) => textOf(node) === REPORT_SUMMARY);
   assert.equal(handles.length, wanted, `${where}: the page draws ${handles.length} reporting handles`);
+  // The report form's own copy of the email note is the form speaking, so the
+  // count is taken outside its panel, as Social's is.
+  const panel = document.querySelector("#post-report-panel");
+  const outsidePanel = panel ? body.split(textOf(panel)).join(" ") : body;
   for (const [name, clause] of Object.entries({
-    explanation: REPORT_ABOUT, "follow-up route": INVITATION_REPORT, "follow-up copy step": INVITATION_COPY,
+    ...REPORT_CLAUSES, "follow-up route": INVITATION_REPORT, "follow-up copy step": INVITATION_COPY,
   })) {
-    assert.equal(body.split(clause).length - 1, wanted,
+    assert.equal(outsidePanel.split(clause).length - 1, wanted,
       `${where}: the page states the reporting ${name} ${drawn ? "other than exactly once" : "with no control it can name"}`);
   }
   // The controls the prose promises, counted in the rendered page rather than
@@ -505,12 +514,17 @@ function assertReportingFollowsThePost(document, where, drawn) {
   assert.equal(disclosure.hasAttribute("open"), false, `${where}: the explanation ships open`);
   // Read part by part: this harness joins appended nodes with no whitespace, so
   // the concatenation of the two would be asserting the shim, not the copy.
+  assert.deepEqual(disclosure.querySelectorAll("li").map((node) => textOf(node)), [...REPORT_STEPS],
+    `${where}: the disclosure lists something other than Social's steps`);
+  const lists = disclosure.querySelectorAll("ol");
+  assert.equal(lists.length, 1, `${where}: the steps are not one numbered list`);
   const paragraphs = disclosure.querySelectorAll("p");
-  assert.equal(paragraphs.length, 1, `${where}: the disclosure holds ${paragraphs.length} paragraphs`);
-  assert.equal(textOf(paragraphs[0]), REPORT_ABOUT,
+  assert.deepEqual(paragraphs.map((node) => textOf(node)), REPORT_PARAGRAPHS,
     `${where}: the disclosure says something other than Social's note`);
-  assert.equal(paragraphs[0].getAttribute("class"), "hint",
-    `${where}: the explanation lost the class the caveat beside it uses`);
+  for (const node of [...lists, ...paragraphs]) {
+    assert.equal(node.getAttribute("class"), "hint",
+      `${where}: the explanation lost the class the caveat beside it uses`);
+  }
   for (const region of ["#post-detail", "#site-footer"]) {
     assert.equal(Boolean(disclosure.closest(region)), false, `${where}: the disclosure sits inside ${region}`);
   }
@@ -611,7 +625,7 @@ test("the reporting handle takes focus and opens on Enter and on Space", async (
     handle.focus();
     pressKey(document, "Enter");
     assert.equal(disclosure.hasAttribute("open"), true, "the disclosure did not reopen");
-    assert.equal(textOf(disclosure.querySelectorAll("p")[0]), REPORT_ABOUT,
+    assert.equal(textOf(disclosure.querySelectorAll("p")[0]), REPORT_EMAIL_NOTE,
       "the opened disclosure says something other than Social's note");
   } finally {
     page.restore();

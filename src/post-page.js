@@ -7,7 +7,7 @@ import {
   postProvenanceSentence, renderPostDetail,
 } from "/post-detail.js";
 
-import { REPORT_EMAIL_NOTE, mountPostReport, renderReportButton } from "/post-report.js";
+import { REPORT_EMAIL_NOTE, REPORT_STEPS, mountPostReport, renderReportButton } from "/post-report.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -23,9 +23,12 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
 // answer the form gives. src/social.html ships the assembled paragraph, and
 // tests/post-page-flow.test.js reads the two back against each other.
 const REPORT_DISCLOSURE_SUMMARY = "How reporting works";
-const REPORT_DISCLOSURE_BODY = "Report post opens a short form about that one post. Choose a reason, add a note if you want to, and give your email address. "
-  + `${REPORT_EMAIL_NOTE} `
-  + "The report goes only to the Wawalu team, who review each one. The post stays up unless the team decides after review to remove it.";
+// Since #2932 the body is Social's steps as a numbered list, then the email
+// note and the outcome as their own paragraphs, the way Social lays them out.
+const REPORT_DISCLOSURE_PARAGRAPHS = [
+  REPORT_EMAIL_NOTE,
+  "The report goes only to the Wawalu team, who review each one. The post stays up unless the team decides after review to remove it.",
+];
 
 // The two sentences of the follow-up invitation that tell a reader to select a
 // control, and the sentence they are threaded around. Both controls — Report
@@ -127,10 +130,20 @@ async function init() {
     disclosure.className = "post-report-disclosure";
     const summary = document.createElement("summary");
     summary.textContent = REPORT_DISCLOSURE_SUMMARY;
-    const body = document.createElement("p");
-    body.className = "hint";
-    body.textContent = REPORT_DISCLOSURE_BODY;
-    disclosure.append(summary, body);
+    const steps = document.createElement("ol");
+    steps.className = "hint";
+    for (const step of REPORT_STEPS) {
+      const item = document.createElement("li");
+      item.textContent = step;
+      steps.append(item);
+    }
+    const paragraphs = REPORT_DISCLOSURE_PARAGRAPHS.map((text) => {
+      const body = document.createElement("p");
+      body.className = "hint";
+      body.textContent = text;
+      return body;
+    });
+    disclosure.append(summary, steps, ...paragraphs);
     reporting.append(disclosure);
   };
 
