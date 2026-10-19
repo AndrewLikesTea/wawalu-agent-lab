@@ -16,6 +16,7 @@ import { readFile } from "node:fs/promises";
 import { STORAGE_KEY, initDecisionLog } from "../src/app.js";
 import {
   DECISION_ENTRY_ERRORS,
+  DECISION_ENTRY_LABELS,
   DECISION_ENTRY_LIMITS,
   DECISION_ENTRY_STATUSES,
 } from "../src/decision-entry.js";
@@ -705,4 +706,60 @@ test("a record the active filters hide is reported as hidden, not as listed", as
     "the recorder claimed a filtered-away record was in the history",
   );
   assert.equal(stored(page).length, 1, "the record was not written");
+});
+
+test("Home decision form marks every field and names it in visible validation copy", async (t) => {
+  const page = await openHistory(t);
+  const form = byId(page, "decision-form");
+  // The summary line names fields from DECISION_ENTRY_LABELS, so the visible
+  // labels are checked against that table rather than a second copy of it.
+  const labels = { ...DECISION_ENTRY_LABELS, supersedes: "Replaces" };
+  assert.equal(form.querySelectorAll("label").length, 6);
+  for (const [field, name] of Object.entries(labels)) {
+    const optional = field === "supersedes";
+    const label = form.querySelector(`label[for="${field}"]`);
+    assert.equal(textOf(label), `${name} (${optional ? "optional" : "required"})`);
+    assert.equal(byId(page, field).hasAttribute("required"), !optional);
+    const marker = label.querySelector(".label-optional");
+    assert.ok(marker);
+    assert.equal(marker.hasAttribute("hidden"), false);
+    assert.equal(marker.getAttribute("aria-hidden"), null);
+    assert.equal(marker.classList.contains("label-required"), !optional);
+  }
+
+  const missing = {
+    title: "Enter a short name in Decision title.",
+    context: "In Context, describe the problem, constraints, and reasoning.",
+    alternatives: "In Alternatives, name the other options considered and why they were not chosen. Write “None considered” if there were none.",
+    owner: "In Owner, name the person responsible for this decision.",
+    status: "Choose Pending or Accepted in Status.",
+  };
+  byId(page, "status").value = "";
+  form.dispatchEvent(new DomEvent("submit", { bubbles: true }));
+  for (const [field, message] of Object.entries(missing)) {
+    assert.equal(fieldError(page, field).hidden, false);
+    assert.equal(textOf(fieldError(page, field)), message);
+    assert.ok(message.includes(labels[field]));
+  }
+
+  fill(page, ENTRY);
+  for (const [field, limit] of Object.entries(DECISION_ENTRY_LIMITS)) {
+    byId(page, field).value = "x".repeat(limit + 1);
+  }
+  byId(page, "status").value = "proposed";
+  form.dispatchEvent(new DomEvent("submit", { bubbles: true }));
+  for (const [field, limit] of Object.entries(DECISION_ENTRY_LIMITS)) {
+    assert.equal(fieldError(page, field).hidden, false);
+    assert.equal(textOf(fieldError(page, field)),
+      `${labels[field]} must be ${limit} characters or fewer; it is currently ${limit + 1}.`);
+  }
+  assert.equal(textOf(fieldError(page, "status")), missing.status);
+
+  for (const [field, value] of Object.entries(ENTRY)) byId(page, field).value = value;
+  byId(page, "supersedes").value = "missing-decision";
+  form.dispatchEvent(new DomEvent("submit", { bubbles: true }));
+  assert.equal(byId(page, "supersedes-error").hidden, false);
+  assert.equal(textOf(byId(page, "supersedes-error")),
+    "In Replaces, choose a decision that is still in this log or None.");
+  assert.deepEqual(stored(page), []);
 });

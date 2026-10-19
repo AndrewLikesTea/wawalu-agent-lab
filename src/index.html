@@ -127,14 +127,14 @@
                each message is read with the control it belongs to. -->
           <form id="decision-form" novalidate>
             <div class="field field-wide">
-              <label for="title">Decision title</label>
+              <label for="title">Decision title <span class="label-optional label-required">(required)</span></label>
               <input id="title" name="title" type="text" maxlength="120" required autocomplete="off" aria-describedby="title-hint" />
               <span class="hint" id="title-hint">A short name for the decision.</span>
               <p class="field-error" id="title-error" hidden></p>
             </div>
 
             <div class="field field-wide">
-              <label for="context">Context</label>
+              <label for="context">Context <span class="label-optional label-required">(required)</span></label>
               <textarea id="context" name="context" rows="5" maxlength="1000" required aria-describedby="context-hint"></textarea>
               <span class="hint" id="context-hint">The problem, constraints, and reasoning.</span>
               <p class="field-error" id="context-error" hidden></p>
@@ -146,21 +146,21 @@
                  later. The hint now says what to write when nothing else was
                  weighed, so the requirement is answerable rather than a wall. -->
             <div class="field field-wide">
-              <label for="alternatives">Alternatives</label>
+              <label for="alternatives">Alternatives <span class="label-optional label-required">(required)</span></label>
               <textarea id="alternatives" name="alternatives" rows="4" maxlength="1000" required aria-describedby="alternatives-hint"></textarea>
               <span class="hint" id="alternatives-hint">Other options considered and why they were not chosen. Write “None considered” if there were none.</span>
               <p class="field-error" id="alternatives-error" hidden></p>
             </div>
 
             <div class="field">
-              <label for="owner">Owner</label>
+              <label for="owner">Owner <span class="label-optional label-required">(required)</span></label>
               <input id="owner" name="owner" type="text" maxlength="80" required autocomplete="name" aria-describedby="owner-hint" />
               <span class="hint" id="owner-hint">The person responsible for the decision.</span>
               <p class="field-error" id="owner-error" hidden></p>
             </div>
 
             <div class="field">
-              <label for="status">Status</label>
+              <label for="status">Status <span class="label-optional label-required">(required)</span></label>
               <!-- Two of the four statuses. The form cannot set Proposed or
                    Superseded, and the hint says so rather than letting a
                    visitor discover it from a filter that offers both. -->

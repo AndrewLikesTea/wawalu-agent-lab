@@ -52,10 +52,10 @@ test("product has a health endpoint and accessible title", async () => {
   assert.match(html, /<title>Shiplog · decision and release log<\/title>/);
   // The landmark the skip link targets — header and nav sit outside it.
   assert.match(html, /<main id="main-content" tabindex="-1">/);
-  assert.match(html, /<label for="title">Decision title<\/label>/);
-  assert.match(html, /<label for="context">Context<\/label>/);
-  assert.match(html, /<label for="owner">Owner<\/label>/);
-  assert.match(html, /<label for="status">Status<\/label>/);
+  assert.match(html, /<label for="title">Decision title <span class="label-optional label-required">\(required\)<\/span><\/label>/);
+  assert.match(html, /<label for="context">Context <span class="label-optional label-required">\(required\)<\/span><\/label>/);
+  assert.match(html, /<label for="owner">Owner <span class="label-optional label-required">\(required\)<\/span><\/label>/);
+  assert.match(html, /<label for="status">Status <span class="label-optional label-required">\(required\)<\/span><\/label>/);
   assert.match(html, /<label for="filter-status">Decision status:<\/label>/);
   // One decision-status vocabulary: the filter offers exactly these four words,
   // in lifecycle order, and the glossary below it defines every one of them

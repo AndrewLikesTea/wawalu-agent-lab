@@ -312,7 +312,7 @@ test("a supersede link that no longer exists is refused inline, and nothing is w
 
   const error = page.document.querySelector("#supersedes-error");
   assert.equal(error.hidden, false, "the rejection is visible, not silent");
-  assert.match(textOf(error), /not in this log/);
+  assert.equal(textOf(error), "In Replaces, choose a decision that is still in this log or None.");
   assert.equal(supersedes.getAttribute("aria-invalid"), "true");
   assert.equal(rowTitles(page).length, 3, "the decision was not recorded");
   assert.deepEqual(
