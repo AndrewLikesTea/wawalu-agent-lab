@@ -10,7 +10,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-import { parseHtml, textOf } from "./support/browser.js";
+import { loadPage, parseHtml, textOf } from "./support/browser.js";
+import { initDecisionLog } from "../src/app.js";
 
 const document = parseHtml(await readFile(new URL("../src/index.html", import.meta.url), "utf8"));
 const STAYS = /\bstays? in this browser\b/;
@@ -40,8 +41,27 @@ test("every stays-in-this-browser sentence in the log and export sections names 
   assert.equal(sections.filter(Boolean).length, 3, "a covered section is missing");
   const claims = sections.flatMap((section) => section.querySelectorAll("p").map(textOf))
     .filter((text) => STAYS.test(text));
-  assert.equal(claims.length, 2, `expected the hero and demo-step claims, found:\n${claims.join("\n")}`);
+  // #2941: one claim, beside the recorder. The hero's copy was a repeat.
+  assert.equal(claims.length, 1, `expected only the demo-step claim, found:\n${claims.join("\n")}`);
   for (const claim of claims) assert.match(claim, EXCEPTION, claim);
+});
+
+// #2941: the hero, the four-step guide and the save confirmation each made the
+// promise before the decision list. It is made once, in the recorder panel
+// directly above the form, and the page's scripts add no second copy.
+test("before any record, the promise is made once between the hero and the decision list", async (t) => {
+  const page = await loadPage(new URL("../src/index.html", import.meta.url), { storage: {} });
+  t.after(() => page.restore());
+  await initDecisionLog(page.document, page.storage, { readHealth: async () => { throw new Error("offline"); } });
+  const order = walk(page.document.body);
+  const start = order.indexOf(page.document.getElementById("top"));
+  const end = order.indexOf(page.document.getElementById("decision-list"));
+  assert.ok(start >= 0 && end > start, "the hero or the decision list is missing");
+  const claims = order.slice(start, end).filter((node) => STAYS.test(textOf(node))
+    && !node.children.some((child) => typeof child.getAttribute === "function" && STAYS.test(textOf(child))));
+  assert.equal(claims.length, 1, claims.map(textOf).join("\n"));
+  assert.equal(claims[0].getAttribute("id"), "evaluation-path-scope");
+  assert.match(textOf(claims[0]), EXCEPTION);
 });
 
 test("the archive's server step is stated before its control, in the export panel", () => {

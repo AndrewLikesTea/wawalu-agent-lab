@@ -75,8 +75,10 @@ test('direct fragments and Back/Forward hash changes restore the visible topic a
 test('release surface wires navigation, explains the boundary early and retains request-only availability/pricing', async () => {
   const html = await readFile(new URL('../src/releases.html', import.meta.url), 'utf8');
   assert.match(html, /src="\/releases-discussion-page.js"/);
-  assert.ok(html.indexOf('id="releases-demo-boundary"') < html.indexOf('id="record-release-link"'));
-  assert.match(html, /id="releases-demo-boundary">Records you add stay in this browser unless you download the complete archive, which sends them to the Shiplog server to build the file\. This is a demo workflow, not a customer result\./);
+  // #2941: the hero no longer repeats the storage promise; the demo guide above
+  // the recorder states it once (releases-demo-guide.test.js counts it).
+  assert.equal(html.includes('id="releases-demo-boundary"'), false);
+  assert.ok(html.includes('id="record-release-link"'));
   assert.doesNotMatch(html, /in this browser only\. This is a demo workflow/);
   assert.match(html, /Whether Shiplog is available for your team and what it would cost are both answered on request\./);
   assert.ok(html.indexOf('id="release-discussion-actions"') > html.indexOf('id="real-deployment"'));
