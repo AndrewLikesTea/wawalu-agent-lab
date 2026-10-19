@@ -127,7 +127,7 @@ test("Social feed keeps its general invitation and fixed topic", async () => {
     assert.equal(document.getElementById("site-footer-form").dataset.followUpTopic, topic);
     assert.equal(textOf(document.getElementById("site-footer-topic-note")), `This request is sent about the ${topic}.`);
     const heading = textOf(document.querySelector(".site-footer-invitation"));
-    assert.equal(heading, `${INVITATION} The topics below are about Shiplog — whether it is available for your team, a demonstration, a pilot, and security and data handling — not about an individual post; if your question is about one of the posts, select Report post on that post instead.`);
+    assert.equal(heading, `${INVITATION} The topics below are about Shiplog — whether it is available for your team, a demonstration, a pilot, and security and data handling — not about an individual post. To ask the Wawalu team to review a post, select Report post on that post.`);
     assert.ok(heading.includes(`select ${REPORT_POST_LABEL} on that post`),
       `Social names the reporting control something other than "${REPORT_POST_LABEL}"`);
     assert.doesNotMatch(heading, /Copy link to this post|this post itself/,
@@ -136,6 +136,24 @@ test("Social feed keeps its general invitation and fixed topic", async () => {
     page.restore();
   }
 });
+
+// #2937: Report post asks for a review, possibly a removal; it takes a reason
+// and sends no reply, so it is not where a question goes. Both pages that list
+// posts say what it is for in the words of Social's reporting guidance.
+for (const file of ["social.html", "profile.html"]) {
+  test(`${file} offers Report post for a review, not for a question`, async () => {
+    const page = await loadPage(new URL(`../src/${file}`, import.meta.url));
+    try {
+      const heading = textOf(page.document.querySelector(".site-footer-invitation"));
+      assert.ok(heading.includes(`To ask the Wawalu team to review a post, select ${REPORT_POST_LABEL} on that post.`),
+        `${file} does not say what ${REPORT_POST_LABEL} is for`);
+      assert.doesNotMatch(heading, /question is about one of the posts|on that post instead/,
+        `${file} still sends a question about a post to ${REPORT_POST_LABEL}`);
+    } finally {
+      page.restore();
+    }
+  });
+}
 
 // The half of #2436 that ships in the markup: the block opens on the heading
 // line Social and People render. The other half — the pointer at Report post —

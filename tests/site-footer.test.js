@@ -120,9 +120,9 @@ const describedBy = (document) => byId(document, "site-footer-email").getAttribu
 // a work address without saying what asking gets.
 // The heading line on the two pages that list posts, built from the one every
 // page carries so the pages cannot drift apart at the front (#2557). The added
-// sentence is the post page's own, with its referent changed: "this post" is a
-// page about one post, and these two are pages about many.
-const FEED_INVITATION = `${INVITATION} The topics below are about Shiplog — whether it is available for your team, a demonstration, a pilot, and security and data handling — not about an individual post; if your question is about one of the posts, select Report post on that post instead.`;
+// sentence says what Report post is for in the words of Social's reporting
+// guidance: a review request, not a question channel (#2937).
+const FEED_INVITATION = `${INVITATION} The topics below are about Shiplog — whether it is available for your team, a demonstration, a pilot, and security and data handling — not about an individual post. To ask the Wawalu team to review a post, select Report post on that post.`;
 
 const FOOTER_VARIANT = new Map([
   ["index.html", {
@@ -169,9 +169,9 @@ const FOOTER_VARIANT = new Map([
   // with a problem about a single post used to meet four topics that are all
   // about Shiplog and no statement of what they cover, so the form read as the
   // way to raise a post — and the control that does raise one, Report post, is
-  // drawn on every card here and on every tile on People. It sends them there
-  // and stops: how a report is then handled is Social's disclosure to explain,
-  // once (#2471).
+  // drawn on every card here and on every tile on People. It names that control
+  // for a review only, never for a question (#2937), and stops: how a report is
+  // then handled is Social's disclosure to explain, once (#2471).
   // `tool` (#2877): the three pages that host a separate lab tool let a visitor
   // ask about that tool instead of Shiplog. The page's tool name is passed here
   // and rendered into its markup, not kept in the shared footer module.

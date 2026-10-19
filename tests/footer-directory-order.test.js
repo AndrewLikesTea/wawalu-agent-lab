@@ -54,7 +54,7 @@ const OPEN_PAGES = ["index.html", "evolution.html", "agent-trace.html"];
 
 // The pages whose heading line says more than INVITATION, and exactly what each
 // of them says. Every other page is held to INVITATION alone.
-const FEED_INVITATION = `${INVITATION} The topics below are about Shiplog — whether it is available for your team, a demonstration, a pilot, and security and data handling — not about an individual post; if your question is about one of the posts, select Report post on that post instead.`;
+const FEED_INVITATION = `${INVITATION} The topics below are about Shiplog — whether it is available for your team, a demonstration, a pilot, and security and data handling — not about an individual post. To ask the Wawalu team to review a post, select Report post on that post.`;
 const EXPECTED_INVITATION = {
   // The shipped markup, which is the waiting page: the two sentences that tell
   // a reader to select Report post or Copy link to this post are added to this
@@ -117,10 +117,10 @@ test("on every task page the follow-up block is read before the directory", asyn
     // and are withheld from the shipped markup until those controls are drawn
     // (#2603), so they are not part of what this file reads.
     //
-    // Social and People add the first two of those in one sentence (#2557): they
-    // list posts rather than showing one, so they say the topics are not about an
-    // individual post and send a question about one of them to Report post, which
-    // is drawn on every card and every tile. They do not add the post page's last
+    // Social and People add their own two (#2557, #2937): they list posts rather
+    // than showing one, so they say the topics are not about an individual post
+    // and that Report post, drawn on every card and every tile, asks the team to
+    // review a post. They do not add the post page's last
     // two sentences, which are about naming a single post in the request.
     assert.equal(textOf(band[invitation]), EXPECTED_INVITATION[file] ?? INVITATION,
       `${file}: the follow-up heading line changed`);
