@@ -848,13 +848,28 @@
            removes and hides nothing, then one that removal is the team's call
            after review. Both facts fit in a sentence that names what a reader
            sees — the post stays up — so the pair became one (#2626).
-           src/post-report.js mounts the report panel right after this
-           paragraph.
-           The three sentences about the email address are that module's
+           The three sentences about the email address are src/post-report.js's
            REPORT_EMAIL_NOTE, which also stands beside the field in the form
            itself (#2745): a reader deciding whether to report reads the same
-           answer as a reader already typing. -->
-      <p class="hint" id="post-report-about">Report post opens a short form about that one post. Choose a reason, add a note if you want to, and give your email address. Your email address is required, and the Wawalu team uses it only to contact you about this report. It is not published with the post, and whoever published the post never sees it. The team sends no automatic confirmation. The report goes only to the Wawalu team, who review each one. The post stays up unless the team decides after review to remove it.</p>
+           answer as a reader already typing.
+           #2932: the one dense paragraph became a heading, a numbered list
+           (that module's REPORT_STEPS) and three short paragraphs, so a reader
+           can scan how to report, what the form asks for, what happens after,
+           and where a question about Shiplog goes instead. -->
+      <section id="post-report-about" aria-labelledby="post-report-about-title">
+        <div class="section-heading">
+          <h2 id="post-report-about-title">Reporting a post</h2>
+        </div>
+        <ol class="hint" id="post-report-steps">
+          <li>Select Report post on the post you want reviewed.</li>
+          <li>Choose a reason.</li>
+          <li>Add a note for the team if you want to.</li>
+          <li>Enter your email address, then select Send report.</li>
+        </ol>
+        <p class="hint" id="post-report-privacy">Your email address is required, and the Wawalu team uses it only to contact you about this report. It is not published with the post, and whoever published the post never sees it. The team sends no automatic confirmation.</p>
+        <p class="hint" id="post-report-outcome">The report goes only to the Wawalu team, who review each one. The post stays up unless the team decides after review to remove it.</p>
+        <p class="hint" id="post-report-not-shiplog">Questions about Shiplog itself go to the <a class="text-link" href="#site-footer-panel">Shiplog follow-up form</a> at the foot of this page instead; that request is not attached to any post.</p>
+      </section>
       <!-- The contact route closes the page. The feed, the composer and the
            reporting explanation are this tool's own content, and the Shiplog
            asks follow all of them (#2883). They used to sit between the

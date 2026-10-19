@@ -13,7 +13,7 @@ import { loadPage, pressKey, textOf } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 import { bootSocial } from "./support/social-paint-arrival.js";
 import { renderPosts } from "../src/social.js";
-import { REPORT_EMAIL_NOTE, REPORT_POST_LABEL, REPORT_RECEIVED, REPORT_REVIEW_NOTE } from "../src/post-report.js";
+import { REPORT_EMAIL_NOTE, REPORT_POST_LABEL, REPORT_RECEIVED, REPORT_REVIEW_NOTE, REPORT_STEPS } from "../src/post-report.js";
 
 const ARI_POST = "55555555-5555-4555-8555-555555555555";
 const BEA_POST = "66666666-6666-4666-8666-666666666666";
@@ -181,7 +181,7 @@ test("Social: the reporting route sits outside the composer and points at the ex
   // "a report does not remove or hide the post, and not every report leads to
   // removal" and "the team decides after review whether to remove it" were the
   // same fact twice, so the explanation now states the outcome a reader can see.
-  assert.match(textOf(id("post-report-about")), /reviews? each one\. The post stays up unless the team decides after review to remove it\.$/);
+  assert.equal(textOf(id("post-report-outcome")), "The report goes only to the Wawalu team, who review each one. The post stays up unless the team decides after review to remove it.");
   assert.doesNotMatch(textOf(id("post-report-about")), /not every report leads to removal/,
     "Social restates what a report leads to a second time");
 
@@ -196,9 +196,50 @@ test("Social: the reporting route sits outside the composer and points at the ex
   // And the form's fields are described in that one place and nowhere else on
   // the painted page: the composer's terms point at the control, they do not
   // re-list what pressing it asks for (#2626).
-  assert.equal(main.split("Report post opens a short form").length - 1, 1, "Social describes what the report form asks for other than exactly once");
+  assert.equal(main.split(REPORT_STEPS[1]).length - 1, 1, "Social describes what the report form asks for other than exactly once");
   const terms = textOf(id("post-consequence"));
   assert.doesNotMatch(terms, /after review|may remove|review/i, "the publishing terms restate the reporting explanation's review process");
+});
+
+// #2932. The explanation was one paragraph of eight sentences. It is a headed
+// region now: the steps as a numbered list, then what happens to the email
+// address, what happens to the post, and where a Shiplog question goes instead.
+// Read off the painted feed, with the step names checked against the controls
+// the page actually draws.
+test("Social: reporting a post is a headed list of steps, then what happens after", async (t) => {
+  const { document, id } = await bootSocial(t, { routes: { "/api/social-posts?limit=100": LIVE } });
+  const region = id("post-report-about");
+  assert.equal(region.getAttribute("aria-labelledby"), "post-report-about-title");
+  assert.equal(textOf(id("post-report-about-title")), "Reporting a post");
+  assert.equal(id("post-report-about-title").tagName, "H2");
+
+  assert.equal(region.querySelectorAll("ol").length, 1, "the steps are not one numbered list");
+  assert.deepEqual(region.querySelectorAll("li").map((node) => textOf(node)), [
+    "Select Report post on the post you want reviewed.",
+    "Choose a reason.",
+    "Add a note for the team if you want to.",
+    "Enter your email address, then select Send report.",
+  ]);
+  assert.equal(textOf(id("post-report-privacy")), REPORT_EMAIL_NOTE);
+  assert.match(textOf(id("post-report-privacy")), /It is not published with the post/);
+  assert.match(textOf(id("post-report-privacy")), /The team sends no automatic confirmation\./);
+  assert.match(textOf(id("post-report-outcome")), /The post stays up unless the team decides after review to remove it\.$/);
+  const shiplog = id("post-report-not-shiplog");
+  assert.equal(textOf(shiplog),
+    "Questions about Shiplog itself go to the Shiplog follow-up form at the foot of this page instead; that request is not attached to any post.");
+  const links = shiplog.querySelectorAll("a");
+  assert.equal(links.length, 1);
+  assert.equal(links[0].getAttribute("href"), "#site-footer-panel");
+  assert.equal(document.querySelectorAll("#site-footer-panel").length, 1, "the follow-up link points nowhere");
+
+  // Every name the steps use is a name the page draws.
+  const buttons = document.querySelectorAll(".post-report-button");
+  assert.ok(buttons.length > 0 && buttons.every((node) => textOf(node) === REPORT_POST_LABEL));
+  reportButtonFor(document, BEA_POST).click();
+  assert.equal(textOf(id("post-report-reasons").querySelectorAll("legend")[0]), "Reason");
+  assert.match(textOf(document.querySelectorAll("label").filter((node) => node.getAttribute("for") === "post-report-context")[0]), /^Note for the team/);
+  assert.equal(textOf(document.querySelectorAll("label").filter((node) => node.getAttribute("for") === "post-report-email")[0]), "Your email address");
+  assert.equal(textOf(id("post-report-submit")), "Send report");
 });
 
 test("People: every drawn tile has a Report post button that opens the same panel", async (t) => {

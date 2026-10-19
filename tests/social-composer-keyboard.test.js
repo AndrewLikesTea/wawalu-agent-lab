@@ -347,7 +347,7 @@ test("the composer is read after the feed and before the contact route, and adds
   // one of the three Shiplog asks is read after the feed and the composer.
   const text = textOf(document.querySelector("#main-content"));
   const route = text.indexOf("How reporting works");
-  const answer = text.indexOf("Report post opens a short form");
+  const answer = text.indexOf("Reporting a post");
   assert.ok(route >= 0 && answer > route, "the reporting route or its answer is missing");
   assert.doesNotMatch(text.slice(route, answer), /Shiplog demonstration|Shiplog pilot|Ask about Shiplog/);
   for (const ask of ["Ask about Shiplog", "Request a Shiplog demonstration", "Discuss a Shiplog pilot"])
