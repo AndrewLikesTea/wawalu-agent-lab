@@ -40,6 +40,10 @@ const REPORT_DISCLOSURE_PARAGRAPHS = [
 const INVITATION_REPORT = "To ask the Wawalu team to review this post, select Report post.";
 const INVITATION_ATTACHMENT = "Nothing about the post is attached to the request automatically.";
 const INVITATION_COPY = "Select Copy link to this post above, then paste the link into the Anything else we should know? field so the team knows which post you mean.";
+// Social's and People's reporting clause, in their bytes, closing the terms
+// sentence in #post-published-terms on the same rule: only beside a drawn
+// Report post button (#2942).
+const TERMS_REPORT = "Anyone can select Report post on it.";
 
 async function fetchLivePost(id) {
   const response = await fetch(`/api/social-posts/${encodeURIComponent(id)}`, { cache: "no-store", headers: { accept: "application/json" } });
@@ -115,8 +119,11 @@ async function init() {
   const invitation = document.querySelector(".site-footer-invitation");
   const waitingInvitation = invitation?.textContent ?? "";
   const loadedInvitation = `${waitingInvitation.replace(INVITATION_ATTACHMENT, `${INVITATION_REPORT} ${INVITATION_ATTACHMENT}`)} ${INVITATION_COPY}`;
+  const terms = document.querySelector("#post-published-terms");
+  const waitingTerms = terms?.textContent ?? "";
   const nameControls = (drawn) => {
     if (invitation) invitation.textContent = drawn ? loadedInvitation : waitingInvitation;
+    if (terms) terms.textContent = drawn ? `${waitingTerms} ${TERMS_REPORT}` : waitingTerms;
     if (!reporting) return;
     // Same rule the People link follows: a reader standing on the handle when
     // it goes must not be dropped to the top of the document, so focus moves
