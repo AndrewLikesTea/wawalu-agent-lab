@@ -76,7 +76,8 @@ test('release surface wires navigation, explains the boundary early and retains 
   const html = await readFile(new URL('../src/releases.html', import.meta.url), 'utf8');
   assert.match(html, /src="\/releases-discussion-page.js"/);
   assert.ok(html.indexOf('id="releases-demo-boundary"') < html.indexOf('id="record-release-link"'));
-  assert.match(html, /Records you add stay in this browser only\. This is a demo workflow, not a customer result\./);
+  assert.match(html, /id="releases-demo-boundary">Records you add stay in this browser unless you download the complete archive, which sends them to the Shiplog server to build the file\. This is a demo workflow, not a customer result\./);
+  assert.doesNotMatch(html, /in this browser only\. This is a demo workflow/);
   assert.match(html, /Whether Shiplog is available for your team and what it would cost are both answered on request\./);
   assert.ok(html.indexOf('id="release-discussion-actions"') > html.indexOf('id="real-deployment"'));
   const css = await readFile(new URL('../src/styles.css', import.meta.url), 'utf8');

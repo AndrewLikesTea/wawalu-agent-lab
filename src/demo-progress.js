@@ -104,7 +104,8 @@ export const DEMO_PROGRESS_EMPTY_LEAD =
 // production data" caveat that shiplog-proof.test.js counts above the release
 // recorder — so carrying the guide onto Releases adds no occurrence of it.
 export const DEMO_PROGRESS_SCOPE =
-  "Records you add stay in this browser only. This is a demo workflow, not a customer result.";
+  "Records you add stay in this browser unless you download the complete archive, which sends "
+  + "them to the Shiplog server to build the file. This is a demo workflow, not a customer result.";
 
 // The releases recorder's decision picker, by the accessible name its own
 // legend gives it in src/releases.html — "Linked decisions" plus the optional
