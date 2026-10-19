@@ -336,18 +336,24 @@ test("the provenance sentence is the home page's, stated once, with no second ca
 
   const home = await loadPage(HOME_PAGE, { storage: {} });
   t.after(() => home.restore());
-  // #2922: the home page, which carries the complete-archive download, names
-  // that one exception; the provenance sentence after it is still the shared one.
+  // #2938: both pages make one storage claim, the home page's, complete-archive
+  // exception included — never the old "in this browser only" promise.
   const homeScope = textOf(home.document.querySelector("#evaluation-path-scope"));
-  assert.match(homeScope, /^Records you add stay in this browser unless you download the complete archive/);
-  assert.ok(homeScope.endsWith(DEMO_PROGRESS_SCOPE.split(". ").pop()));
+  assert.equal(homeScope, DEMO_PROGRESS_SCOPE);
+  const canonical = "Records you add stay in this browser unless you download the complete archive, "
+    + "which sends them to the Shiplog server to build the file.";
+  assert.ok(textOf(home.document.body).includes(canonical));
+  const body = textOf(page.document.body);
+  assert.equal(body.split("Records you add stay in this browser only.").length - 1, 0);
+  assert.equal(body.split(`${canonical} This is a demo workflow, not a customer result.`).length - 1, 2,
+    "the hero and the guide each carry the canonical sentence beside the demo caveat");
 
   // Reused rather than rewritten, and it deliberately does not repeat the
   // example-records caveat: shiplog-proof.test.js counts that caveat once above
   // the recorder, and a second occurrence in this region would red it.
   const region = byId(page, "evaluation-path");
   assert.doesNotMatch(textOf(region), /no customer or production data/);
-  assert.match(textOf(region), /stay in this browser only/);
+  assert.match(textOf(region), /stay in this browser unless you download the complete archive/);
 });
 
 test("the seeded example records are not counted as this browser's progress", async (t) => {
