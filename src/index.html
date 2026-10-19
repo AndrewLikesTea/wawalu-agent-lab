@@ -501,14 +501,14 @@
             </select>
           </p>
           <span class="hint" id="export-shiplog-scope-hint">The file follows your history filters by default. Choose the second option to export every stored record, whatever the filters hide.</span>
-          <p class="hint">Download JSON builds its file in this browser and sends nothing. The file includes only decisions, releases, and their preserved links stored in this browser.</p>
-          <p class="hint"><a class="text-link" href="/workspace.html">See what's stored in this browser</a> — the records, roughly how much space they use, and how to erase them. The complete archive download is the only control that sends records to a server.</p>
+          <p id="browser-export-note" class="hint">Browser export: the records chosen above, built into a JSON file in this browser. Nothing is sent. The file includes only decisions, releases, and their preserved links stored in this browser.</p>
+          <p class="hint"><a class="text-link" href="/workspace.html">See what's stored in this browser</a> — the records, roughly how much space they use, and how to erase them. The complete archive is the only download that sends records to a server.</p>
           <p id="export-shiplog-status" class="notice" role="status" aria-live="polite"></p>
         </div>
+        <button id="export-shiplog" type="button" aria-describedby="export-shiplog-counts export-shiplog-scope-hint browser-export-note">Download browser export (JSON)</button>
         <p id="shiplog-archive-note" class="hint">Complete archive: every decision and release stored in this browser, regardless of filters. This download sends those records to the Shiplog server to build the file, and the server does not retain them.</p>
-        <button id="download-shiplog-archive" type="button" aria-describedby="shiplog-archive-note">Download complete Shiplog archive</button>
+        <button id="download-shiplog-archive" type="button" aria-describedby="shiplog-archive-note">Download complete archive</button>
         <p id="shiplog-archive-status" role="status" aria-live="polite"></p>
-        <button id="export-shiplog" type="button">Download JSON</button>
         <!-- Recovery from a filter that matches nothing. Hidden until that
              happens, so it is not a tab stop on the ordinary path, and it runs
              the history's own reset rather than a second idea of "clear". The
@@ -831,7 +831,7 @@
             <h3>Team handoff</h3>
             <details>
               <summary>Instructions for Team handoff</summary>
-              <p>Your evaluating team must hand a record to a teammate as a file: press “Download JSON” on the Home page to export it, send the file to your teammate, and have them open it with “Choose JSON file” on the Home page in their own browser and confirm the summary. Both controls are on the Home page only: the Releases page has a separate “Export shown releases as JSON” button and no import control. Count their unanswered questions about why the work shipped and who owns it.</p>
+              <p>Your evaluating team must hand a record to a teammate as a file: press “Download browser export (JSON)” on the Home page to export it, send the file to your teammate, and have them open it with “Choose JSON file” on the Home page in their own browser and confirm the summary. Both controls are on the Home page only: the Releases page has a separate “Export shown releases as JSON” button and no import control. Count their unanswered questions about why the work shipped and who owns it.</p>
             </details>
             <dl class="pilot-scorecard-fields">
               <div><dt>Buyer target</dt><dd>________</dd></div>

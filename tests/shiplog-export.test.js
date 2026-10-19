@@ -434,7 +434,7 @@ test("export UI shows local counts before download and downloads one record", ()
   assert.deepEqual(downloads[0].releases[0].decisionIds, ["d-queue"]);
   assert.equal(
     status.textContent,
-    "Shiplog history exported. 1 release link to a decision this browser no longer holds was left out.",
+    "Browser export downloaded. 1 release link to a decision this browser no longer holds was left out.",
   );
 });
 
@@ -568,7 +568,7 @@ test("a filter matching nothing names itself, writes no file, and offers the way
   // 1. It says so before the press, in the live region beside the button.
   assert.equal(panel.counts.textContent, EXPORT_EMPTY_SENTENCE);
   // 2. And on the button itself, for a reader who hears only the control.
-  assert.equal(panel.attributes["aria-label"], "Download JSON: no records match your history filters");
+  assert.equal(panel.attributes["aria-label"], "Download browser export (JSON): no records match your history filters");
   // 3. The recovery control is revealed. Hidden the rest of the time, so it is
   //    not a tab stop on the ordinary path.
   assert.equal(panel.clear.hidden, false, "the clear-filters control stayed hidden with nothing to export");
@@ -608,7 +608,7 @@ test("a scope that matches records again re-arms the button and hides the recove
 
   assert.equal(panel.clear.hidden, true, "the recovery control stayed on screen with records to export");
   assert.equal(panel.counts.textContent, "Ready to export 1 decision and 0 releases matching your history filters.");
-  assert.equal(panel.attributes["aria-label"], "Download JSON: export 1 filtered record");
+  assert.equal(panel.attributes["aria-label"], "Download browser export (JSON): 1 filtered record");
   panel.listeners.click();
   assert.equal(panel.downloads.length, 1, "the button was still refusing after the filters matched again");
   assert.deepEqual(panel.downloads[0].decisions.map(({ id }) => id), ["d-queue"]);
@@ -714,30 +714,30 @@ test("record text with markup, quotes, and backslashes survives JSON.parse uncha
 
 test("the button's accessible name states the filtered scope, and nothing when unfiltered", () => {
   assert.equal(shiplogExportLabel({ decisions: 9, releases: 3, filtered: true }),
-    "Download JSON: export 12 filtered records");
+    "Download browser export (JSON): 12 filtered records");
   assert.equal(shiplogExportLabel({ decisions: 1, releases: 0, filtered: true }),
-    "Download JSON: export 1 filtered record");
+    "Download browser export (JSON): 1 filtered record");
   // Zero is not a scope like any other any more. The panel refuses that press
   // (see the blocked-export tests below), so a name promising "export 0 filtered
   // records" would describe a download that is not going to happen — and the
   // accessible name is the only place a screen reader user reading the button
   // alone could learn otherwise.
   assert.equal(shiplogExportLabel({ decisions: 0, releases: 0, filtered: true }),
-    "Download JSON: no records match your history filters");
+    "Download browser export (JSON): no records match your history filters");
   assert.equal(shiplogExportLabel({ decisions: 9, releases: 3 }), "",
     "an unfiltered export restates the visible label instead of leaving it alone");
   assert.equal(shiplogExportLabel(), "");
 });
 
 test("a filtered download is announced in the visitor's own numbers", () => {
-  assert.equal(exportedRecordSentence({ recordCount: 12, filtered: true }), "Exported 12 filtered records.");
-  assert.equal(exportedRecordSentence({ recordCount: 1, filtered: true }), "Exported 1 filtered record.");
-  assert.equal(exportedRecordSentence({ recordCount: 0, filtered: true }), "Exported 0 filtered records.");
+  assert.equal(exportedRecordSentence({ recordCount: 12, filtered: true }), "Browser export downloaded: 12 filtered records.");
+  assert.equal(exportedRecordSentence({ recordCount: 1, filtered: true }), "Browser export downloaded: 1 filtered record.");
+  assert.equal(exportedRecordSentence({ recordCount: 0, filtered: true }), "Browser export downloaded: 0 filtered records.");
   assert.equal(exportedRecordSentence({ recordCount: 12 }), EXPORT_STATUS.exported);
   assert.equal(exportedRecordSentence(), EXPORT_STATUS.exported);
   assert.equal(
     describeShiplogExport({ recordCount: 2, filtered: true, excludedLinks: [{}] }),
-    "Exported 2 filtered records. 1 release link to a decision your filters hide was left out.",
+    "Browser export downloaded: 2 filtered records. 1 release link to a decision your filters hide was left out.",
   );
 });
 
@@ -769,10 +769,10 @@ test("the export panel keeps the button's name in step with the filtered scope",
     releaseIds: [],
     filters: { status: "accepted" },
   });
-  assert.equal(attributes["aria-label"], "Download JSON: export 1 filtered record");
+  assert.equal(attributes["aria-label"], "Download browser export (JSON): 1 filtered record");
 
   listeners.click();
-  assert.equal(status.textContent, "Exported 1 filtered record.");
+  assert.equal(status.textContent, "Browser export downloaded: 1 filtered record.");
 
   publishHistoryScope(root, FULL_HISTORY_SCOPE);
   assert.equal(attributes["aria-label"], undefined, "the filtered name outlived the filter");

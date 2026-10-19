@@ -473,7 +473,7 @@ test("the journey exports as one JSON file carrying the decision, the release, a
   );
   assert.equal(
     textOf(page.document.querySelector("#export-shiplog-status")),
-    "Shiplog history exported.",
+    "Browser export downloaded.",
     "the export confirmation copy changed",
   );
 });

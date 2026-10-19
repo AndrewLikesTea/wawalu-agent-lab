@@ -657,7 +657,7 @@ test("a combination matching nothing counts zero, refuses the download, and name
   // And on the button itself, for a reader who hears only the control.
   assert.equal(
     page.document.querySelector("#export-shiplog").getAttribute("aria-label"),
-    "Download JSON: no records match your history filters",
+    "Download browser export (JSON): no records match your history filters",
   );
 
   // No second file. The press is refused rather than answered with two empty

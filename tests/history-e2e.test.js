@@ -414,7 +414,7 @@ test("exporting downloads one JSON record that preserves the decision-release li
 
   assert.equal(
     textOf(page.document.querySelector("#export-shiplog-status")),
-    "Shiplog history exported.",
+    "Browser export downloaded.",
     "the export confirmation copy changed",
   );
 });

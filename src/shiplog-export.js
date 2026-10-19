@@ -258,12 +258,12 @@ export function formatShiplogExportCounts({ decisions, releases, filtered = fals
 const recordWord = (count) => (count === 1 ? "record" : "records");
 
 /** The visible words on the download button, which never change. */
-export const EXPORT_BUTTON_LABEL = "Download JSON";
+export const EXPORT_BUTTON_LABEL = "Download browser export (JSON)";
 
 /**
  * The button's accessible name, or "" when the visible label already says it.
  *
- * "Download JSON" is a fine label for a button that downloads the history and a
+ * "Download browser export (JSON)" is a fine label for a button that downloads the history and a
  * poor one for a button that downloads *eleven of the forty records* — the
  * sentence carrying that fact sits above the button, and a screen reader reading
  * the button alone would not hear it. So the scope rides on the control itself
@@ -285,12 +285,12 @@ export function shiplogExportLabel({ decisions = 0, releases = 0, filtered = fal
     return `${EXPORT_BUTTON_LABEL}: no records match your history filters`;
   }
   const total = decisions + releases;
-  return `${EXPORT_BUTTON_LABEL}: export ${total} filtered ${recordWord(total)}`;
+  return `${EXPORT_BUTTON_LABEL}: ${total} filtered ${recordWord(total)}`;
 }
 
 export const EXPORT_STATUS = Object.freeze({
-  exported: "Shiplog history exported.",
-  failed: "Shiplog history could not be exported. Your browser data was not changed.",
+  exported: "Browser export downloaded.",
+  failed: "Browser export could not be downloaded. Your records are unchanged.",
   // Said in the status region on a press the panel refused, so the press is
   // never silent. "No file was written" first: that is the fact a visitor is
   // checking their downloads folder for.
@@ -341,7 +341,7 @@ export function excludedLinkSentence({ excludedLinks = [] } = {}) {
  */
 export function exportedRecordSentence({ recordCount, filtered = false } = {}) {
   if (filtered !== true || !Number.isInteger(recordCount)) return EXPORT_STATUS.exported;
-  return `Exported ${recordCount} filtered ${recordWord(recordCount)}.`;
+  return `Browser export downloaded: ${recordCount} filtered ${recordWord(recordCount)}.`;
 }
 
 /** What the export panel's status line says after a successful download. */

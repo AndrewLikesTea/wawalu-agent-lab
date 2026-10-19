@@ -32,9 +32,9 @@ export function initShiplogArchive(documentRef, storage, { fetch: send = globalT
       anchor.download = filename;
       documentRef.body.append(anchor);
       anchor.click();
-      status.textContent = "Complete Shiplog archive downloaded.";
+      status.textContent = "Complete archive downloaded.";
     } catch {
-      status.textContent = "Archive could not be downloaded. Your records are unchanged. Try again.";
+      status.textContent = "Complete archive could not be downloaded. Your records are unchanged. Try again.";
     } finally {
       anchor?.remove();
       if (url) urlApi.revokeObjectURL(url);

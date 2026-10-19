@@ -80,7 +80,7 @@ test("API rejects malformed, oversized, cross-origin and unsupported requests", 
 
 test("visible action downloads all local records through the server and announces failures", async () => {
   const html = await readFile(new URL("../src/index.html", import.meta.url), "utf8");
-  assert.match(html, /<button id="download-shiplog-archive" type="button" aria-describedby="shiplog-archive-note">Download complete Shiplog archive/);
+  assert.match(html, /<button id="download-shiplog-archive" type="button" aria-describedby="shiplog-archive-note">Download complete archive</);
   const entry = await readFile(new URL("../src/shiplog-export-page.js", import.meta.url), "utf8");
   assert.match(entry, /initShiplogArchive\(document, localStorage\)/);
   let click, blob, downloaded, revoked, fail = false;

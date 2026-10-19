@@ -11,6 +11,13 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 import { parseHtml, textOf } from "./support/browser.js";
+import {
+  EXPORT_BUTTON_LABEL,
+  EXPORT_STATUS,
+  exportedRecordSentence,
+  shiplogExportLabel,
+} from "../src/shiplog-export.js";
+import { initShiplogArchive } from "../src/shiplog-archive-page.js";
 
 const document = parseHtml(await readFile(new URL("../src/index.html", import.meta.url), "utf8"));
 const STAYS = /\bstays? in this browser\b/;
@@ -54,12 +61,88 @@ test("the archive's server step is stated before its control, in the export pane
   const text = textOf(document.getElementById("shiplog-archive-note"));
   assert.match(text, /This download sends those records to the Shiplog server to build the file/);
   assert.match(text, /the server does not retain them\./);
-  assert.equal(textOf(document.getElementById("download-shiplog-archive")), "Download complete Shiplog archive");
+  assert.equal(textOf(document.getElementById("download-shiplog-archive")), "Download complete archive");
 });
 
-test("the JSON download and the storage link say where records go", () => {
+test("the browser export and the storage link say where records go", () => {
   const hints = document.querySelector(".export-panel").querySelectorAll("p").map(textOf);
-  assert.ok(hints.some((text) => text.startsWith("Download JSON builds its file in this browser and sends nothing.")));
+  assert.ok(hints.some((text) => text.startsWith(
+    "Browser export: the records chosen above, built into a JSON file in this browser. Nothing is sent.")));
   assert.ok(hints.some((text) => text.startsWith("See what's stored in this browser")
-    && text.endsWith("The complete archive download is the only control that sends records to a server.")));
+    && text.endsWith("The complete archive is the only download that sends records to a server.")));
 });
+
+// Scope and data handling must be associated with the control itself, not
+// merely somewhere in the panel. This checks DOM associations, not layout.
+test("each download describes its scope and data boundary before activation", () => {
+  const browser = document.getElementById("export-shiplog");
+  const archive = document.getElementById("download-shiplog-archive");
+  const description = (button) => button.getAttribute("aria-describedby")
+    .split(/\s+/).map((id) => {
+      const note = document.getElementById(id);
+      assert.ok(note, `Missing description: ${id}`);
+      return textOf(note);
+    }).join(" ");
+  assert.match(description(browser), /follows your history filters by default/);
+  assert.match(description(browser), /export every stored record/);
+  assert.match(description(browser), /in this browser\. Nothing is sent\./);
+  assert.match(description(archive), /every decision and release stored in this browser, regardless of filters/);
+  assert.match(description(archive), /sends those records to the Shiplog server/);
+  assert.match(description(archive), /server does not retain them/);
+  const order = walk(document.body);
+  assert.ok(order.indexOf(document.getElementById("browser-export-note")) < order.indexOf(browser));
+  assert.ok(order.indexOf(browser) < order.indexOf(document.getElementById("shiplog-archive-note")),
+    "the browser download must precede the other path's explanation");
+});
+
+// #2933: "Download JSON", "Export history", and "Complete archive" read as one
+// path. Each path now has one name, carried by its button, its sentence, and
+// every status line it writes, and neither name appears in the other's.
+test("each export path keeps its own name on its button, sentence, and status lines", async () => {
+  assert.equal(textOf(document.getElementById("export-shiplog")), EXPORT_BUTTON_LABEL);
+  assert.equal(EXPORT_BUTTON_LABEL, "Download browser export (JSON)");
+  assert.match(textOf(document.getElementById("shiplog-archive-note")), /^Complete archive: /);
+
+  const browserLines = [
+    ...Object.values(EXPORT_STATUS).filter((line) => !line.startsWith("No file was written")),
+    exportedRecordSentence({ recordCount: 3, filtered: true }),
+    shiplogExportLabel({ decisions: 2, releases: 1, filtered: true }),
+  ];
+  for (const line of browserLines) {
+    assert.match(line, /browser export/i, line);
+    assert.doesNotMatch(line, /archive/i, line);
+  }
+
+  const archiveLines = await archiveStatusLines();
+  assert.deepEqual(archiveLines, [
+    "Complete archive downloaded.",
+    "Complete archive could not be downloaded. Your records are unchanged. Try again.",
+  ]);
+  for (const line of archiveLines) assert.doesNotMatch(line, /browser export|JSON/i, line);
+});
+
+// Presses the archive button once against a stub server that answers, and once
+// against one that refuses, and returns the status line each press left.
+async function archiveStatusLines() {
+  const lines = [];
+  for (const ok of [true, false]) {
+    let click;
+    const button = { disabled: false, addEventListener(_type, listener) { click = listener; } };
+    const status = { textContent: "" };
+    const documentRef = {
+      getElementById: (id) => ({ "download-shiplog-archive": button, "shiplog-archive-status": status })[id] ?? null,
+      createElement: () => ({ click() {}, remove() {} }),
+      body: { append() {} },
+    };
+    const headers = new Map([
+      ["content-disposition", 'attachment; filename="shiplog-archive-2026-10-19.json"'],
+      ["content-type", "application/json; charset=utf-8"],
+    ]);
+    const fetch = async () => ({ ok, headers, blob: async () => new Blob(["{}"]) });
+    const storage = { getItem: () => null };
+    initShiplogArchive(documentRef, storage, { fetch, urlApi: { createObjectURL: () => "blob:x", revokeObjectURL() {} } });
+    await click();
+    lines.push(status.textContent);
+  }
+  return lines;
+}

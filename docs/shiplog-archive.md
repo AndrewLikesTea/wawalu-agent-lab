@@ -1,6 +1,6 @@
 # Complete browser Shiplog archive
 
-The Home export panel's **Download complete Shiplog archive** action sends all
+The Home export panel's **Download complete archive** action sends all
 valid decisions and releases held in this browser to `POST /api/shiplog-archive`.
 History filters and demo records do not participate. This is a separate contract
 from the existing history/import format and the legacy D1 export API: the shipped

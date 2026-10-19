@@ -295,7 +295,7 @@ test("an empty account exports an empty history rather than nothing at all", asy
   assert.deepEqual(shapeViolations(payload), [], "an empty export lost its envelope");
   assert.equal(
     textOf(page.document.querySelector("#export-shiplog-status")),
-    "Shiplog history exported.",
+    "Browser export downloaded.",
     "an empty account was told its export failed",
   );
 });
@@ -425,7 +425,7 @@ test("a filtered export keeps its links resolvable and says which links it left 
   // decision is still there and clearing the filter brings the link back.
   assert.equal(
     textOf(page.document.querySelector("#export-shiplog-status")),
-    "Exported 2 filtered records. 1 release link to a decision your filters hide was left out.",
+    "Browser export downloaded: 2 filtered records. 1 release link to a decision your filters hide was left out.",
     "the filtered export does not say what it wrote and which link it left out, or blames the wrong cause",
   );
 });
@@ -667,7 +667,7 @@ test("a filter matching nothing writes no file, says why, and offers the way bac
   assert.equal(exportButton(page).disabled, false, "the export control was disabled at zero results");
   assert.equal(
     exportButton(page).getAttribute("aria-label"),
-    "Download JSON: no records match your history filters",
+    "Download browser export (JSON): no records match your history filters",
     "the control still promises a file it will not write",
   );
   assert.equal(
@@ -710,7 +710,7 @@ test("the export control names its filtered scope and is operable from the keybo
   chooseOption(page, "#filter-status", "accepted");
   assert.equal(
     button.getAttribute("aria-label"),
-    "Download JSON: export 2 filtered records",
+    "Download browser export (JSON): 2 filtered records",
     "the accessible name does not describe the filtered scope",
   );
 
@@ -728,7 +728,7 @@ test("the export control names its filtered scope and is operable from the keybo
   assert.equal(page.downloads.length, before + 2, "Enter and Space do not both activate the export control");
   assert.equal(
     textOf(page.document.querySelector("#export-shiplog-status")),
-    `Exported ${visibleCount(page)} filtered records.`,
+    `Browser export downloaded: ${visibleCount(page)} filtered records.`,
     "a keyboard-activated export announced the wrong thing",
   );
 });
