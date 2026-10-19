@@ -345,8 +345,9 @@ test("the provenance sentence is the home page's, stated once, with no second ca
   assert.ok(textOf(home.document.body).includes(canonical));
   const body = textOf(page.document.body);
   assert.equal(body.split("Records you add stay in this browser only.").length - 1, 0);
-  assert.equal(body.split(`${canonical} This is a demo workflow, not a customer result.`).length - 1, 2,
-    "the hero and the guide each carry the canonical sentence beside the demo caveat");
+  // #2941: once, in the guide above the recorder. The hero copy was a repeat.
+  assert.equal(body.split(`${canonical} This is a demo workflow, not a customer result.`).length - 1, 1,
+    "the guide alone carries the canonical sentence beside the demo caveat");
 
   // Reused rather than rewritten, and it deliberately does not repeat the
   // example-records caveat: shiplog-proof.test.js counts that caveat once above
@@ -354,6 +355,30 @@ test("the provenance sentence is the home page's, stated once, with no second ca
   const region = byId(page, "evaluation-path");
   assert.doesNotMatch(textOf(region), /no customer or production data/);
   assert.match(textOf(region), /stay in this browser unless you download the complete archive/);
+});
+
+// #2941: the hero and the guide both said where records go before a visitor
+// reached the recorder. One statement, in the guide, names the archive's
+// server step.
+test("the storage promise is made once above the release recorder, with the server step", async (t) => {
+  const page = await openReleases(t);
+  const order = [];
+  const visit = (node) => {
+    for (const child of node.children ?? []) {
+      if (typeof child.getAttribute !== "function") continue;
+      order.push(child);
+      visit(child);
+    }
+  };
+  visit(page.document.body);
+  const recorder = order.indexOf(byId(page, "record-release"));
+  assert.ok(recorder > 0, "the release recorder is missing");
+  const claims = order.slice(0, recorder)
+    .filter((node) => node.tagName === "P" && /\bstays? in this browser\b/.test(textOf(node)));
+  assert.equal(claims.length, 1, claims.map(textOf).join("\n"));
+  assert.equal(claims[0].getAttribute("id"), "evaluation-path-scope");
+  assert.match(textOf(claims[0]),
+    /unless you download the complete archive, which sends them to the Shiplog server to build the file\./);
 });
 
 test("the seeded example records are not counted as this browser's progress", async (t) => {

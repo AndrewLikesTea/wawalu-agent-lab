@@ -517,10 +517,14 @@ test("the hero's first step records a decision before its release, in the direct
   assert.match(directory, /record a decision, then link it to the release it shaped/,
     "the hero's order is only right while the directory still says the same thing");
 
-  // The reorder keeps all three boundaries, in plain words.
+  // The reorder keeps both example-record boundaries, in plain words. #2941
+  // moved the storage promise out of the hero to the decision recorder, where a
+  // visitor first adds a record; homepage-archive-boundary.test.js counts it.
   assert.match(step, /The example records are invented/);
   assert.match(step, /use no customer or production data/);
-  assert.match(step, /Records you add stay in this browser unless you download the complete archive/);
+  assert.doesNotMatch(step, /stay in this browser/);
+  assert.match(textOf(document.getElementById("evaluation-path-scope")),
+    /Records you add stay in this browser unless you download the complete archive/);
 
   // The link now opens the interactive workspace on this page.
   const demo = document.getElementById("core-demo-link");

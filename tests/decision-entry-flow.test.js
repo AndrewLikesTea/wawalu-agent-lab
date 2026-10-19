@@ -594,9 +594,10 @@ test("a saved decision offers Releases for that decision, described and focused"
   assert.equal(nextLink(page).getAttribute("aria-describedby"), "decision-record-next-lead");
   assert.match(textOf(byId(page, "decision-record-next-lead")), /listed under Linked decisions there/);
   const kept = textOf(byId(page, "decision-record-kept"));
-  assert.equal(kept, "This decision stays in this browser unless you download the complete archive, "
-    + "which sends it to the Shiplog server to build the file. It is a demo record, not a customer result.");
-  assert.doesNotMatch(kept, /in this browser only/);
+  // #2941: the storage promise is made once, above the form, and is still in
+  // view here; the confirmation does not repeat it.
+  assert.equal(kept, "This is a demo record, not a customer result.");
+  assert.doesNotMatch(kept, /in this browser/);
 
   pressEnter(page.document);
   assert.deepEqual(page.navigations, [href], "Enter on the next step opened somewhere else");
