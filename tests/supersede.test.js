@@ -97,7 +97,7 @@ test("createDecision refuses a self or unknown link and stores an accepted one",
       { title: "New", context: "Why", alternatives: "Keep the old one.", owner: "Kai", status: "approved", supersedes: "self" },
       { id: "self", decisions: [...CHAIN, decision("self")] },
     ),
-    /cannot supersede itself/,
+    { message: "In Replaces, choose a different decision or None. A decision cannot replace itself." },
   );
 
   const linked = createDecision(

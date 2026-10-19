@@ -94,24 +94,24 @@ const tooLong = (what, limit) => (length) =>
 
 export const DECISION_ENTRY_ERRORS = Object.freeze({
   title: Object.freeze({
-    missing: "Give the decision a short title. It is what the history lists and what search matches.",
+    missing: "Enter a short name in Decision title.",
     tooLong: tooLong("Decision title", DECISION_ENTRY_LIMITS.title),
   }),
   context: Object.freeze({
-    missing: "Write the problem, the constraints, and the reasoning. This is what a teammate reads six months from now.",
+    missing: "In Context, describe the problem, constraints, and reasoning.",
     tooLong: tooLong("Context", DECISION_ENTRY_LIMITS.context),
   }),
   alternatives: Object.freeze({
-    missing: "Name the other options considered and why they lost. Write “None considered” if there were none.",
+    missing: "In Alternatives, name the other options considered and why they were not chosen. Write “None considered” if there were none.",
     tooLong: tooLong("Alternatives", DECISION_ENTRY_LIMITS.alternatives),
   }),
   owner: Object.freeze({
-    missing: "Name the person responsible for this decision.",
+    missing: "In Owner, name the person responsible for this decision.",
     tooLong: tooLong("Owner", DECISION_ENTRY_LIMITS.owner),
   }),
   status: Object.freeze({
-    missing: "Choose whether this decision is Pending or Accepted.",
-    invalid: "Choose whether this decision is Pending or Accepted.",
+    missing: "Choose Pending or Accepted in Status.",
+    invalid: "Choose Pending or Accepted in Status.",
   }),
 });
 

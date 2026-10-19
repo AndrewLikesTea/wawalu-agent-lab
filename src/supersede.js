@@ -11,9 +11,9 @@
 // on their own.
 
 export const SUPERSEDE_ERRORS = {
-  self: "A decision cannot supersede itself.",
-  unknown: "That decision is not in this log. Choose a decision that still exists.",
-  type: "A supersede link must be a decision id.",
+  self: "In Replaces, choose a different decision or None. A decision cannot replace itself.",
+  unknown: "In Replaces, choose a decision that is still in this log or None.",
+  type: "In Replaces, choose a decision from the list or None.",
 };
 
 // "" and undefined both mean "no link". Normalizing here keeps the empty select

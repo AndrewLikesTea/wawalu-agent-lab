@@ -215,7 +215,7 @@ test("the form says it creates a decision, empty and after the example fill", as
   const page = await openHome(t);
   const assertNamed = (state) => {
     assert.equal(formEyebrow(page), "New decision", `${state}: the form's eyebrow`);
-    assert.equal(textOf(titleLabel(page)), "Decision title", `${state}: the title field's label`);
+    assert.equal(textOf(titleLabel(page)), "Decision title (required)", `${state}: the title field's label`);
     assert.equal(titleLabel(page).getAttribute("for"), "title", `${state}: the label lost its field`);
     assert.equal(byId(page, "title").getAttribute("name"), "title", `${state}: the field was renamed`);
   };
