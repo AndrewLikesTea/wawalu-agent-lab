@@ -783,8 +783,7 @@ function renderPostCard(post, { index, onReport = null }) {
   if (image) {
     article.classList.add("post-card-media");
     article.append(renderPostFigure(image, imageDescription({ ...post, image }), index));
-  }
-  if (image) {
+    // Keep the descriptive onward link after the image in natural Tab order.
     const people = el("a", "post-people", peopleImagePostsLabel(post.author));
     people.href = profileHref(post.author);
     article.append(people);

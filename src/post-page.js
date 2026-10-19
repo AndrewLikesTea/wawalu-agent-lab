@@ -161,7 +161,7 @@ async function init() {
     const search = window.location.search;
     const params = new URLSearchParams(search);
     const id = params.get("id") ?? "";
-    const requestedAuthor = (params.get("author") ?? "").trim();
+    const requestedAuthor = (params.get("author") ?? "");
     const retryFocused = fromRetry && document.activeElement === container.querySelector(".detail-retry");
     // The persistent region holds focus while its button is replaced.
     if (retryFocused) {

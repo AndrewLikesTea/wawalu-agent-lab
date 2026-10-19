@@ -52,7 +52,7 @@ export function normalizeProfileApiPosts(payload) {
     if (!isRenderablePost(post?.id, post?.author, post?.content, post?.timestamp)) return [];
     const normalized = {
       id: post.id,
-      author: post.author.trim(),
+      author: post.author,
       body: post.content.trim(),
       caption: typeof post.caption === "string" && post.caption.trim() ? post.caption.trim().slice(0, MAX_CAPTION_LENGTH) : null,
       createdAt: post.timestamp,
@@ -80,7 +80,7 @@ export function normalizeSeedPosts(list) {
     if (!isRenderablePost(post?.id, post?.author, post?.body, post?.createdAt)) return [];
     const normalized = {
       id: post.id,
-      author: post.author.trim(),
+      author: post.author,
       body: post.body.trim(),
       caption: typeof post.caption === "string" && post.caption.trim() ? post.caption.trim().slice(0, MAX_CAPTION_LENGTH) : null,
       createdAt: post.createdAt,
@@ -155,7 +155,7 @@ export function resolveProfileAuthor({ param, stored, authors = [], preferred = 
   // With no hint at all, a name that actually has image posts beats an empty
   // grid: this page is a wall of images, and landing on a blank one leaves a
   // first-time visitor unable to tell an empty feature from a wrong name.
-  const landing = String(preferred ?? "").trim();
+  const landing = String(preferred ?? "");
   if (landing) return landing;
   return authors[0] ?? DEFAULT_AUTHOR;
 }

@@ -245,7 +245,7 @@ test("a settled Social post carries its display name as a link to People, in the
   // the name.
   assert.equal(link.getAttribute("href"), profileHref(IRIS));
   assert.equal(link.href, "/profile.html?author=Iris%20Vale");
-  assert.equal(textOf(link), `See ${IRIS}’s image posts on People`);
+  assert.equal(textOf(link), `See image posts by ${IRIS} on People`);
   assert.equal(link.getAttribute("aria-label"), null, "an aria-label stands in for words the eye cannot read");
   assert.equal(name.tagName, "SPAN");
   assert.equal(textOf(name), IRIS, "the display name holds more than the name");

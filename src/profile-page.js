@@ -52,13 +52,13 @@ function updateTitle() {
 async function init() {
   if (!document.querySelector("#profile-grid")) return;
 
-  const seeds = await fetchSeedPosts();
   const param = requestedProfileAuthor(window.location.search);
+  const seeds = await fetchSeedPosts();
   const stored = readStoredAuthor(globalThis.localStorage);
-  // A shared link or a remembered name is a choice and wins outright, empty
-  // profile included. Only a visitor who chose nothing gets the landing default,
-  // and only that visitor's selection may still move when the live feed lands.
+  // A URL filter wins even without images. A remembered publishing name is
+  // a landing suggestion; after loading it must agree with the cleared URL.
   let chosen = hasExplicitAuthor({ param, stored });
+  let resolveRememberedLanding = !param;
   let author = resolveProfileAuthor({
     param,
     stored,
@@ -94,6 +94,7 @@ async function init() {
     onAuthorChange(next) {
       author = next;
       chosen = true;
+      resolveRememberedLanding = false;
       updateTitle(next);
       // Filters belong to the URL, not the remembered publishing identity.
       // Keeping storage stable also makes the unfiltered history entry reloadable.
@@ -108,11 +109,12 @@ async function init() {
   function restoreSelection(search, remembered = stored) {
     const requested = requestedProfileAuthor(search);
     author = resolveProfileAuthor({
-      param: requested, stored: remembered,
+      param: requested, stored: selectProfilePosts(profile.getPosts(), remembered).length ? remembered : null,
       authors: distinctAuthors(profile.getPosts()),
       preferred: defaultProfileAuthor(profile.getPosts()),
     });
     chosen = true;
+    resolveRememberedLanding = !requested;
     profile.setAuthor(author);
     updateTitle();
   }
@@ -135,6 +137,14 @@ async function init() {
         const landing = defaultProfileAuthor(merged);
         if (landing && selectProfilePosts(merged, profile.getAuthor()).length === 0) {
           author = landing;
+        }
+      }
+      // Clearing and reloading the unfiltered URL must use the same landing:
+      // a publishing identity without images is not an image filter request.
+      if (resolveRememberedLanding) {
+        resolveRememberedLanding = false;
+        if (!selectProfilePosts(merged, author).length) {
+          author = defaultProfileAuthor(merged) || author;
         }
       }
       profile.seed(merged, author);

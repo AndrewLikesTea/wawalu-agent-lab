@@ -239,7 +239,7 @@ test("an image post carries one link to People, named for the name and the desti
 
   // The visible words carry the display name AND where activating it goes, so
   // no aria-label has to say what the ink does not.
-  assert.equal(textOf(link), `See ${ARI}’s image posts on People`);
+  assert.equal(textOf(link), `See image posts by ${ARI} on People`);
   assert.equal(textOf(link), peopleImagePostsLabel(ARI));
   assert.equal(link.getAttribute("aria-label"), null);
 
@@ -432,7 +432,7 @@ test("choosing a name on People writes it into the address, and that address reo
 // Names that break naive URL building or naive markup: a space and an accent,
 // an ampersand, the two characters that end a query and start a fragment, and
 // a tag. Ids end in a real day of the month, or People drops the post.
-const AWKWARD_NAMES = ["Ana María", "A & B", "x#y?z", "<b>Zed", "O'Neil \"猫\" + 50%/=?"];
+const AWKWARD_NAMES = ["Ana María", "A & B", "x#y?z", "<b>Zed", "N".repeat(60), "  Mina  ", "O'Neil \"猫\" + 50%/=?"];
 
 const AWKWARD_FEED = AWKWARD_NAMES.map((author, index) => ({
   ...post(`p-1${index}`, author, `1${index}`),
@@ -453,10 +453,10 @@ test("names that need encoding or look like markup get a People link that carrie
   for (const entry of AWKWARD_FEED) {
     const card = drawnCards(document).find((node) => node.dataset?.postId === entry.id);
     assert.ok(card, `${entry.author}'s post did not render`);
-    assert.equal(textOf(card.querySelectorAll(".post-author")[0]), entry.author);
+    assert.equal(card.querySelectorAll(".post-author")[0].textContent, entry.author);
     const links = card.querySelectorAll(".post-people");
     assert.equal(links.length, 1);
-    assert.equal(textOf(links[0]), `See ${entry.author}’s image posts on People`);
+    assert.equal(links[0].textContent, `See image posts by ${entry.author} on People`);
     assert.equal(links[0].getAttribute("href"), profileHref(entry.author));
     assert.equal(requestedProfileAuthor(new URL(links[0].href, "https://labs.wawalu.org").search), entry.author,
       `the address does not carry ${entry.author} whole`);
@@ -471,7 +471,7 @@ for (const { author, id } of AWKWARD_FEED) {
     const { document } = await openPeople(t, { feed: AWKWARD_FEED, search });
     assert.equal(pressedChip(document)?.dataset.author, author, `People did not open on ${author}`);
     assert.deepEqual(drawnTiles(document).map((tile) => tile.dataset?.postId), [id]);
-    assert.equal(textOf(document.querySelector("#grid-title")), `${author} · 1 image post`);
+    assert.equal(document.querySelector("#grid-title").textContent, `${author} · 1 image post`);
   });
 }
 
@@ -527,4 +527,52 @@ test("clearing an unknown name lands on image posts even when the remembered nam
   assert.equal(document.querySelectorAll(".empty-state").length, 0, "Clear led to another empty state");
   assert.equal(pressedChip(document).dataset.author, ARI);
   assert.equal(page.storage.getItem("shiplog.social.author"), "Kai", "clearing a filter must not forget the publishing name");
+});
+
+
+test("a cleared address reloads consistently with a remembered text-only identity", async (t) => {
+  const storage = { "shiplog.social.author": TESS };
+  const page = await openPeople(t, { search: "?author=Nobody", storage });
+  page.document.querySelector(".empty-actions").querySelector("button").click();
+  const search = page.address();
+  const selected = pressedChip(page.document).dataset.author;
+  page.close();
+  const reloaded = await openPeople(t, { search, storage });
+  assert.equal(pressedChip(reloaded.document).dataset.author, selected);
+  assert.deepEqual(drawnTiles(reloaded.document).map((tile) => tile.dataset.postId), imagePostIds(selected));
+});
+
+test("a URL name survives a delayed live response and selects its newest images", async (t) => {
+  const author = "  <Mina & Co>  ";
+  const page = await loadPage(PEOPLE_PAGE, { location: { search: `?author=${encodeURIComponent(author)}` } });
+  const releaseTimers = holdTimers(t, page);
+  let releaseLive;
+  globalThis.fetch = async (url) => {
+    if (url === SEED_ROUTE) return { ok: true, json: async () => ({ posts: FEED }) };
+    assert.equal(url, LIVE_ROUTE);
+    return new Promise((resolve) => { releaseLive = () => resolve({ ok: true, json: async () => ({ posts: [
+      { id: "older", author, content: "Older", timestamp: "2026-07-01T00:00:00Z", image_url: "/media/older.svg" },
+      { id: "text", author, content: "Text", timestamp: "2026-07-03T00:00:00Z" },
+      { id: "newer", author, content: "Newer", timestamp: "2026-07-02T00:00:00Z", image_url: "/media/newer.svg" },
+    ] }) }); });
+  };
+  await importPageModule("/profile-page.js");
+  await waitFor(() => Boolean(releaseLive), "live request started");
+  assert.ok(page.document.querySelectorAll(".profile-tile-skeleton").length > 0);
+  releaseLive();
+  await waitFor(() => page.document.documentElement.dataset.shiplogProfile === "ready", "live request finished");
+  assert.equal(pressedChip(page.document).dataset.author, author);
+  assert.deepEqual(drawnTiles(page.document).map((tile) => tile.dataset.postId), ["newer", "older"]);
+  releaseTimers();
+});
+
+test("long names inherit wrapping and visible keyboard focus on every surface", async () => {
+  const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
+  const states = await readFile(new URL("../src/social-states.css", import.meta.url), "utf8");
+  for (const selector of ["#post-people", ".post-people", ".profile-filter-option", ".profile-identity-text h2"]) {
+    const rule = states.replace(/\/\*[\s\S]*?\*\//g, "").split("}").find((rule) => rule.split("{")[0].split(",").map((part) => part.trim()).includes(selector));
+    assert.ok(rule?.includes("overflow-wrap:anywhere"), selector);
+    assert.ok(rule?.includes("min-width:0"), selector);
+  }
+  assert.match(css, /a:focus-visible\s*\{[^}]*outline:3px solid var\(--focus-ring\)/);
 });

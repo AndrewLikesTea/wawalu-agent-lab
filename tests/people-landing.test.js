@@ -361,10 +361,9 @@ test("People states the images-only rule once and offers each route once", async
   }
 });
 
-test("an explicit name wins even when it has no image posts", async () => {
+test("an address-supplied name wins even when it has no image posts", async () => {
   for (const [how, options] of [
     ["a shared link", { search: "?author=Ari" }],
-    ["the remembered name", { storage: { "shiplog.social.author": "Ari" } }],
   ]) {
     const page = await people(options);
     try {

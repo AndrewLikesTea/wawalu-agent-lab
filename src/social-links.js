@@ -145,5 +145,5 @@ export function socialAllPostsLabel(author) {
 // a second wording on one of them would be a second promise about the same
 // place.
 export function peopleImagePostsLabel(author) {
-  return `See ${String(author ?? "").trim()}’s image posts on People`;
+  return `See image posts by ${String(author ?? "")} on People`;
 }
