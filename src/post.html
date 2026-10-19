@@ -289,11 +289,11 @@
              the Social exit to the footer is pinned and a fact a reader has to
              press for is a fact they meet afterwards.
 
-             The reporting clause Social and People close on is not here. It
-             reads "Anyone can select Report post on it", and src/post-page.js
-             draws a Report post button on a loaded post and on none of the
-             other three states, so the sentence would promise a control a
-             waiting reader cannot find. What a report does is explained in
+             The reporting clause Social and People close on does not ship here.
+             src/post-page.js draws a Report post button only on a loaded post,
+             seed or live, and appends the clause to the terms sentence then and
+             takes it off in the other three states (#2942), so a waiting reader
+             is not sent to a control they cannot find. What a report does is explained in
              #post-reporting below, which arrives and goes with that button. -->
         <p class="hint" id="post-published-reach">Anyone can read a published post, on any device or browser.</p>
         <p class="hint" id="post-published-terms">A published post is public and cannot be edited or deleted by the person who published it.</p>
