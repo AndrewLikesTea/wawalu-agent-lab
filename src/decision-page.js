@@ -8,6 +8,7 @@ import {
 import { loadReleaseData } from "./releases-data.js";
 import { dedupeById } from "./demo-data.js";
 import { SEED_DECISION_DETAILS } from "./seed-records.js";
+import { renderExampleNavigation } from "./example-navigation.js";
 import { pageTitle, recordTitle } from "./page-title.js";
 
 // Resolution is synchronous. The example records are module constants and the
@@ -43,7 +44,9 @@ export async function initDecisionDetail(options = {}) {
   const container = document.querySelector("#decision-detail");
   if (!container) return;
 
-  const id = new URLSearchParams(window.location.search).get("id") ?? "";
+  const params = new URLSearchParams(window.location.search);
+  const id = params.get("id") ?? "";
+  const exampleOnly = params.get("example") === "1";
 
   // One read, offered again by Retry. The read is synchronous, so a retry is a
   // second attempt at the same two sources rather than a second request — which
@@ -61,7 +64,7 @@ export async function initDecisionDetail(options = {}) {
     // it cannot strand anyone the way a conditional loading state could.
     renderDecisionDetailSkeleton(container);
     try {
-      const result = loadDecisionDetail(id, localStorage, options);
+      const result = loadDecisionDetail(id, exampleOnly ? null : localStorage, options);
       if (result.state === "available") {
         renderDecisionDetail(container, result.decision, {
           id,
@@ -73,6 +76,7 @@ export async function initDecisionDetail(options = {}) {
       } else {
         renderDecisionDetailState(container, result.state, retry);
       }
+      if (exampleOnly) renderExampleNavigation(container);
       // src/decision.html ships titled "Decision · Shiplog", so the tab names this
       // page — not the log it came from — for the whole load. This only ever
       // narrows that to the record actually on screen.

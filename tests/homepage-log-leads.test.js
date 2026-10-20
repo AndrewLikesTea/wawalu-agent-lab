@@ -249,10 +249,12 @@ test("the painted front door leads with the promise, then names the log", async 
   assert.equal(document.getElementById("shiplog-entry").getAttribute("aria-labelledby"), "home-log-title");
   assert.ok(!document.getElementById("shiplog-entry-title"), "the old promise heading id is still on the page");
 
-  // The opening action leads, followed by direct evidence links and the recorder.
+  // The recording action leads, followed by the complete example, evidence, and recorder.
   const sequence = tabSequence(document);
   const heroStops = sequence.filter((node) => ancestorIds(node).includes("top"));
-  assert.deepEqual(heroStops, [demo, ...document.getElementById("repository-last-verified").querySelectorAll("a")]);
+  const example = hero.querySelector(".hero-actions").querySelectorAll("a")[1];
+  assert.match(textOf(example), /complete example release/);
+  assert.deepEqual(heroStops, [demo, example, ...document.getElementById("repository-last-verified").querySelectorAll("a")]);
   const demoAt = sequence.indexOf(demo);
   assert.ok(!ancestorIds(sequence[demoAt - 1]).includes("main-content"), "a stop was added above the demo link");
   assert.ok(ancestorIds(sequence[sequence.indexOf(heroStops.at(-1)) + 1]).includes("record-history"), "the recorder follows the evidence links");
