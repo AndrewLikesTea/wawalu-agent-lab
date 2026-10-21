@@ -11,11 +11,15 @@ import { browserReleaseStorage, renderReleaseDetail, renderReleaseDetailError, r
 import { loadReleaseData } from "./releases-data.js";
 import { pageTitle, recordTitle } from "./page-title.js";
 
+import { renderExampleNavigation } from "./example-navigation.js";
+
 export function initReleaseDetail() {
   const container = document.querySelector("#release-detail");
   if (!container) return;
 
-  const id = new URLSearchParams(window.location.search).get("id") ?? "";
+  const params = new URLSearchParams(window.location.search);
+  const id = params.get("id") ?? "";
+  const exampleOnly = params.get("example") === "1";
   container.setAttribute("aria-busy", "true");
 
   // Sourcing is synchronous, so there is no pending window to strand a reader
@@ -26,7 +30,7 @@ export function initReleaseDetail() {
   // which would be a definite answer this page does not have.
   let data;
   try {
-    data = loadReleaseData(browserReleaseStorage());
+    data = loadReleaseData(exampleOnly ? null : browserReleaseStorage());
   } catch {
     renderReleaseDetailError(container);
     document.title = pageTitle("Release unavailable");
@@ -41,6 +45,7 @@ export function initReleaseDetail() {
     shareable: publicReleaseIds.has(id),
     example: exampleReleaseIds?.has(id) === true,
   });
+  if (exampleOnly) renderExampleNavigation(container);
   container.setAttribute("aria-busy", "false");
 
   if (resolved) {

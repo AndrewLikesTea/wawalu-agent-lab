@@ -43,7 +43,7 @@ test("homepage presents the promise, demo and proof before evaluation material",
   }
   const hero = doc.getElementById("top");
   assert.deepEqual(hero.querySelectorAll("a").map((a) => a.getAttribute("href")),
-    ["#title", "/decision.html?id=shiplog-pr-2547", "https://github.com/AndrewLikesTea/wawalu-agent-lab/blob/a1dc0a2dd45b24f8c114dfabed2a31f095f75557/src/build-stamp.js"]);
+    ["#title", "/release.html?id=demo-r-1-3-0&example=1", "/decision.html?id=shiplog-pr-2547", "https://github.com/AndrewLikesTea/wawalu-agent-lab/blob/a1dc0a2dd45b24f8c114dfabed2a31f095f75557/src/build-stamp.js"]);
   const sections = doc.getElementById("main-content").children.filter((node) => node.tagName === "SECTION");
   assert.deepEqual(sections.slice(0, 5).map((node) => node.id),
     ["top", "record-history", "shiplog-entry", "shiplog-evaluation-brief", "shiplog-pilot-scorecard"]);

@@ -1549,6 +1549,7 @@ export async function initDecisionLog(root = document, storage = localStorage, o
   // mounts this log without the route or without the band gets nothing.
   initAskAboutShiplog(root);
   const form = root.querySelector("#decision-form");
+  if (window.location.hash === "#title") enterDecisionRecorder(root);
   root.querySelector("#core-demo-link")?.addEventListener("click", (event) => {
     if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
     const title = root.querySelector("#title");
