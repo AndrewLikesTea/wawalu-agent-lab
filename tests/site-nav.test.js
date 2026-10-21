@@ -483,6 +483,17 @@ test("a detail page marks the section it belongs to, and the root marks only its
   assert.equal(navCurrentFor("/nothing-here.html"), null, "an unknown page marks nothing rather than the front door");
 });
 
+// The renderer, not only the resolver: a page with no destination ships a nav
+// with no mark at all, and every destination ships with exactly one, on itself.
+test("the rendered nav carries one current mark per destination, and none for a page outside the nav", () => {
+  const marks = (markup) => [...markup.matchAll(/<a\b[^>]*aria-current="page"[^>]*href="([^"]*)"/g)].map(([, href]) => href);
+  assert.equal(marks(siteNavMarkup(navCurrentFor("/nothing-here.html"))).length, 0);
+  assert.equal(marks(siteNavMarkup()).length, 0);
+  for (const link of SITE_NAV) {
+    assert.deepEqual(marks(siteNavMarkup(link.href)), [navHref(link)], `${link.label} must be the only current item`);
+  }
+});
+
 // The five surfaces the live-product review walked, named one at a time: a loop
 // that silently covered none of them would still pass the table test above.
 test("each reviewed page marks its own destination, and only that one", async () => {
