@@ -699,7 +699,15 @@ export async function loadPage(pageUrl,
     document,
     window: {
       location: { hash: "", search: "", origin: "https://labs.wawalu.org", ...location },
-      addEventListener() {},
+      addEventListener(type, listener) { (this.listeners[type] ??= []).push(listener); },
+      listeners: {},
+      dispatchEvent(event) { for (const listener of this.listeners[event.type] ?? []) listener(event); },
+      history: {
+        pushState(state, unused, href) {
+          const url = new URL(href, window.location.origin);
+          Object.assign(window.location, { search: url.search, pathname: url.pathname, hash: url.hash });
+        },
+      },
     },
     localStorage: browserStorage,
     Blob: HarnessBlob,

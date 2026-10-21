@@ -25,7 +25,7 @@ import { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH, readStoredAuthor, rememberAuthor } f
 import { imageDescription, renderDescriptionNote, renderImageDescriptionText, renderImageUnavailable } from "./image-description.js";
 import {
   COMPOSE_POST_LABEL, OPEN_POST_LABEL, peopleImagePostsLabel, postDetailHref, postIdentitySuffix, profileHref,
-  requestedFeedAuthor,
+  FEED_AUTHOR_PARAM, requestedFeedAuthor,
 } from "./social-links.js";
 import { postPermalink, renderPostCopyControl } from "./post-share.js";
 import { mountPostReport, renderReportButton } from "./post-report.js";
@@ -1440,22 +1440,18 @@ export function mountSocialFeed(root, options = {}) {
     ? () => { retryLanding.armed(); return options.onRetry(); }
     : null;
 
-  // The page's own address, read once. The origin behind the permalink a publish
-  // hands back, and the query string People's link back to the whole feed writes
-  // a display name into, are the same location object.
+  // The address is the sole display-name state, including after history navigation.
   const pageLocation = options.location ?? globalThis.window?.location;
-
-  // A display name asked for in the URL — People links here with the name it was
-  // filtered to, so a reader gets that name's text posts without re-selecting a
-  // filter the page they came from already knew.
-  //
-  // Held rather than applied. The display-name menu holds no names until a fetch
-  // answers — renderNames() below builds its options out of the posts in hand —
-  // so setting it here would set a value the control does not offer, and the
-  // very next render would drop it. It is spent by the first answer that
-  // actually carries the name, and by nothing else: re-applying it on every
-  // ten-second refresh would make Clear filters something the page undid.
-  let pendingAuthor = requestedFeedAuthor(pageLocation?.search);
+  const writeAuthor = (author) => {
+    const params = new URLSearchParams(pageLocation?.search ?? "");
+    if (author) params.set(FEED_AUTHOR_PARAM, author);
+    else params.delete(FEED_AUTHOR_PARAM);
+    // An unchanged address (Clear filters with no name set) adds no history entry.
+    if (requestedFeedAuthor(pageLocation?.search) === author) return;
+    const query = params.toString();
+    const url = `${pageLocation?.pathname || "/social.html"}${query ? `?${query}` : ""}${pageLocation?.hash ?? ""}`;
+    globalThis.window?.history?.pushState(null, "", url);
+  };
 
   // The words a filter is currently showing, read back off the control itself
   // rather than kept as a second copy in this file. "From the past hour" is
@@ -1468,11 +1464,12 @@ export function mountSocialFeed(root, options = {}) {
   const midSentence = (text) => (text ? text[0].toLowerCase() + text.slice(1) : "");
 
   const render = () => {
-    const visible = filterPosts(posts, { author: nameFilter?.value, range: timeFilter?.value });
-    const filtering = nameFilter?.value !== "all" || timeFilter?.value !== "all";
+    const author = requestedFeedAuthor(pageLocation?.search);
+    const visible = filterPosts(author ? posts.filter((post) => post.author === author) : posts, { range: timeFilter?.value });
+    const filtering = Boolean(author) || timeFilter?.value !== "all";
     const named = {
       range: timeFilter && timeFilter.value !== "all" ? midSentence(selectedText(timeFilter)) : "",
-      author: nameFilter && nameFilter.value !== "all" ? selectedText(nameFilter) : "",
+      author,
     };
     // Active filters remain recoverable even when a refresh returns no posts.
     const noMatch = filtering && visible.length === 0
@@ -1624,26 +1621,12 @@ export function mountSocialFeed(root, options = {}) {
 
   const renderNames = () => {
     if (!nameFilter) return;
-    const selected = nameFilter.value;
-    const authors = [...new Set(posts.map((post) => post.author))].sort((a, b) => a.localeCompare(b));
-    nameFilter.replaceChildren(new Option("All display names", "all"), ...authors.map((author) => new Option(author, author)));
-    // The URL's preselection wins exactly once, and only over an option list
-    // that actually holds the name. A name this feed does not carry is dropped
-    // rather than forced: the menu would be showing a value it does not offer,
-    // and the summary sentence beside it would describe a filter no control
-    // could clear.
-    if (pendingAuthor && authors.includes(pendingAuthor)) {
-      nameFilter.value = pendingAuthor;
-      pendingAuthor = "";
-      return;
-    }
-    nameFilter.value = authors.includes(selected) ? selected : "all";
+    const author = requestedFeedAuthor(pageLocation?.search);
+    const authors = [...new Set([...posts.map((post) => post.author), ...(author ? [author] : [])])].sort((a, b) => a.localeCompare(b));
+    // A literal display name "all" must remain selectable as an exact name.
+    nameFilter.replaceChildren(new Option("All display names", authors.includes("all") ? "" : "all"), ...authors.map((name) => new Option(name, name)));
+    nameFilter.value = author || (authors.includes("all") ? "" : "all");
   };
-
-  // Any deliberate move on the filters spends the preselection too, so a reader
-  // who clears the filters before the name they were sent for has arrived is not
-  // filtered again behind their back by the next refresh.
-  const forgetPreselection = () => { pendingAuthor = ""; };
 
   // The post field's refusal, wired exactly as the image description's is: the
   // sentence lives in the slot that follows the field, the id joins the field's
@@ -1711,8 +1694,8 @@ export function mountSocialFeed(root, options = {}) {
   // accident of where the reader was standing, never by holding two copies of
   // what "clear" means.
   const clearBothFilters = () => {
-    forgetPreselection();
-    if (nameFilter) nameFilter.value = "all";
+    writeAuthor("");
+    renderNames();
     if (timeFilter) timeFilter.value = "all";
     render();
   };
@@ -1756,7 +1739,8 @@ export function mountSocialFeed(root, options = {}) {
   // live region behind a closed disclosure is silent.
   const showConfirmation = (saved, { hasImage, focus = true, draftKept = false }) => {
     if (!notice) return;
-    const hiddenByFilters = !postMatchesFilters(saved, { author: nameFilter?.value, range: timeFilter?.value });
+    const author = requestedFeedAuthor(pageLocation?.search);
+    const hiddenByFilters = Boolean(author && saved.author !== author) || !postMatchesFilters(saved, { range: timeFilter?.value });
 
     // The address of the post that was just created, built by the one helper
     // /post.html's own copy control builds it with (src/post-share.js) — so the
@@ -2041,8 +2025,9 @@ export function mountSocialFeed(root, options = {}) {
   }
 
 
-  nameFilter?.addEventListener("change", () => { forgetPreselection(); render(); });
-  timeFilter?.addEventListener("change", () => { forgetPreselection(); render(); });
+  nameFilter?.addEventListener("change", () => { writeAuthor(nameFilter.value === nameFilter.options[0].value ? "" : nameFilter.value); render(); });
+  globalThis.window?.addEventListener("popstate", () => { renderNames(); render(); });
+  timeFilter?.addEventListener("change", render);
   clearFilters?.addEventListener("click", () => {
     clearBothFilters();
     nameFilter.focus();

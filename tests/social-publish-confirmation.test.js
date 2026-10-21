@@ -31,7 +31,7 @@ import {
   publishedPostLabel,
 } from "../src/social.js";
 import { postDetailHref } from "../src/social-links.js";
-import { loadPage, pressEnter, pressTab, tabSequence, textOf } from "./support/browser.js";
+import { DomEvent, loadPage, pressEnter, pressTab, tabSequence, textOf } from "./support/browser.js";
 
 const NOW = Date.parse("2026-08-05T12:00:00.000Z");
 const SAVED_ID = "3f2a1c58-8f6e-4a1b-9c2d-77c4f0a1b2e3";
@@ -201,6 +201,7 @@ test("a post the filters hide is confirmed as hidden, and the control that revea
   // Iris is the only name with a post, so the picker holds it and the feed is
   // narrowed to her — the state a reader can genuinely be in when they publish.
   document.querySelector("#post-name-filter").value = "Iris";
+  document.querySelector("#post-name-filter").dispatchEvent(new DomEvent("change", { bubbles: true }));
   harness.fill({ body: "Published under another name.", author: "Remy" });
 
   await harness.publish();

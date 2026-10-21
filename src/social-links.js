@@ -98,16 +98,12 @@ export function profileHref(author) {
 export const FEED_AUTHOR_PARAM = "author";
 
 export function socialFeedHref(author) {
-  return `/social.html?${FEED_AUTHOR_PARAM}=${encodeURIComponent(String(author ?? "").trim())}`;
+  return `/social.html?${FEED_AUTHOR_PARAM}=${encodeURIComponent(String(author ?? ""))}`;
 }
 
-// The read half of that contract, next to the write half so the two cannot
-// drift: src/social.js hands it the page's query string and gets back a display
-// name to preselect, or "" when nobody was asked for. Trimmed, because a name
-// that arrives with padding would match no option in the menu and silently show
-// the whole feed instead.
+// URLSearchParams tolerates malformed escapes; preserve decoded names exactly.
 export function requestedFeedAuthor(search) {
-  return String(new URLSearchParams(String(search ?? "")).get(FEED_AUTHOR_PARAM) ?? "").trim();
+  return new URLSearchParams(String(search ?? "")).get(FEED_AUTHOR_PARAM) ?? "";
 }
 
 // People's address carries the name under the same parameter, so People reads
@@ -117,23 +113,8 @@ export function requestedProfileAuthor(search) {
   return new URLSearchParams(String(search ?? "")).get(FEED_AUTHOR_PARAM) ?? "";
 }
 
-// What that link is called on People, owned here beside the label Social's own
-// links to People use. It names the display name and the destination, because a
-// link that said only the name would not say where activating it goes, and it
-// leads on "every post" — the one word that separates the feed at the other end
-// from the image posts People is showing.
-//
-// It stops there. People's intro already says what the whole feed includes
-// ("including posts with no image"), and a test on this page counts that rule as
-// stated once in the main content: this link is the second route to Social, not
-// a second telling of the rule that explains why anyone would take it.
-//
-// "published under" is the site's phrasing for the relationship between a post
-// and a display name — People's own picker hint and its publishing helper both
-// spell it that way — and there is no count in it: the number belongs to the
-// feed at the other end, which this page has not loaded.
 export function socialAllPostsLabel(author) {
-  return `See every post published under ${String(author ?? "").trim()} on Social`;
+  return `View all posts by ${String(author ?? "")}`;
 }
 
 // What a link to People is called, wherever Social offers one. It names the
