@@ -781,10 +781,10 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 /* Tablet: slightly smaller tiles so a narrowed panel keeps three across instead
    of dropping to two very wide ones. */
 @media(max-width:1000px) { .profile-grid{grid-template-columns:repeat(auto-fill,minmax(min(100%,210px),1fr))} }
-/* Phone: loaded and loading tiles share the same two-up geometry. */
+/* Phone: loaded and loading tiles share a readable full-width column. */
 @media(max-width:520px) {
   .hero-actions{align-items:stretch;flex-direction:column}.button-link{width:100%}.text-link{padding:7px 2px}.product-story{padding:22px}.story-card{padding:20px}.lead-capture{padding:22px}.lead-capture-controls{grid-template-columns:1fr}.lead-capture-controls button{justify-content:space-between;width:100%}
-  .profile-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+  .profile-grid{grid-template-columns:minmax(0,1fr);gap:12px}
   .profile-tile-caption{padding:11px 11px 0;font-size:13px}
   .profile-tile-meta{flex-direction:column;align-items:flex-start;gap:3px;padding:8px 11px 12px}
   .profile-tile-stat{text-align:left}

@@ -250,7 +250,7 @@ test("every shimmer and spinner stops under prefers-reduced-motion: reduce", () 
 
 test("at 390px the placeholders collapse with the grid they stand in for, content first", async () => {
   assert.match(CSS, /@media\(max-width:520px\) \{[^@]*?\.post-grid\{grid-template-columns:1fr/);
-  assert.match(CSS, /@media\(max-width:520px\) \{[^@]*?\.profile-grid\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
+  assert.match(CSS, /@media\(max-width:520px\) \{[^@]*?\.profile-grid\{grid-template-columns:minmax\(0,1fr\)/);
   assert.match(CSS, /\.detail-skeleton \{[^}]*min-width:0/);
 
   for (const [file, cls, grid] of [["social.html", "post-grid post-grid-skeleton", "post-grid"],

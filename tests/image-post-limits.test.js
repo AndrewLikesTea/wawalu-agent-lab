@@ -4,7 +4,9 @@
 // Fixtures are built here, in the public API's wire shape, and go through the
 // real normalizers and renderers each page uses: a 280-character body with one
 // unbroken token, a 200-character description, a 60-character unbroken display
-// name, and portrait, landscape and very narrow (40x1200) images.
+// name, and portrait, landscape, very narrow (40x1200), tall (1:6) and very wide
+// (6:1) images. 60 is the longest name a post can carry: the normalizers drop
+// longer ones, so an 80-character fixture would only assert against zero cards.
 //
 // Every image retains its description as alt. Compact tiles hide the duplicate
 // caption; the standalone post exposes and associates its visible caption.
@@ -33,6 +35,9 @@ const SHAPES = [
   { name: "portrait", width: 900, height: 1200 },
   { name: "landscape", width: 1600, height: 900 },
   { name: "very narrow", width: 40, height: 1200 },
+  // #2955: the 1:6 and 6:1 extremes, the wide one previously unexercised.
+  { name: "tall", width: 200, height: 1200 },
+  { name: "very wide", width: 1200, height: 200 },
 ];
 
 // Wire shape (src/social-posts-api.js): a UUID id, `source` so the feed keeps
