@@ -584,6 +584,19 @@ test("the date hint names the day to enter for each status, in the stated format
     "the hint still leaves a cancelled release with no date to enter");
 });
 
+// The Version is asked before the Status, so its hint is read by recorders of
+// planned and cancelled releases too — it may not say the version shipped.
+test("the Version hint fits every status and keeps its example", async (t) => {
+  const page = await openReleases(t);
+
+  const field = page.document.querySelector("#release-version");
+  assert.equal(field.getAttribute("aria-describedby"), "release-version-hint");
+  const hint = textOf(page.document.querySelector("#release-version-hint"));
+  assert.equal(hint, "The version or tag for this release, such as v1.4.0.");
+  assert.doesNotMatch(hint, /shipped/i, "the hint tells a planned or cancelled release it shipped");
+  assert.match(hint, /v1\.4\.0/, "the hint lost its example value");
+});
+
 // The Summary is the second field standing for three statuses, and nothing on
 // the page rewrites its hint when the status changes — so the one sentence
 // authored here is what every recorder reads, and it has to answer all three
