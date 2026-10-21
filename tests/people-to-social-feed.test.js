@@ -1,42 +1,6 @@
-// A display name on People, followed back to that name's whole feed on Social.
-//
-// THE FLOW UNDER TEST (#2193). People shows image posts and only image posts. A
-// reader who wants the rest of one display name's posts — the text ones — used
-// to have to take the intro's link to Social and then re-select, by hand, the
-// filter the page they were standing on already knew. This is the one click that
-// replaces that: a link in the display-name filter region, naming the selected
-// name and Social, whose href carries the name into Social's own display-name
-// filter.
-//
-// FOUR PROPERTIES, ONE PER TEST:
-//
-//   1. On a settled People page the link is in the filter region, its text names
-//      the selected display name and Social and says "published under", and it
-//      is the tab stop between the picker and the heading over the grid.
-//   2. Choosing another display name moves both halves of it — the sentence and
-//      the URL — with no reload.
-//   3. It follows the picker's own load state: while the display names have not
-//      arrived, the chips are not on the page and neither is this.
-//   4. Social, opened cold at that URL, is already filtered to the name: the
-//      menu is on it, #feed-summary describes the narrowed result, and Clear
-//      filters puts every display name back.
-//
-// WHY IT IS ONE FILE. tests/people-landing.test.js pins People's reading order
-// and tests/social.test.js pins the feed's summary sentence; neither walks the
-// URL from the surface that mints it to the page that reads it, and that seam —
-// People's href shape against Social's parameter name — is where a regression
-// leaves both files green and the journey broken. The URL under test is built by
-// socialFeedHref(), the same function src/profile.js draws the anchor with, and
-// test 1 asserts the rendered anchor equals it.
-//
-// NO NETWORK AND NO CLOCK. Both feeds are generated here and served through
-// declared routes; the harness throws on any other request, and the refresh
-// timers both pages start are collected and cleared.
-//
-// HARNESS. A DOM double, not a browser: no `assert.equal(node, null)` (it walks
-// the whole parsed page), no `querySelectorAll("*")` and no descendant
-// selectors — document order is a hand-rolled pre-order walk over `children`,
-// which also holds text nodes, so every `dataset` read is guarded.
+// People-to-Social continuity through the shipped pages and URL boundary.
+// The DOM harness verifies names, controls, document order, and recovery;
+// popstate is dispatched after restoring location as a browser would do.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -60,7 +24,7 @@ const LIVE_ROUTE = "/api/social-posts?limit=100";
 //          post is exactly what People cannot show and Social can.
 //   Ari  — has posted, but never a picture.
 const ZED = "Zed";
-const BEA = "Bea";
+const BEA = "Béa & Co. + 東京";
 const ARI = "Ari";
 
 const image = (name) => ({ src: `/media/${name.toLowerCase()}.svg`, alt: `A drawing signed ${name}`, width: 1200, height: 900 });
@@ -167,8 +131,8 @@ async function openSocial(t, { search = "" } = {}) {
   await importPageModule("/social-page.js");
   const { document } = page;
   await waitFor(() => document.documentElement.dataset.shiplogSocial === "ready", "Social finished its first load");
-  await waitFor(() => textOf(document.querySelector("#feed-status")) === connectionStatusLine("live"), "the live feed answered");
-  await waitFor(() => textOf(document.querySelector("#feed-summary")).startsWith("Showing"), "the feed settled on a count");
+  await waitFor(() => !document.querySelector("#feed-status") || textOf(document.querySelector("#feed-status")) === connectionStatusLine("live"), "the live feed answered");
+  await waitFor(() => textOf(document.querySelector("#feed-summary")).startsWith("Showing") || textOf(document.querySelector("#feed-state")).includes("No posts by"), "the feed settled on a count");
   release();
   return page;
 }
@@ -200,8 +164,7 @@ test("People offers the selected display name's whole feed from inside the filte
   // copy is held away from.
   assert.equal(textOf(link), socialAllPostsLabel(ZED));
   assert.match(textOf(link), /\bZed\b/);
-  assert.match(textOf(link), /\bSocial\b/);
-  assert.match(textOf(link), /published under/);
+  assert.equal(textOf(link), `View all posts by ${ZED}`);
   assert.doesNotMatch(textOf(link), /published as/);
   // No count: the number belongs to the feed at the other end, which this page
   // has not loaded.
@@ -301,14 +264,47 @@ test("Social opened at that URL is already filtered, and Clear filters puts ever
   assert.equal(textOf(document.querySelector("#feed-summary")), `Showing ${FEED.length} posts, all example posts, newest first.`);
 });
 
-test("a forwarded name the feed does not carry leaves the whole feed showing", async (t) => {
-  const { document } = await openSocial(t, { search: "?author=Nobody%20Here" });
-  const menu = document.querySelector("#post-name-filter");
-  // Never a value the control does not offer: the menu would be showing a
-  // filter no reset could clear and a summary describing a result nobody can
-  // reach.
-  assert.equal(menu.value, "all");
-  assert.equal(menu.options.filter((option) => option.value === "Nobody Here").length, 0);
+test("an unknown name stays filtered and offers recovery that clears the URL", async (t) => {
+  const { document } = await openSocial(t, { search: "?author=Nobody%20Here&keep=yes" });
+  assert.equal(document.querySelector("#post-name-filter").value, "Nobody Here");
+  assert.equal(document.querySelectorAll(".post-card").length, 0);
+  assert.match(textOf(document.querySelector("#feed-state")), /No posts by Nobody Here/);
+  const clear = document.querySelector("#feed-state").querySelector("button");
+  assert.equal(textOf(clear), CLEAR_FILTERS_LABEL);
+  clear.click();
+  assert.equal(new URLSearchParams(window.location.search).has("author"), false);
+  assert.equal(new URLSearchParams(window.location.search).get("keep"), "yes");
   assert.equal(document.querySelectorAll(".post-card").length, FEED.length);
-  assert.equal(textOf(document.querySelector("#feed-summary")), `Showing ${FEED.length} posts, all example posts, newest first.`);
+});
+
+test("exact names survive links, reloads, back/forward, and clearing", async (t) => {
+  const search = new URL(socialFeedHref(BEA), "https://example.test").search;
+  assert.equal(search, `?author=${encodeURIComponent(BEA)}`);
+  const { document } = await openSocial(t, { search });
+  assert.equal(document.querySelectorAll(".post-card").length, 2);
+  document.querySelector("#post-filter-clear").click();
+  assert.equal(window.location.search, "");
+  // A browser restores location before dispatching popstate. Re-reading the
+  // same URL exercises the same boundary as a refresh or shared direct link.
+  window.location.search = search;
+  window.dispatchEvent({ type: "popstate" });
+  assert.equal(document.querySelector("#post-name-filter").value, BEA);
+  assert.equal(document.querySelectorAll(".post-card").length, 2);
+  window.location.search = "?author=bea";
+  window.dispatchEvent({ type: "popstate" });
+  assert.equal(document.querySelectorAll(".post-card").length, 0);
+  window.location.search = "";
+  window.dispatchEvent({ type: "popstate" });
+  assert.equal(document.querySelectorAll(".post-card").length, FEED.length);
+});
+
+test("URL names preserve whitespace and tolerate empty or malformed values", async () => {
+  const { requestedFeedAuthor } = await import("../src/social-links.js");
+  for (const name of ["  Élodie + & / ? #  ", "all", "", "東京"]) {
+    const query = socialFeedHref(name).split("?")[1];
+    assert.equal(requestedFeedAuthor(query), name);
+    assert.equal(socialAllPostsLabel(name), `View all posts by ${name}`);
+  }
+  assert.equal(requestedFeedAuthor("?author="), "");
+  assert.doesNotThrow(() => requestedFeedAuthor("?author=%E0%A4%A%ZZ"));
 });

@@ -340,7 +340,7 @@ test("People states the images-only rule once and offers each route once", async
     // The filtered route names the display name it carries and nothing else: the
     // rule it depends on is the intro's, counted once above.
     assert.equal(toSocial[0].getAttribute("href"), "/social.html?author=Zed");
-    assert.equal(textOf(toSocial[0]), "See every post published under Zed on Social");
+    assert.equal(textOf(toSocial[0]), "View all posts by Zed");
     assert.equal(toSocial[0].parentNode?.getAttribute("id"), "profile-social-route",
       "the filtered route to Social is not the link the picker draws");
     assert.equal(toSocial[2].getAttribute("href"), "/social.html#post-form");
