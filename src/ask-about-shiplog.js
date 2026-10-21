@@ -52,25 +52,24 @@ export const ASK_ABOUT_SHIPLOG_HREF = "#site-footer-panel";
 export const ASK_ABOUT_SHIPLOG_DESCRIPTION_ID = "ask-about-shiplog-description";
 
 /**
- * What the label alone does not say: where the route goes and what the form
- * there asks for. Issue #2556 — "Ask about Shiplog" read as a mail client, a
- * pricing page or a new tab to anyone who had not already scrolled to the foot
- * of the page.
+ * What the label alone does not say: who answers and how soon. #2964 — the
+ * caption used to narrate the scroll and list the form's fields, which the form
+ * says for itself on arrival; what a visitor deciding whether to ask needs is
+ * that a person on the Wawalu team answers, by email, and roughly when.
  *
- * THE REPLY WINDOW IS NOT SAID HERE. #2689: this caption and the form it points
- * at both spelled FOLLOW_UP_REPLY, so five pages made one promise twice inside a
- * scroll. The sentence stays where the promise is made — beside the submit, from
- * lead-capture.js — and tests/ask-about-shiplog.test.js counts it once per page.
+ * THE REPLY WINDOW IS THE FORM'S OWN WORDS. #2689 removed a byte-for-byte copy
+ * of FOLLOW_UP_REPLY from here; #2964 puts the promise back as the reason to
+ * ask, so it reuses the form's exact "usually within two working days" — one
+ * promise in one wording — and the form's own sentence stays the only
+ * paragraph that reads FOLLOW_UP_REPLY, which tests/ask-about-shiplog.test.js
+ * counts once per page.
  *
  * It promises no price, no quote and no signup, because the site's answer to
  * both is that there is no self-serve signup and no published price and that
- * both are answered on request. Saying the form asks what you want to discuss
- * is a description of a fieldset, not an offer.
+ * both are answered on request.
  */
-export const ASK_ABOUT_SHIPLOG_DESCRIPTION =
-  "Ask about Shiplog moves you to the follow-up form at the foot of this page,"
-  + " which asks for a work email address, what you want to discuss and an"
-  + " optional note.";
+export const ASK_ABOUT_SHIPLOG_DESCRIPTION = "Ask about Shiplog, and a person on the Wawalu team"
+  + " that operates it replies by email, usually within two working days.";
 
 /**
  * Wire the route on a page that ships it. Returns a teardown, or null when this
