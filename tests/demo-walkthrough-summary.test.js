@@ -272,5 +272,5 @@ test("the pilot route selects the existing pilot topic and lands on it", async (
   assert.equal(chosen.length, 1);
   assert.equal(chosen[0].value, "pilot");
   assert.ok(radios.map((radio) => radio.getAttribute("value")).includes(chosen[0].value));
-  assert.equal(page.document.activeElement === byId(page, "site-footer-intent-pilot"), true);
+  assert.equal(page.document.activeElement === byId(page, "site-footer-email"), true);
 });

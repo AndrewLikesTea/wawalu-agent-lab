@@ -14,17 +14,24 @@ export function initReleaseDiscussion(root = document, view = window) {
     selecting = true;
     radio.dispatchEvent(new view.Event('change', { bubbles: true }));
     selecting = false;
-    radio.focus({ preventScroll: true });
     radio.scrollIntoView?.({ block: 'center' });
+    // The topic is answered; the email is what is left to fill (#2962).
+    root.querySelector('#site-footer-email')?.focus({ preventScroll: true });
+    return true;
   }
   const navigate = () => select(view.location.hash);
   for (const link of links) {
     link.addEventListener('click', (event) => {
       if (event.button > 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-      // Also handles repeated activation of the current fragment. Let the
-      // browser perform navigation so Back and modified clicks stay native.
+      // Also handles repeated activation of the current fragment.
       // A button names its topic in data-target: the page links each place once.
-      select(link.getAttribute('href') ?? link.dataset.target);
+      const href = link.getAttribute('href');
+      if (!select(href ?? link.dataset.target) || !href) return;
+      // A browser focuses a focusable fragment target after this handler, which
+      // would take focus back from the email field. Record the address instead,
+      // so Back and sharing still work; modified clicks stay native.
+      event.preventDefault();
+      if (view.location.hash !== href) view.history.pushState(view.history.state, '', href);
     });
   }
   for (const radio of radios) {

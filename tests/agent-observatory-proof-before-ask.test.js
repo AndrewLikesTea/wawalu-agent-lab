@@ -127,7 +127,8 @@ for (const [intent, label] of Object.entries(ASK_ABOUT_SHIPLOG_ACTIONS)) {
       else action.click();
 
       const form = document.getElementById("site-footer-form");
-      assert.equal(document.activeElement?.getAttribute("id"), `site-footer-intent-${intent}`);
+      // #2962: the answer is preselected; focus goes to the field left to fill.
+      assert.equal(document.activeElement?.getAttribute("id"), "site-footer-email");
       const checked = form.querySelectorAll('input[name="intent"]').filter((radio) => radio.checked);
       assert.deepEqual(checked.map((radio) => radio.value), [intent]);
       assert.equal(form.dataset.followUpTopic, FOLLOW_UP_TOPICS.follow_up_agents);

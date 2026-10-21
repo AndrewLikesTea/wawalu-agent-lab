@@ -102,30 +102,57 @@ export const ASK_ABOUT_SHIPLOG_ACTIONS = Object.freeze({
 });
 
 /**
- * Wire every `data-follow-up-intent` link on the page. Each one is an ordinary
- * link to its own radio in the footer form, so with no script it still lands
- * the reader on the question it would have answered for them. The script makes
- * the answer: it ticks the radio the way a click would — which fires the change
- * the footer already listens for, clearing an old error and showing the note's
- * guidance — and puts focus on it. The navigation that follows targets the same
- * radio, so nothing moves focus anywhere else afterwards.
+ * Preselect the answer a fragment names and put the visitor in the work-email
+ * field, the one they still have to fill (#2962). The contract is the address
+ * the actions already carry: `#site-footer-intent-<FOLLOW_UP_INTENTS key>`.
+ * Only an exact match to a radio in the form counts, so an unknown, malformed,
+ * encoded or repeated fragment names nothing and leaves the form as it was —
+ * no decoding, so nothing to throw. Returns whether a radio was chosen.
  */
-export function initAskAboutShiplogActions(root = document) {
+export function chooseFollowUpIntent(root, hash) {
+  const form = root.querySelector("#site-footer-form");
+  const radio = form && [...form.querySelectorAll('input[name="intent"]')].find((item) => `#${item.id}` === hash);
+  if (!radio) return false;
+  // A sent request is replaced by its receipt; reopen it through its own
+  // control first, as the home page's topic pair does.
+  if (form.hidden) root.querySelector("#site-footer-again")?.click();
+  // Ticked the way a click would, which fires the change the footer already
+  // listens for: an old error clears and the note's guidance shows. Nothing
+  // locks it, so the visitor can still pick another answer.
+  if (!radio.checked) radio.click();
+  radio.scrollIntoView?.({ block: "center" });
+  root.querySelector("#site-footer-email")?.focus({ preventScroll: true });
+  return true;
+}
+
+/**
+ * Wire every `data-follow-up-intent` link on the page, and the fragment the
+ * page was opened or navigated with. Each link is an ordinary link to its own
+ * radio in the footer form, so with no script — or opened in a new tab — it
+ * still lands the reader on the question it would have answered for them.
+ *
+ * WHY A PLAIN CLICK PREVENTS THE DEFAULT. The fragment's target is the radio,
+ * and a browser focuses a focusable fragment target after every handler has
+ * run, which would take focus back from the email field. So the script records
+ * the address itself with pushState — Back and a copied URL still work, and
+ * Back's hashchange restores the earlier answer — and modified clicks stay native.
+ */
+export function initAskAboutShiplogActions(root = document, view = globalThis.window) {
   const links = [...root.querySelectorAll("[data-follow-up-intent]")];
   const teardowns = links.map((link) => {
     const onClick = (event) => {
       if (event.button > 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-      // A sent request is replaced by its receipt; reopen it through its own
-      // control first, as the home page's topic pair does.
-      if (root.querySelector("#site-footer-form")?.hidden) root.querySelector("#site-footer-again")?.click();
-      const radio = root.querySelector(`#site-footer-intent-${link.getAttribute("data-follow-up-intent")}`);
-      if (!radio) return;
-      if (!radio.checked) radio.click();
-      radio.focus?.({ preventScroll: true });
-      radio.scrollIntoView?.({ block: "center" });
+      const href = link.getAttribute("href");
+      if (!chooseFollowUpIntent(root, href)) return;
+      event.preventDefault();
+      if (view?.location && view.location.hash !== href) view.history?.pushState?.(view.history.state ?? null, "", href);
     };
     link.addEventListener("click", onClick);
     return () => link.removeEventListener("click", onClick);
   });
+  const navigate = () => chooseFollowUpIntent(root, view?.location?.hash);
+  view?.addEventListener?.("hashchange", navigate);
+  navigate();
+  teardowns.push(() => view?.removeEventListener?.("hashchange", navigate));
   return () => teardowns.forEach((teardown) => teardown());
 }
