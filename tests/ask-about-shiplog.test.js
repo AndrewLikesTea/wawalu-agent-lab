@@ -102,12 +102,13 @@ for (const [name, open] of CARRIERS) {
     assert.ok(tabSequence(document).includes(route), `${name}: the route is not in the tab order`);
 
     // And the label is not on its own: the painted page carries the line saying
-    // where the route goes and what the form asks for (#2556). Painted, because
+    // who replies and when (#2556, #2964). Painted, because
     // a page whose modules rewrite its introduction would otherwise ship the
     // sentence to a test and not to a reader.
     const described = describedBy(document);
     assert.equal(described.length, 1, `${name}: the description is painted ${described.length} times`);
     assert.equal(textOf(described[0]), name === "the home page" ? HOME_DESCRIPTION : ASK_ABOUT_SHIPLOG_DESCRIPTION);
+    if (name !== "the home page") assertSaysWhoAndWhen(textOf(described[0]), name);
     assert.equal(tabSequence(document).filter((node) => node === described[0]).length, 0,
       `${name}: the description became a tab stop`);
 
@@ -194,10 +195,10 @@ for (const [name, open] of CARRIERS) {
 
 // #2556. "Ask about Shiplog" is a errand with no destination in it: a reader
 // who had not already scrolled to the foot of the page could reasonably expect
-// a mail client, a pricing page, or a new tab. The line below the label says
-// where it goes and what the form there asks for — and it is the same line,
-// from one constant, on all six pages that carry the route. What comes back is
-// promised at the form and only there, which is what #2689 counts below.
+// a mail client, a pricing page, or a new tab. Since #2964 the line below the
+// label says who replies and when — the same line, from one constant, on the
+// five pages besides the home page, which keeps its own. The form's own reply
+// sentence is still painted once per page, which is what #2689 counts below.
 const CARRYING_PAGES = [
   "index.html", "releases.html", "coach.html", "social.html", "profile.html", "agents.html",
 ];
@@ -205,30 +206,36 @@ const CARRYING_PAGES = [
 const readPage = async (file) => parseHtml(
   await readFile(new URL(`../src/${file}`, import.meta.url), "utf8"));
 
-test("the sentence itself says where and what is asked — and promises nothing else", () => {
-  // One sentence, no more: this is a caption under a link, not a section.
-  assert.equal((ASK_ABOUT_SHIPLOG_DESCRIPTION.match(/[.!?]/g) ?? []).length, 1);
+/** The reply window exactly as the form words it, sliced out of the form's own
+ * sentence rather than retyped, so the two can only drift together. */
+const REPLY_WINDOW = FOLLOW_UP_REPLY.slice(FOLLOW_UP_REPLY.indexOf("usually"), -1);
+
+/** What #2964 asks of the caption, wherever it is read. */
+function assertSaysWhoAndWhen(caption, where) {
+  assert.equal((caption.match(/[.!?]/g) ?? []).length, 1, `${where}: the caption is not one sentence`);
+  assert.ok(!caption.includes("moves you to the follow-up form at the foot of this page"),
+    `${where}: the caption still narrates the scroll`);
+  assert.ok(caption.includes("Wawalu team"), `${where}: the caption does not say who replies`);
+  assert.ok(caption.includes(REPLY_WINDOW), `${where}: the reply window is not the form's "${REPLY_WINDOW}"`);
+}
+
+test("the sentence itself says who replies and when — and promises nothing else", () => {
+  assert.equal(REPLY_WINDOW, "usually within two working days");
+  assertSaysWhoAndWhen(ASK_ABOUT_SHIPLOG_DESCRIPTION, "the constant");
   assert.ok(ASK_ABOUT_SHIPLOG_DESCRIPTION.startsWith(ASK_ABOUT_SHIPLOG_LABEL),
-    "it must name the control it describes, because it reads below a row that may hold two");
+    "it must name the control it describes, because it reads below a row that holds three");
 
-  // Where the route goes: down this page, to the form — not out of the page.
-  assert.match(ASK_ABOUT_SHIPLOG_DESCRIPTION, /follow-up form at the foot of this page/);
+  // Who replies is named the way the footer's invitation names them, and how
+  // they reply is the form's own "by email": one name per concept.
+  assert.ok(ASK_ABOUT_SHIPLOG_DESCRIPTION.includes("a person on the Wawalu team that operates it replies by email"));
 
-  // What that form asks for, in the order the form asks it and in words a
-  // reader will recognise when they get there.
-  for (const asked of ["a work email address", "what you want to discuss", "an optional note"]) {
-    assert.ok(ASK_ABOUT_SHIPLOG_DESCRIPTION.includes(asked),
-      `the description does not say the form asks for ${asked}`);
-  }
-
-  // What comes back is NOT said here. #2689: the caption used to end on
-  // FOLLOW_UP_REPLY byte for byte, and the form it points at renders the same
-  // sentence above its button, so a reader met one promise twice inside a
-  // scroll. It is made once, where it is made: at the form.
+  // #2964 reverses half of #2689: the reply window is said here again, but it
+  // is never the form's own sentence, which stays the one paragraph reading
+  // FOLLOW_UP_REPLY on each page (counted below).
   assert.ok(!ASK_ABOUT_SHIPLOG_DESCRIPTION.includes(FOLLOW_UP_REPLY),
-    "the caption repeats the promise the form makes beside its own button");
-  assert.doesNotMatch(ASK_ABOUT_SHIPLOG_DESCRIPTION, /\breplie?s?\b|working days/i,
-    "a paraphrase of the reply window is the same duplicate in other words");
+    "the caption repeats the form's sentence byte for byte");
+  // And it does not list the fields the form shows on arrival.
+  assert.doesNotMatch(ASK_ABOUT_SHIPLOG_DESCRIPTION, /optional note|what you want to discuss/);
 
   // And nothing this site cannot answer here. Availability and price are
   // answered on request, which is what the form is for.
@@ -249,6 +256,8 @@ test("all six pages carry their follow-up description once at the label", async 
     const described = describedBy(document);
     assert.equal(described.length, 1, `${file}: the description ships ${described.length} times`);
     assert.equal(textOf(described[0]), file === "index.html" ? HOME_DESCRIPTION : ASK_ABOUT_SHIPLOG_DESCRIPTION);
+    // index.html keeps its own caption; the other five render the shared one.
+    if (file !== "index.html") assertSaysWhoAndWhen(textOf(described[0]), file);
 
     // At the entry point and nowhere else. Beside the form it would be a
     // caption for a destination the reader has already arrived at.
