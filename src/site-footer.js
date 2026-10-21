@@ -471,6 +471,7 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
       showNoteGuidance(radio.value);
     });
   }
+  showNoteGuidance(intents.find((radio) => radio.checked)?.value);
   for (const radio of subjects) {
     radio.addEventListener("change", () => {
       setIntentError(null);

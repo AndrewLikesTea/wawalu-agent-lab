@@ -21,7 +21,7 @@ import assert from "node:assert/strict";
 import { ASK_ABOUT_SHIPLOG_ACTIONS, ASK_ABOUT_SHIPLOG_ID } from "../src/ask-about-shiplog.js";
 import { FOLLOW_UP_INTENTS, FOLLOW_UP_PRIVACY_WITH_MESSAGE } from "../src/lead-capture.js";
 import { FOLLOW_UP_TOPICS } from "../src/leads.js";
-import { initSiteFooter } from "../src/site-footer.js";
+import { initSiteFooter, NOTE_GUIDANCE } from "../src/site-footer.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 import { loadPage, pressEnter, tabSequence, textOf } from "./support/browser.js";
 
@@ -88,11 +88,15 @@ for (const [file, purpose] of PAGES) {
         if (activation === "keyboard") pressEnter(document);
         else action.click();
 
-        const radio = document.getElementById(`site-footer-intent-${intent}`);
-        assert.ok(document.activeElement === radio, `${file}: focus is on ${document.activeElement?.id}, not the chosen answer`);
-        assert.ok(form.querySelectorAll(`#${radio.getAttribute("id")}`).length === 1, "focus left the follow-up form");
+        // #2962: the answer is chosen, so focus goes to the field still to fill.
+        assert.ok(document.activeElement === document.getElementById("site-footer-email"),
+          `${file}: focus is on ${document.activeElement?.id}, not the work email`);
+        assert.equal(form.querySelectorAll("#site-footer-email").length, 1, "focus left the follow-up form");
         assert.deepEqual(radios.filter((node) => node.checked).map((node) => node.value), [intent]);
-        assert.deepEqual(document.navigations, [`#site-footer-intent-${intent}`]);
+        // The radio is the fragment target and a browser would focus it, so the
+        // address is pushed rather than navigated: still shareable, Back still works.
+        assert.deepEqual(document.navigations, []);
+        assert.equal(window.location.hash, `#site-footer-intent-${intent}`);
 
         // What is sent is said exactly as before.
         assert.equal(textOf(document.getElementById("site-footer-note")), FOLLOW_UP_PRIVACY_WITH_MESSAGE);
@@ -139,5 +143,65 @@ test("choosing the other action replaces the first choice", async (t) => {
   const checked = document.getElementById("site-footer-form").querySelectorAll('input[name="intent"]')
     .filter((radio) => radio.checked);
   assert.deepEqual(checked.map((radio) => radio.value), ["pilot"]);
-  assert.equal(document.activeElement?.getAttribute("id"), "site-footer-intent-pilot");
+  assert.equal(document.activeElement?.getAttribute("id"), "site-footer-email");
 });
+
+// #2962: the same fragment, arrived at by URL — a shared link, a new tab, Back.
+const radiosOf = (document) => document.getElementById("site-footer-form").querySelectorAll('input[name="intent"]');
+for (const [file, purpose] of PAGES) {
+  for (const intent of Object.keys(ASK_ABOUT_SHIPLOG_ACTIONS)) {
+    test(`${file}: opened at #site-footer-intent-${intent}, the answer is chosen, changeable, and the page still named`, async (t) => {
+      const page = await loadPage(new URL(`../src/${file}`, import.meta.url), { location: { hash: `#site-footer-intent-${intent}` } });
+      t.after(() => page.restore());
+      const { document } = page;
+      await importPageModule("/ask-about-shiplog-page.js");
+      const calls = [];
+      initSiteFooter(document, async (_url, options) => {
+        calls.push(JSON.parse(options.body));
+        return new Response(JSON.stringify({ ok: true, created: true }), { status: 201 });
+      });
+      const radios = radiosOf(document);
+      assert.deepEqual(radios.filter((node) => node.checked).map((node) => node.value), [intent]);
+      // The page entry chooses before the footer script wires its listeners, as
+      // the script tags are ordered; the footer still shows that answer's guidance.
+      assert.equal(textOf(document.getElementById("site-footer-message-guidance")), NOTE_GUIDANCE[intent] ?? "");
+      assert.ok(radios.map((node) => node.getAttribute("value")).includes(intent), "the chosen value is not a listed answer");
+      assert.equal(document.activeElement?.getAttribute("id"), "site-footer-email");
+      assert.equal(textOf(document.getElementById("site-footer-topic-note")),
+        `This request is sent about the ${FOLLOW_UP_TOPICS[purpose]}.`);
+
+      // Back/Forward to the other answer.
+      const other = intent === "demo" ? "pilot" : "demo";
+      window.location.hash = `#site-footer-intent-${other}`;
+      window.dispatchEvent({ type: "hashchange" });
+      assert.deepEqual(radios.filter((node) => node.checked).map((node) => node.value), [other]);
+
+      // The visitor changes their mind; what they chose is what is sent.
+      document.getElementById("site-footer-intent-availability_pricing").click();
+      document.getElementById("site-footer-email").value = "reader@example.com";
+      document.getElementById("site-footer-form").querySelector('button[type="submit"]').click();
+      await waitFor(() => calls.length === 1, "follow-up request");
+      assert.deepEqual([calls[0].purpose, calls[0].topic, calls[0].intent],
+        [purpose, FOLLOW_UP_TOPICS[purpose], "availability_pricing"]);
+    });
+  }
+}
+
+// Only an exact radio id counts: none of these chooses, moves focus, or throws.
+const MALFORMED = ["#", "#site-footer-intent-", "#site-footer-intent-sales", "#site-footer-intent-Demo",
+  "#site-footer-intent-demo#site-footer-intent-pilot", "#site-footer-intent-pilot&x=1", "#site-footer-intent-%E0%A4%A",
+  "#site-footer-panel"];
+for (const [file] of PAGES) {
+  test(`${file}: an unknown, malformed or repeated fragment leaves the default`, async (t) => {
+    const page = await loadPage(new URL(`../src/${file}`, import.meta.url), { location: { hash: MALFORMED[0] } });
+    t.after(() => page.restore());
+    const { document } = page;
+    await importPageModule("/ask-about-shiplog-page.js");
+    for (const hash of MALFORMED) {
+      window.location.hash = hash;
+      window.dispatchEvent({ type: "hashchange" });
+      assert.equal(radiosOf(page.document).filter((node) => node.checked).length, 0, `${hash} chose an answer`);
+      assert.notEqual(document.activeElement?.getAttribute?.("id"), "site-footer-email", `${hash} moved focus`);
+    }
+  });
+}
