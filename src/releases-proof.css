@@ -190,3 +190,7 @@
 #repository-proof .shiplog-proof-facts dt { font-size:12px; }
 #repository-proof .shiplog-proof-share { align-items:flex-start; flex-direction:column; }
 @media(max-width:520px) { #repository-proof .shiplog-proof-facts{grid-template-columns:1fr} }
+
+/* The homepage's explicit check destination stays visible and out of Tab order. */
+#deployment-status-title { scroll-margin-top:24px; }
+#deployment-status-title:focus { outline:3px solid var(--focus-ring); outline-offset:4px; }
