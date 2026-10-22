@@ -221,7 +221,7 @@ export function filterReleases(releases, decisions = [], filters = {}) {
     if (status !== "all" && releaseStatus(release) !== status) return false;
     if (!matchesDecisionStatus(release, decisionStatus)) return false;
     if (!matchesDecisionId(release, decisionId)) return false;
-    if (unaccepted === UNACCEPTED_ONLY && unacceptedDecisions(release).length === 0) return false;
+    if (unaccepted === UNACCEPTED_ONLY && !shipsUnacceptedDecision(release)) return false;
     if (!normalizedQuery) return true;
     const searchable = [
       releaseTitle(release),
@@ -288,6 +288,12 @@ export function unacceptedDecisions(resolved) {
     });
   }
   return entries;
+}
+
+// The one yes/no rule behind the row's line, the "not accepted" filter and the
+// release export's `shipsUnacceptedDecision` (#2985), so the three cannot drift.
+export function shipsUnacceptedDecision(resolved) {
+  return unacceptedDecisions(resolved).length > 0;
 }
 
 // "1 of 3 linked decisions is not accepted:", or "" when nothing is
@@ -1054,8 +1060,8 @@ function renderBriefControl(release, index) {
 // Text nodes only: a stored title or owner is data, never markup. Not a live
 // region — #release-count already announces what a filter change did.
 function renderUnacceptedLine(release) {
+  if (!shipsUnacceptedDecision(release)) return null;
   const entries = unacceptedDecisions(release);
-  if (entries.length === 0) return null;
   const line = el("p", "hint release-unaccepted", unacceptedDecisionsLead(release));
   entries.forEach((entry, position) => {
     line.append(document.createTextNode(position === 0 ? " " : "; "));

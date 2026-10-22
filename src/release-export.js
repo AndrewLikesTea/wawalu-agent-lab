@@ -28,6 +28,8 @@ import {
   EXPORT_RELEASE_FIELDS,
   normalizeExportRecord,
 } from "./shiplog-export-schema.js";
+import { canonicalDecisionStatus } from "./decision-status.js";
+import { shipsUnacceptedDecision } from "./releases.js";
 
 /** What a consumer reads to know which file shape they are holding. */
 export const RELEASE_EXPORT_SCHEMA = "shiplog-releases";
@@ -111,7 +113,44 @@ export function buildReleaseExport(shown, options = {}) {
     // than counted a second time, so the envelope cannot disagree with it.
     release_count: releases.length,
     releases,
+    ...decisionLinkCollections(source),
   };
+}
+
+// The link data and acceptance flag for each release (#2985). It is appended to
+// the envelope and not to the release records, because the release records'
+// key list is pinned and a consumer of version 1 relies on it. Both collections
+// are read off `associations`, the resolution the row and the history view draw
+// from, and the flag comes from the predicate the row's line uses.
+//
+//   * `releaseLinks`: one entry per release, in the order of `releases`, as
+//     `{ releaseId, decisions, shipsUnacceptedDecision }`. Each decision entry
+//     is `{ id, title, status }` with the status as of export time (the retired
+//     "approved" reads as "accepted"). A link to a decision this browser does
+//     not hold is `{ id, title: null, status: null, unresolved: true }`, and it
+//     counts as not accepted, as it does on the row.
+//   * `decisions`: one entry per resolved decision, in order of first
+//     appearance, as `{ id, title, status, releaseIds }`. An unresolved id has
+//     no record, so it appears only in `releaseLinks`.
+function decisionLinkCollections(source) {
+  const decisions = new Map();
+  const releaseLinks = source.map((resolved) => {
+    const releaseId = resolved?.id ?? null;
+    const links = (resolved?.associations ?? []).map(({ id, decision }) => {
+      if (!decision) return { id, title: null, status: null, unresolved: true };
+      const entry = {
+        id,
+        title: typeof decision.title === "string" ? decision.title : null,
+        status: typeof decision.status === "string" ? canonicalDecisionStatus(decision.status) : null,
+      };
+      const record = decisions.get(id) ?? { ...entry, releaseIds: [] };
+      if (!record.releaseIds.includes(releaseId)) record.releaseIds.push(releaseId);
+      decisions.set(id, record);
+      return entry;
+    });
+    return { releaseId, decisions: links, shipsUnacceptedDecision: shipsUnacceptedDecision(resolved) };
+  });
+  return { releaseLinks, decisions: [...decisions.values()] };
 }
 
 /**
