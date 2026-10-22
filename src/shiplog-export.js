@@ -38,7 +38,7 @@
 // want the file.
 
 import { indexReleasesByDecision, loadDecisions } from "./app.js";
-import { loadReleases } from "./releases.js";
+import { indexById, loadReleases, resolveRelease, shipsUnacceptedDecision } from "./releases.js";
 import { shippedInReleases, shippedWhileUnaccepted } from "./shipped-releases.js";
 import {
   DEFAULT_EXPORT_SOURCE,
@@ -103,6 +103,7 @@ export function buildShiplogExport(storage, options = {}) {
   // is only "unresolved" against this set: a decision the visitor filtered away
   // still exists, and reporting it as gone would be a lie about their data.
   const held = new Set(storedDecisions.map((decision) => decision.id));
+  const heldById = indexById(storedDecisions);
 
   // Canonical order first, so everything downstream — the records, the
   // unresolved-link report, the dropped-field report — is a function of what
@@ -156,6 +157,15 @@ export function buildShiplogExport(storage, options = {}) {
       release.decisionIds.forEach((decisionId, position) => {
         associations.push({ decisionId, releaseId: release.id, position });
       });
+      // Appended after every legacy key (#2985). The history row's own join
+      // (resolveRelease), read against the whole store, so a filter-hidden
+      // decision still resolves. A dangling id stays as an unresolved entry and
+      // counts as not accepted, as it does in the releases page's flag.
+      const resolved = resolveRelease(stored, heldById);
+      release.decision_links = resolved.associations.map(({ id, decision, missing }) => (missing
+        ? { id, title: null, status: null, unresolved: true }
+        : { id, title: decision.title ?? null, status: decision.status ?? null, unresolved: false }));
+      release.ships_unaccepted = shipsUnacceptedDecision(resolved);
       return release;
     });
 

@@ -221,7 +221,7 @@ export function filterReleases(releases, decisions = [], filters = {}) {
     if (status !== "all" && releaseStatus(release) !== status) return false;
     if (!matchesDecisionStatus(release, decisionStatus)) return false;
     if (!matchesDecisionId(release, decisionId)) return false;
-    if (unaccepted === UNACCEPTED_ONLY && unacceptedDecisions(release).length === 0) return false;
+    if (unaccepted === UNACCEPTED_ONLY && !shipsUnacceptedDecision(release)) return false;
     if (!normalizedQuery) return true;
     const searchable = [
       releaseTitle(release),
@@ -288,6 +288,11 @@ export function unacceptedDecisions(resolved) {
     });
   }
   return entries;
+}
+
+// The release flag the filter and the JSON export share: missing counts.
+export function shipsUnacceptedDecision(resolved) {
+  return unacceptedDecisions(resolved).length > 0;
 }
 
 // "1 of 3 linked decisions is not accepted:", or "" when nothing is
