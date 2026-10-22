@@ -102,10 +102,10 @@ export function imageDescriptionProblem(value, { attached = false } = {}) {
   const text = String(value ?? "").trim();
   if (!text) {
     // Says what the description is for in the terms the field's own help uses:
-    // it is published with the post as visible text, not only read aloud. A
-    // refusal that named only the screen-reader audience would be the alt-only
-    // framing the field stopped using.
-    return "Add a description of the image before posting: it is published with the post as text everyone can read, and read aloud to people who cannot see the image.";
+    // it is published with the post as visible text. A refusal that named only
+    // the screen-reader audience would be the alt-only framing the field
+    // stopped using, and neither promises the text is read aloud (#2976).
+    return "Add a description of the image before posting: it is published as text with your post, so people who cannot see the image still know what it shows.";
   }
   if (text.length > MAX_IMAGE_ALT_LENGTH) {
     return `An image description must be ${MAX_IMAGE_ALT_LENGTH} characters or fewer. Remove ${text.length - MAX_IMAGE_ALT_LENGTH}.`;

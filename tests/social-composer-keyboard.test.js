@@ -158,7 +158,7 @@ test("closing a dirty draft preserves every field and returns to the actual open
   id("post-compose-cancel").click();
   assert.equal(document.activeElement === origin, true, "Close did not return focus to the opener");
   assert.equal(textOf(id("post-keyboard-hint")),
-    "Escape or Close hides the composer, and your draft stays in this tab while the composer is closed or you work in another tab, such as Paint.");
+    "Escape or Close hides the composer. Your draft stays in this Social tab, even with the composer closed or while you draw in Paint in another tab. Closing this tab or leaving the page discards it.");
 });
 
 test("composer tab order follows its fields and actions without positive tabindex", async (t) => {
