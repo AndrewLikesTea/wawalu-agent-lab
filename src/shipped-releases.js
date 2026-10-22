@@ -11,6 +11,7 @@
 // Nothing here touches the DOM or the network. It takes the release records the
 // page already holds and returns plain data.
 
+import { canonicalDecisionStatus } from "./decision-status.js";
 import { releaseDetailHref, releaseStatus, releaseTitle } from "./releases.js";
 
 // A bound on how much one decision can put into the DOM. A log edited outside
@@ -89,6 +90,35 @@ export function sortByNewestRelease(entries) {
 
 export function normalizeLinkedReleases(releases) {
   return sortByNewestRelease(shippedReleaseEntries(releases));
+}
+
+// Shipped while unaccepted (#2981): at least one release carried the decision
+// and its current status is not accepted. This cannot establish status at shipment. The retired "approved" reads as accepted, as
+// it does everywhere else. The history row and the JSON export both ask this
+// question; this is the only place it is answered.
+//
+// @param status       the decision's stored status
+// @param shippedCount how many releases carried it (a non-negative integer)
+// @returns boolean
+export function shippedWhileUnaccepted({ status, shippedCount }) {
+  return Number.isInteger(shippedCount) && shippedCount > 0
+    && canonicalDecisionStatus(status) !== "accepted";
+}
+
+// Portable evidence uses full stored values and every linked release; DOM
+// truncation and route validation must not erase a recorded association.
+// Dates descend, unknown dates sort last, then version descends; exact ties
+// preserve storage order, matching the history comparator.
+export function shippedInReleases(releases) {
+  const seen = new Set();
+  const entries = [];
+  for (const release of releases ?? []) {
+    if (seen.has(release.id)) continue;
+    seen.add(release.id);
+    const timestamp = Date.parse(release.createdAt);
+    entries.push({ ...release, dated: !Number.isNaN(timestamp), timestamp });
+  }
+  return sortByNewestRelease(entries).map(({ id, version }) => ({ id, version }));
 }
 
 // What a decision row has to say about shipping, as three named states rather
