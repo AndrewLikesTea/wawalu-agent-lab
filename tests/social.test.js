@@ -1909,8 +1909,11 @@ const foldedAway = (node) => {
 
 // #2278: the composer called itself "this form", "here" and "this panel", and
 // promised twice that the draft is kept. One noun, one sentence, both exits.
-const COMPOSER_KEPT_HINT = "Escape or Close hides the composer, and your draft stays in this tab "
-  + "while the composer is closed or you work in another tab, such as Paint.";
+// #2976: "this tab" left a reader drawing in Paint unsure which tab, and did
+// not say the draft ends with the tab.
+const COMPOSER_KEPT_HINT = "Escape or Close hides the composer. Your draft stays in this Social tab, "
+  + "even with the composer closed or while you draw in Paint in another tab. "
+  + "Closing this tab or leaving the page discards it.";
 
 // Read with the composer open because that is the state in which both the flow
 // opener and the final submit action are on screen at once — and the state in
@@ -2218,7 +2221,7 @@ test("the composer's three cautions still read word for word once it is open", a
   id("compose-media").hidden = false;
 
   const cautions = {
-    "post-image-alt-hint": "Describe what matters in the image. It is published with the post as text everyone can read, and read aloud to people who cannot see the image. Up to 200 characters.",
+    "post-image-alt-hint": "Describe what matters in the image. It is published as text with your post, so people who cannot see the image still know what it shows. Up to 200 characters.",
     "post-author-hint": AUTHOR_HINT,
     // The fourth entry here was #post-author-identity, "People groups image
     // posts under this display name." It is deleted, not reworded: the image
@@ -2575,7 +2578,7 @@ test("the composer says once, in its own name and beside Close, that the draft i
   assert.equal(page.split(COMPOSER_KEPT_HINT).length - 1, 1,
     "the draft sentence renders somewhere other than the composer");
   const composer = textOf(id("post-compose-panel"));
-  assert.equal(composer.split("your draft stays in this tab").length - 1, 1,
+  assert.equal(composer.split(/your draft stays/i).length - 1, 1,
     "the composer promises its draft is kept more than once");
   assert.doesNotMatch(composer, /hides this form|kept here|\bpanel\b/i,
     `the composer calls itself by a second name: ${composer}`);
@@ -2586,6 +2589,12 @@ test("the composer says once, in its own name and beside Close, that the draft i
   // storage, so it must not tell a reader their post is saved.
   assert.doesNotMatch(textOf(note), /\bsaved?\b|\bstored?\b|\bdraft is safe\b/i,
     "the sentence promises storage the composer does not have");
+  // It names the tab the draft lives in, and says closing that tab ends it
+  // rather than implying the draft outlives it (#2976).
+  assert.equal(textOf(note).split("this Social tab").length - 1, 1);
+  assert.match(textOf(note), /Closing this tab or leaving the page discards it\.$/);
+  assert.doesNotMatch(textOf(note), /after (?:you )?clos|reopen|come back|next visit/i,
+    "the sentence claims the draft survives the tab");
 });
 
 

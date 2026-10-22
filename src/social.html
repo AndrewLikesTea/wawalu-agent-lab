@@ -685,8 +685,10 @@
                        travels with the post wherever it is read, and the hint
                        says so before they type it rather than after they see it
                        published. The limit clause closes it, in the caption
-                       field's own form, as it always did. -->
-                  <span class="hint" id="post-image-alt-hint">Describe what matters in the image. It is published with the post as text everyone can read, and read aloud to people who cannot see the image. Up to 200 characters.</span>
+                       field's own form, as it always did. It promises no
+                       screen reader: whether the text is read aloud is the
+                       reader's setup, not something a post can guarantee (#2976). -->
+                  <span class="hint" id="post-image-alt-hint">Describe what matters in the image. It is published as text with your post, so people who cannot see the image still know what it shows. Up to 200 characters.</span>
                   <!-- The consequence of leaving this field empty, said once, at
                        the field, and only once there is an image to describe:
                        this region is revealed with the preview. It names no
@@ -831,9 +833,11 @@
                  succeeds does NOT close the panel either: the receipt below is
                  where focus goes, and it lives in here. Its sentence follows it,
                  as every hint in this form follows its control, so the one-column
-                 layout never parts Publish post from Close (#2349). -->
+                 layout never parts Publish post from Close (#2349). The draft
+                 lives only in this tab's memory, never in storage, so the
+                 sentence names the Social tab and says what ends it (#2976). -->
             <button class="text-button" id="post-compose-cancel" type="button" aria-describedby="post-keyboard-hint">Close</button>
-            <p class="hint" id="post-keyboard-hint">Escape or Close hides the composer, and your draft stays in this tab while the composer is closed or you work in another tab, such as Paint.</p>
+            <p class="hint" id="post-keyboard-hint">Escape or Close hides the composer. Your draft stays in this Social tab, even with the composer closed or while you draw in Paint in another tab. Closing this tab or leaving the page discards it.</p>
             <p class="notice submit-feedback" id="social-notice" role="status" aria-live="polite" aria-atomic="true" hidden></p>
           </form>
         </div>

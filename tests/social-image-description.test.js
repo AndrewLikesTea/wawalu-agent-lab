@@ -355,12 +355,18 @@ test("the description help states its limit in the caption hint's own form", asy
   const description = textOf(harness.document.querySelector("#post-image-alt-hint"));
   const caption = textOf(harness.document.querySelector("#post-body-hint"));
 
-  assert.equal(description, "Describe what matters in the image. It is published with the post as text everyone can read, and read aloud to people who cannot see the image. Up to 200 characters.");
+  assert.equal(description, "Describe what matters in the image. It is published as text with your post, so people who cannot see the image still know what it shows. Up to 200 characters.");
   // The field says the description is public text, not only an alt attribute:
   // all three surfaces print it under a label now, so a poster has to be told
   // that before they type it. The sentence it replaced named one audience only.
   assert.doesNotMatch(description, /for people who cannot see it\./);
-  assert.match(description, /published with the post/);
+  assert.match(description, /published as text with your post/);
+  // And it promises no screen reader: whether text is spoken is the reader's
+  // setup, not the post's (#2976). The refusal holds to the same promise.
+  assert.doesNotMatch(description, /read aloud|screen reader/i);
+  const refusal = imageDescriptionProblem("", { attached: true });
+  assert.match(refusal, /published as text with your post/);
+  assert.doesNotMatch(refusal, /read aloud|screen reader/i);
   // The post hint is that closing clause and nothing else since #1826: the word
   // it opened on was the label's own "(required)" marker said a second time.
   assert.equal(caption, "Up to 280 characters.");
