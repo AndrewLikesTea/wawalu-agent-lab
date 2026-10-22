@@ -11,8 +11,9 @@
 // identifier containing HTML is displayed, not executed (PRODUCT.md: no
 // user-generated HTML execution).
 //
-// The band writes nothing: no form, no submit, no storage. Its one non-matching
-// action is a link to a record a person then operates.
+// The band writes nothing: no form, no submit, no storage. A mismatch's one
+// action is a link to a record a person then operates; a check that did not
+// complete offers the page's own Retry, where the page carries one.
 
 import {
   CHECKING_LINE,
@@ -32,6 +33,8 @@ export const DEPLOYMENT_IDS = Object.freeze({
   panel: "deployment-status",
   callout: "deployment-status-callout",
   verdict: "deployment-verdict",
+  verdictLabel: "deployment-verdict-label",
+  retry: "deployment-retry",
   identifiers: "deployment-identifiers",
   checkedAt: "deployment-checked-at",
   metric: "deployment-metric",
@@ -123,8 +126,41 @@ export function pageAddress(location = globalThis.window?.location) {
   }
 }
 
+// The verdict at a glance: a shape and a word per state, so the chip's colour is
+// never the only thing that tells one state from another.
+export const VERDICT_LABELS = Object.freeze({
+  loading: Object.freeze({ shape: "◌", label: "Checking…" }),
+  match: Object.freeze({ shape: "✓", label: "Confirmed" }),
+  drift: Object.freeze({ shape: "≠", label: "Not a match" }),
+  unknown: Object.freeze({ shape: "!", label: "Did not complete" }),
+});
+
 function byId(root, id) {
   return root.querySelector(`#${id}`);
+}
+
+function renderVerdictLabel(root, state) {
+  const chip = byId(root, DEPLOYMENT_IDS.verdictLabel);
+  const entry = VERDICT_LABELS[state];
+  if (!chip || !entry) return;
+  const doc = root.ownerDocument ?? root;
+  const shape = doc.createElement("span");
+  shape.setAttribute("aria-hidden", "true");
+  shape.textContent = entry.shape;
+  const label = doc.createElement("span");
+  label.textContent = entry.label;
+  chip.dataset.verdict = state;
+  chip.replaceChildren(shape, " ", label);
+}
+
+// The action slot keeps the page's own Retry, if it carries one, across every
+// render; everything else in the slot belongs to the verdict being painted.
+function clearActionSlot(root) {
+  const slot = byId(root, DEPLOYMENT_IDS.action);
+  if (!slot) return { slot: null, retry: null };
+  const retry = byId(root, DEPLOYMENT_IDS.retry);
+  slot.replaceChildren(...(retry ? [retry] : []));
+  return { slot, retry };
 }
 
 function fieldList(doc, entries) {
@@ -212,8 +248,16 @@ export function renderDeploymentStatus(
 
   const verdictLine = byId(root, DEPLOYMENT_IDS.verdict);
   if (verdictLine) verdictLine.textContent = snapshot.verdict;
+  renderVerdictLabel(root, verdict.state);
   const identifiers = byId(root, DEPLOYMENT_IDS.identifiers);
-  if (identifiers) identifiers.textContent = snapshot.versions;
+  // A labeled pair where the page carries one, recorded first because it is the
+  // reference; the copied sentence (`snapshot.versions`) uses the same fallbacks.
+  if (identifiers?.tagName === "DL") {
+    identifiers.replaceChildren(...fieldList(doc, [
+      ["Recorded build", verdict.recordedBuild ?? "not available"],
+      ["Running build", verdict.deployedBuild ?? "not reported"],
+    ]));
+  } else if (identifiers) identifiers.textContent = snapshot.versions;
   const metric = byId(root, DEPLOYMENT_IDS.metric);
   if (metric) metric.textContent = verdictMetricText(verdict);
   const copy = byId(root, DEPLOYMENT_IDS.copy);
@@ -242,9 +286,10 @@ export function renderDeploymentStatus(
   }
   if (availability) availability.textContent = hasVerdict ? "" : COPY_NO_VERDICT_LINE;
 
-  const slot = byId(root, DEPLOYMENT_IDS.action);
-  if (slot) {
-    slot.replaceChildren();
+  const { slot, retry } = clearActionSlot(root);
+  // A check that did not complete, on a page that carries its own Retry, offers
+  // that Retry as its one corrective action rather than a second, competing link.
+  if (slot && !(verdict.state === "unknown" && retry)) {
     if (verdict.state === "match" || !verdict.nextAction) {
       const settled = doc.createElement("p");
       settled.className = "release-followup-target";
@@ -373,10 +418,11 @@ export async function initDeploymentStatus(root, options = {}) {
   const documentElement = root.documentElement ?? globalThis.document?.documentElement;
   if (documentElement) documentElement.dataset.shiplogDeployment = "loading";
   for (const id of [DEPLOYMENT_IDS.checkedAt, DEPLOYMENT_IDS.identifiers,
-    DEPLOYMENT_IDS.metric, DEPLOYMENT_IDS.copyStatus, DEPLOYMENT_IDS.evidenceBody,
-    DEPLOYMENT_IDS.action]) {
+    DEPLOYMENT_IDS.metric, DEPLOYMENT_IDS.copyStatus, DEPLOYMENT_IDS.evidenceBody]) {
     byId(root, id)?.replaceChildren();
   }
+  clearActionSlot(root);
+  renderVerdictLabel(root, "loading");
   const timeLine = byId(root, DEPLOYMENT_IDS.checkedAt);
   if (timeLine) timeLine.hidden = true;
   const verdictLine = byId(root, DEPLOYMENT_IDS.verdict);
