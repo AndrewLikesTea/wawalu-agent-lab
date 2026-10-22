@@ -12,6 +12,7 @@
 // page already holds and returns plain data.
 
 import { releaseDetailHref, releaseStatus, releaseTitle } from "./releases.js";
+import { isAcceptedStatus } from "./decision-status.js";
 
 // A bound on how much one decision can put into the DOM. A log edited outside
 // the recorder can name any number of releases; a row is still a row.
@@ -60,7 +61,7 @@ export function normalizeShippedRelease(release) {
 // The renderable associations, in the order the records compose them, one entry
 // per release. A release that names the same decision twice is one association,
 // not two — the same rule the history rows follow.
-export function shippedReleaseEntries(releases) {
+export function shippedReleaseEntries(releases, max = MAX_LINKED_RELEASES) {
   const seen = new Set();
   const entries = [];
   for (const release of Array.isArray(releases) ? releases : []) {
@@ -68,7 +69,7 @@ export function shippedReleaseEntries(releases) {
     if (!entry || seen.has(entry.id)) continue;
     seen.add(entry.id);
     entries.push(entry);
-    if (entries.length === MAX_LINKED_RELEASES) break;
+    if (entries.length === max) break;
   }
   return entries;
 }
@@ -86,6 +87,15 @@ export function byNewestRelease(a, b) {
 export function sortByNewestRelease(entries) {
   return [...entries].sort(byNewestRelease);
 }
+
+// The export's copy of the same answer (#2981): uncapped, since a file is not
+// a row, newest first, as `{ id, version }`.
+export function shippedIn(releases) {
+  return sortByNewestRelease(shippedReleaseEntries(releases, Infinity)).map(({ id, version }) => ({ id, version }));
+}
+
+// Shipped while not accepted: the releases page's rule (#2980), per decision.
+export const shippedWhileUnaccepted = (status, shipped) => shipped.length > 0 && !isAcceptedStatus(status);
 
 export function normalizeLinkedReleases(releases) {
   return sortByNewestRelease(shippedReleaseEntries(releases));

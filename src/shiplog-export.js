@@ -37,8 +37,9 @@
 // out; `createShiplogExport` is the payload alone, for the callers that only
 // want the file.
 
-import { loadDecisions } from "./app.js";
+import { indexReleasesByDecision, loadDecisions } from "./app.js";
 import { loadReleases } from "./releases.js";
+import { shippedIn, shippedWhileUnaccepted } from "./shipped-releases.js";
 import {
   DEFAULT_EXPORT_SOURCE,
   EXPORT_DECISION_FIELDS,
@@ -106,16 +107,29 @@ export function buildShiplogExport(storage, options = {}) {
   // Canonical order first, so everything downstream — the records, the
   // unresolved-link report, the dropped-field report — is a function of what
   // the browser holds and not of the order it happened to hold it in.
+  const storedReleases = canonicalExportOrder(loadReleases(storage));
+  // What shipped each decision is a fact about the whole store, not the
+  // filtered view, so it reads every held release (#2981) — in canonical order,
+  // so two releases tied on date and version still land in the same order.
+  // Derived, never stored: shiplog-import.js strips these keys on import.
+  const shipping = indexReleasesByDecision(storedReleases);
   const decisions = withinHistoryScope(canonicalExportOrder(storedDecisions), scope.decisionIds, scope)
-    .map((decision) => collect("decisions", decision, EXPORT_DECISION_FIELDS));
+    .map((decision) => {
+      const record = collect("decisions", decision, EXPORT_DECISION_FIELDS);
+      record.shipped_in = shippedIn(shipping.get(decision.id) ?? []);
+      record.shipped_while_unaccepted = shippedWhileUnaccepted(decision.status, record.shipped_in);
+      return record;
+    });
   const known = new Set(decisions.map((decision) => decision.id));
 
   const unresolvedLinks = [];
   const excludedLinks = [];
   const associations = [];
-  const releases = withinHistoryScope(canonicalExportOrder(loadReleases(storage)), scope.releaseIds, scope)
+  const releases = withinHistoryScope(storedReleases, scope.releaseIds, scope)
     .map((stored) => {
       const release = collect("releases", stored, EXPORT_RELEASE_FIELDS);
+      // Ids this release names that no held decision answers to.
+      release.dangling_decision_ids = release.decisionIds.filter((decisionId) => !held.has(decisionId));
       release.decisionIds = release.decisionIds.filter((decisionId, position) => {
         if (known.has(decisionId)) return true;
         // The file stays internally consistent either way — no dangling link

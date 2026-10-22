@@ -47,3 +47,5 @@ export const STORED_DECISION_STATUSES = Object.freeze([
 export function canonicalDecisionStatus(status) {
   return LEGACY_DECISION_STATUSES[status] ?? status;
 }
+
+export const isAcceptedStatus = (status) => canonicalDecisionStatus(status) === "accepted";

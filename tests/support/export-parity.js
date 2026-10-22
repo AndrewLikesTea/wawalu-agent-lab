@@ -199,6 +199,9 @@ export const SHIPLOG_EXPORT_SHAPE = Object.freeze({
     // owns the block; here it is pinned as optional so the exporter carrying it
     // is a declared part of the shape rather than undetected drift.
     finopsCommitment: "object?",
+    // Derived on every export from the whole store (#2981), never imported.
+    shipped_in: "array",
+    shipped_while_unaccepted: "boolean",
   },
   releases: {
     id: "string",
@@ -209,6 +212,7 @@ export const SHIPLOG_EXPORT_SHAPE = Object.freeze({
     status: "string",
     createdAt: "string",
     decisionIds: "string[]",
+    dangling_decision_ids: "string[]",
   },
   associations: {
     decisionId: "string",

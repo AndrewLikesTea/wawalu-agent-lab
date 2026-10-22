@@ -34,7 +34,19 @@ import {
 } from "./finops-commitment-decision.js";
 import { RELEASE_STORAGE_KEY, readReleases, saveReleases } from "./releases.js";
 import { SHIPLOG_EXPORT_SCHEMA, SHIPLOG_EXPORT_VERSION } from "./shiplog-export.js";
-import { envelopeCountMismatches } from "./shiplog-export-schema.js";
+import {
+  EXPORT_DERIVED_DECISION_FIELDS,
+  EXPORT_DERIVED_RELEASE_FIELDS,
+  envelopeCountMismatches,
+} from "./shiplog-export-schema.js";
+
+// The exporter's derived keys describe the store that wrote the file; this
+// store recomputes them on its next export, so a stale copy is never kept.
+function withoutDerived(record, fields) {
+  const copy = structuredClone(record);
+  for (const field of Object.keys(fields)) delete copy[field];
+  return copy;
+}
 
 // One decision field is optional and validated on its own terms: the
 // `finopsCommitment` block a decision recorded from an approved FinOps
@@ -260,7 +272,7 @@ export function parseImport(text, options = {}) {
       for (const message of errors) rejected.push(rejection("decisions", index, recordId(record), message));
       return;
     }
-    decisions.push(structuredClone(record));
+    decisions.push(withoutDerived(record, EXPORT_DERIVED_DECISION_FIELDS));
   });
 
   // A link survives when its decision will exist after the import: accepted in
@@ -367,7 +379,7 @@ export function parseImport(text, options = {}) {
       keptAt.set(id, position);
       decisionIds.push(id);
     });
-    releases.push({ ...structuredClone(record), decisionIds });
+    releases.push({ ...withoutDerived(record, EXPORT_DERIVED_RELEASE_FIELDS), decisionIds });
   });
 
   return {

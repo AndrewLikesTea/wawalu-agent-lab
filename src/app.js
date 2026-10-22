@@ -280,7 +280,7 @@ export const HIDDEN_LINK_NOTE = "· not in this view";
 // re-scanned per row. Releases already resolve their decisions (resolveRelease);
 // this is the same association read from the other side, so a decision row can
 // name its releases even when the release rows are filtered away.
-function indexReleasesByDecision(releases) {
+export function indexReleasesByDecision(releases) {
   const index = new Map();
   for (const release of releases) {
     for (const id of release.decisionIds ?? []) {

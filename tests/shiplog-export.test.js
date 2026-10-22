@@ -27,6 +27,8 @@ import {
 } from "../src/shiplog-export-schema.js";
 import { STORAGE_KEY } from "../src/app.js";
 import { RELEASE_STORAGE_KEY } from "../src/releases.js";
+import { shippedIn } from "../src/shipped-releases.js";
+import { parseImport } from "../src/shiplog-import.js";
 
 const GENERATED_AT = "2026-07-26T18:30:00.000Z";
 const decision = {
@@ -111,10 +113,10 @@ test("populated browser export has an explicit portable contract and only Shiplo
     // Nothing was filtered, so the block is empty — the one reading that means
     // "this file is the whole browsed history".
     filter: {},
-    decisions: [decision],
+    decisions: [{ ...decision, shipped_in: [{ id: "r-1", version: "v1.0.0" }], shipped_while_unaccepted: false }],
     // The second id named a decision this browser does not hold, so it is not
     // written into the file: see the link integrity tests below.
-    releases: [{ ...release, decisionIds: ["d-queue"] }],
+    releases: [{ ...release, decisionIds: ["d-queue"], dangling_decision_ids: ["d-preserved-but-missing"] }],
     associations: [{ decisionId: "d-queue", releaseId: "r-1", position: 0 }],
   });
   assert.equal(JSON.parse(JSON.stringify(payload)).generatedAt, GENERATED_AT);
@@ -206,6 +208,138 @@ test("association positions number the file's own links, leaving no gap for a dr
   // And the two views of the link agree, which is the whole reason the file may
   // carry both: associations[i] is decisionIds[position] for its release.
   assert.deepEqual(shiplogExportViolations(payload), []);
+});
+
+// --------------------------------------------------------------------------
+// What shipped each decision (#2981)
+// --------------------------------------------------------------------------
+//
+// Two derived keys per decision and one per release, added to a file whose
+// every existing key, value, and order stays as it was.
+
+const SHIPPING_DECISIONS = [
+  { ...LINKED_DECISIONS[0], id: "ship-d-accepted", status: "accepted" },
+  { ...LINKED_DECISIONS[1], id: "ship-d-idle", status: "proposed", supersedes: undefined },
+  { ...LINKED_DECISIONS[2], id: "ship-d-pending", status: "pending" },
+  { ...LINKED_DECISIONS[2], id: "ship-d-legacy", status: "approved", createdAt: "2026-02-03T10:00:00.000Z" },
+];
+const SHIPPING_RELEASES = [
+  {
+    id: "ship-r-old", version: "v2.0.0", createdAt: "2026-03-01T09:00:00.000Z",
+    decisionIds: ["ship-d-accepted", "ship-d-ghost", "ship-d-legacy"],
+  },
+  {
+    id: "ship-r-new", version: "v2.1.0", createdAt: "2026-03-05T09:00:00.000Z",
+    // A repeat is one association, as it is on the history row.
+    decisionIds: ["ship-d-accepted", "ship-d-pending", "ship-d-accepted"],
+  },
+];
+const shippingExport = () => buildShiplogExport(storage({
+  // Stored newest-first, as the recorder prepends: order must not leak.
+  [STORAGE_KEY]: JSON.stringify([...SHIPPING_DECISIONS].reverse()),
+  [RELEASE_STORAGE_KEY]: JSON.stringify([...SHIPPING_RELEASES].reverse()),
+}), { generatedAt: GENERATED_AT });
+const byId = (records, id) => records.find((record) => record.id === id);
+
+test("shipping keys are additive: every pre-existing key, value, and order is unchanged", () => {
+  const { payload } = shippingExport();
+  assert.deepEqual(Object.keys(payload), [
+    "schema", "version", "generatedAt", "record_count", "decision_count", "release_count",
+    "source", "filter", "decisions", "releases", "associations",
+  ]);
+  assert.deepEqual(payload.decisions.map(({ id }) => id),
+    ["ship-d-accepted", "ship-d-idle", "ship-d-pending", "ship-d-legacy"]);
+  assert.deepEqual(payload.releases.map(({ id }) => id), ["ship-r-old", "ship-r-new"]);
+  payload.decisions.forEach((record, index) => {
+    const { shipped_in: shipped, shipped_while_unaccepted: flag, ...original } = record;
+    assert.deepEqual(original, JSON.parse(JSON.stringify(SHIPPING_DECISIONS[index])));
+    assert.ok(Array.isArray(shipped));
+    assert.equal(typeof flag, "boolean");
+    assert.deepEqual(Object.keys(record).slice(-2), ["shipped_in", "shipped_while_unaccepted"]);
+  });
+  payload.releases.forEach((record, index) => {
+    const { dangling_decision_ids: dangling, ...original } = record;
+    const stored = SHIPPING_RELEASES[index];
+    assert.deepEqual(original, { ...stored, decisionIds: stored.decisionIds.filter((id) => id !== "ship-d-ghost") });
+    assert.ok(Array.isArray(dangling));
+  });
+  assert.deepEqual(shiplogExportViolations(payload), []);
+});
+
+test("a decision shipped in two releases lists both, newest first", () => {
+  const { payload } = shippingExport();
+  assert.deepEqual(byId(payload.decisions, "ship-d-accepted").shipped_in, [
+    { id: "ship-r-new", version: "v2.1.0" },
+    { id: "ship-r-old", version: "v2.0.0" },
+  ]);
+});
+
+test("only a shipped decision that is not accepted is flagged", () => {
+  const { payload } = shippingExport();
+  const accepted = byId(payload.decisions, "ship-d-accepted");
+  assert.equal(accepted.shipped_while_unaccepted, false);
+  const idle = byId(payload.decisions, "ship-d-idle");
+  assert.deepEqual(idle.shipped_in, []);
+  assert.equal(idle.shipped_while_unaccepted, false);
+  const pending = byId(payload.decisions, "ship-d-pending");
+  assert.deepEqual(pending.shipped_in, [{ id: "ship-r-new", version: "v2.1.0" }]);
+  assert.equal(pending.shipped_while_unaccepted, true);
+  // The retired "approved" reads as accepted here, as on the releases page.
+  const legacy = byId(payload.decisions, "ship-d-legacy");
+  assert.equal(legacy.shipped_in.length, 1);
+  assert.equal(legacy.shipped_while_unaccepted, false);
+});
+
+test("a release naming a missing decision lists it on itself and gives no decision a phantom", () => {
+  let built;
+  assert.doesNotThrow(() => { built = shippingExport(); });
+  const { payload, unresolvedLinks } = built;
+  assert.deepEqual(byId(payload.releases, "ship-r-old").dangling_decision_ids, ["ship-d-ghost"]);
+  assert.deepEqual(byId(payload.releases, "ship-r-new").dangling_decision_ids, []);
+  assert.equal(byId(payload.decisions, "ship-d-ghost"), undefined);
+  assert.equal(payload.decisions.length, SHIPPING_DECISIONS.length);
+  for (const decision of payload.decisions) {
+    const named = SHIPPING_RELEASES.filter((release) => release.decisionIds.includes(decision.id));
+    assert.deepEqual(decision.shipped_in.map(({ id }) => id).toSorted(), named.map(({ id }) => id).toSorted());
+  }
+  // The existing report still says the same thing about the dropped link.
+  assert.deepEqual(unresolvedLinks, [{ releaseId: "ship-r-old", decisionId: "ship-d-ghost", position: 1 }]);
+});
+
+test("a filtered file still reads shipping off every held release", () => {
+  const { payload } = buildShiplogExport(storage({
+    [STORAGE_KEY]: JSON.stringify(SHIPPING_DECISIONS),
+    [RELEASE_STORAGE_KEY]: JSON.stringify(SHIPPING_RELEASES),
+  }), {
+    generatedAt: GENERATED_AT,
+    scope: { filtered: true, decisionIds: ["ship-d-pending"], releaseIds: [], filters: { owner: "Rowan" } },
+  });
+  assert.deepEqual(payload.releases, []);
+  assert.deepEqual(byId(payload.decisions, "ship-d-pending").shipped_in, [{ id: "ship-r-new", version: "v2.1.0" }]);
+});
+
+test("the export, the history row, and the releases page share one shipping rule", async () => {
+  const [exporter, history, releasesPage] = await Promise.all(
+    ["shiplog-export.js", "app.js", "releases.js"].map((name) => readFile(new URL(`../src/${name}`, import.meta.url), "utf8")),
+  );
+  assert.match(exporter, /import \{ shippedIn, shippedWhileUnaccepted \} from "\.\/shipped-releases\.js";/);
+  assert.match(exporter, /import \{ indexReleasesByDecision, loadDecisions \} from "\.\/app\.js";/);
+  assert.match(history, /indexReleasesByDecision\(releases\)/);
+  assert.match(releasesPage, /if \(isAcceptedStatus\(status\)\) continue;/);
+  const { payload } = shippingExport();
+  const held = SHIPPING_RELEASES.filter((release) => release.decisionIds.includes("ship-d-accepted"));
+  assert.deepEqual(byId(payload.decisions, "ship-d-accepted").shipped_in, shippedIn(held));
+});
+
+test("derived shipping keys are stripped on import, so a restore never stores a stale copy", () => {
+  const { payload } = shippingExport();
+  const parsed = parseImport(JSON.stringify(payload));
+  assert.equal(parsed.ok, true);
+  for (const record of parsed.decisions) {
+    assert.equal("shipped_in" in record, false);
+    assert.equal("shipped_while_unaccepted" in record, false);
+  }
+  for (const record of parsed.releases) assert.equal("dangling_decision_ids" in record, false);
 });
 
 // --------------------------------------------------------------------------
@@ -341,9 +475,10 @@ test("a record's undeclared keys stay in the browser", () => {
     [RELEASE_STORAGE_KEY]: JSON.stringify([{ ...release, decisionIds: ["d-queue"], authToken: "t-1" }]),
   }), { generatedAt: GENERATED_AT });
 
-  assert.deepEqual(payload.decisions, [decision]);
+  assert.deepEqual(payload.decisions,
+    [{ ...decision, shipped_in: [{ id: "r-1", version: "v1.0.0" }], shipped_while_unaccepted: false }]);
   assert.deepEqual(Object.keys(payload.releases[0]).toSorted(),
-    ["createdAt", "decisionIds", "id", "title", "version"]);
+    ["createdAt", "dangling_decision_ids", "decisionIds", "id", "title", "version"]);
   assert.deepEqual(shiplogExportViolations(payload), []);
 });
 
@@ -704,7 +839,8 @@ test("record text with markup, quotes, and backslashes survives JSON.parse uncha
   const { text } = await capture(storage({ [STORAGE_KEY]: JSON.stringify([hostile]) }));
 
   const parsed = JSON.parse(text);
-  assert.deepEqual(parsed.decisions, [hostile], "a record did not round-trip through the file byte for byte");
+  assert.deepEqual(parsed.decisions, [{ ...hostile, shipped_in: [], shipped_while_unaccepted: false }],
+    "a record did not round-trip through the file byte for byte");
   assert.equal(parsed.record_count, 1);
   // The bytes are JSON escapes, never HTML entities: nothing on this path
   // escapes for a document, because nothing on this path writes one.

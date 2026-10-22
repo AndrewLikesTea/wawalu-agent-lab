@@ -156,6 +156,16 @@ export const EXPORT_RELEASE_FIELDS = Object.freeze({
   decisionIds: "string[]",
 });
 
+// Keys the exporter derives from the whole store (#2981). Kept out of the field
+// lists above, which are also what a record may carry *into* a store: these are
+// recomputed on every export and stripped on import, never persisted. Optional
+// so a file written before them stays valid.
+export const EXPORT_DERIVED_DECISION_FIELDS = Object.freeze({
+  shipped_in: "array?",
+  shipped_while_unaccepted: "boolean?",
+});
+export const EXPORT_DERIVED_RELEASE_FIELDS = Object.freeze({ dangling_decision_ids: "string[]?" });
+
 function typeName(value) {
   if (Array.isArray(value)) return "array";
   if (value === null) return "null";
@@ -484,7 +494,10 @@ export function shiplogExportViolations(payload) {
       violations.push(`export.generatedAt: expected an ISO date, got ${JSON.stringify(payload.generatedAt)}`);
     }
   }
-  for (const [kind, fields] of [["decisions", EXPORT_DECISION_FIELDS], ["releases", EXPORT_RELEASE_FIELDS]]) {
+  for (const [kind, fields] of [
+    ["decisions", { ...EXPORT_DECISION_FIELDS, ...EXPORT_DERIVED_DECISION_FIELDS }],
+    ["releases", { ...EXPORT_RELEASE_FIELDS, ...EXPORT_DERIVED_RELEASE_FIELDS }],
+  ]) {
     if (!Array.isArray(payload?.[kind])) continue;
     payload[kind].forEach((record, index) => {
       violations.push(...fieldViolations(`export.${kind}[${index}]`, record, fields));

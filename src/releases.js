@@ -12,7 +12,7 @@
 // decision module's load-time side effects. The seam to unify them later is a
 // small shared module; that abstraction is not yet earned by two call sites.
 
-import { DECISION_STATUSES, canonicalDecisionStatus } from "./decision-status.js";
+import { DECISION_STATUSES, canonicalDecisionStatus, isAcceptedStatus } from "./decision-status.js";
 import { retentionDeclined, retentionRefusal } from "./local-retention.js";
 import { copyText, createShareControl } from "./share-link.js";
 import { EXAMPLE_LABEL } from "./seed-records.js";
@@ -277,7 +277,7 @@ export function unacceptedDecisions(resolved) {
       continue;
     }
     const status = canonicalDecisionStatus(decision.status);
-    if (status === "accepted") continue;
+    if (isAcceptedStatus(status)) continue;
     const addressable = typeof decision.id === "string" && decision.id.trim() !== "";
     entries.push({
       id: association.id,
