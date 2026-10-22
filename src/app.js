@@ -21,6 +21,7 @@ import { renderReleaseCoverage } from "./homepage-release-coverage.js";
 import {
   DEFAULT_HISTORY_FILTERS,
   RECORD_TYPES,
+  UNRELEASED_STATUS,
   absoluteHistoryUrl,
   currentOnlySearch,
   historyFilterChips,
@@ -381,6 +382,18 @@ export function toHistoryRecords(decisions = [], releases = [], options = {}) {
   ];
 }
 
+// The "Accepted, not yet released" filter (#2979): an accepted decision whose
+// row says "Not yet shipped". Read off the same `shipped` state that row is
+// drawn from, so the filter and the line can never disagree. "unresolved" is
+// excluded — a release names it, the log just cannot read that release — and so
+// is a repository record, which shipped through a pull request this row links.
+export function awaitingRelease(record) {
+  return record?.type === "decision"
+    && record.status === "accepted"
+    && (record.shipped?.state ?? "none") === "none"
+    && !isRepositoryRecord(record);
+}
+
 // Pure view derivation over the whole history: filter by record type, decision
 // status, owner, and search, then sort. Never mutates the input array, and an
 // unknown type/status/sort value degrades gracefully to the default.
@@ -406,7 +419,8 @@ export function selectHistory(records, view = {}) {
   const { owner = "all", sort = DEFAULT_SORT } = view;
   const releaseId = typeof view.releaseId === "string" && view.releaseId.trim() !== "" ? view.releaseId : "all";
   const type = RECORD_TYPES.includes(view.type) ? view.type : "all";
-  const status = STATUSES.includes(view.status) ? canonicalDecisionStatus(view.status) : "all";
+  const status = STATUSES.includes(view.status) || view.status === UNRELEASED_STATUS
+    ? canonicalDecisionStatus(view.status) : "all";
   const query = typeof view.query === "string" ? view.query.trim().toLocaleLowerCase() : "";
   const { from, to } = normalizeHistoryRange(view.from, view.to);
   const after = from ? Date.parse(`${from}T00:00:00.000Z`) : null;
@@ -435,7 +449,9 @@ export function selectHistory(records, view = {}) {
       if (releaseId !== "all" && (record.type !== "decision"
         || !(record.links ?? []).some((link) => link.type === "release" && link.id === releaseId))) return false;
       if (type !== "all" && record.type !== type) return false;
-      if (status !== "all" && (record.type !== "decision" || record.status !== status)) return false;
+      if (status === UNRELEASED_STATUS) {
+        if (!awaitingRelease(record)) return false;
+      } else if (status !== "all" && (record.type !== "decision" || record.status !== status)) return false;
       if (owner !== "all" && record.owner !== owner) return false;
       return !query || record.searchable
         .some((value) => typeof value === "string" && value.toLocaleLowerCase().includes(query));

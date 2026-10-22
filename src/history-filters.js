@@ -122,12 +122,20 @@ export function normalizeHistoryRange(from, to) {
   return { from: start, to: end };
 }
 
+// Accepted decisions no release in this log names yet (#2979). A value of the
+// status filter rather than a control of its own: it narrows the same
+// dimension (which decisions), it costs no tab stop on a first screen with none
+// to spare, and AND with the other filters comes for free. It is not a stored
+// status — no record carries it — so it lives here and not in decision-status.js.
+export const UNRELEASED_STATUS = "unreleased";
+export const UNRELEASED_LABEL = "Accepted, not yet released";
+
 // Every status a link may name, folded onto the word the view actually filters
 // by: the retired "approved" is still in circulation in older links and older
 // exports, and it means "accepted".
 function normalizeFilterStatus(value) {
   const status = canonicalDecisionStatus(typeof value === "string" ? value.trim() : "");
-  return DECISION_STATUSES.includes(status) ? status : "all";
+  return DECISION_STATUSES.includes(status) || status === UNRELEASED_STATUS ? status : "all";
 }
 
 function normalizeFilterType(value) {
@@ -384,7 +392,7 @@ export function historyFilterChips(filters = {}) {
   });
   if (active.query) add("query", "Search", active.query);
   if (active.type !== "all") add("type", "Record type", TYPE_LABELS[active.type]);
-  if (active.status !== "all") add("status", "Status", active.status);
+  if (active.status !== "all") add("status", "Status", active.status === UNRELEASED_STATUS ? UNRELEASED_LABEL : active.status);
   if (active.owner !== "all") add("owner", "Owner", active.owner);
   if (active.releaseId !== "all") add("releaseId", "Release", active.releaseId);
   if (active.from) add("from", "From", formatFilterDate(active.from));
