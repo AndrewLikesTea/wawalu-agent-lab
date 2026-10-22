@@ -170,3 +170,6 @@
 /* Recorded evidence stays readable even when a title or URL cannot break. */
 #repository-last-verified { min-width:0; max-width:100%; overflow-wrap:anywhere; margin-top:24px; }
 #repository-last-verified a { white-space:normal; }
+
+#hero-demonstration { max-width:100%; white-space:normal; overflow-wrap:anywhere; }
+#site-footer-form { scroll-margin-top:24px; }

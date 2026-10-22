@@ -10,8 +10,8 @@
 // submission that does not carry one starts failing with `invalid_intent`. That
 // is a two-sided contract change and it is not this module's to make.
 //
-// So the choice is a note this page keeps: it records what the visitor came
-// for, shows it where they are about to type, and puts them in the field. The
+// So the choice is local state this page keeps: it records what the visitor came
+// for, offers an editable selector beside the form, and puts them in the field. The
 // footer's own disclosure still says only the address is sent, and the line
 // this module writes beside the field says the same thing rather than implying
 // the topic travels with it.
@@ -23,7 +23,7 @@
 // prose, an empty slot, and the empty live region that announces the change.
 //
 // THE LABELS ARE NOT NEW WORDS. Both come from `FOLLOW_UP_INTENTS`, the map the
-// five footer forms that do ask this question already render, so "A product
+// footer forms that do ask this question already render, so "A product
 // demonstration" has one wording across the site.
 
 import { FOLLOW_UP_INTENTS } from "/lead-capture.js";
@@ -43,7 +43,7 @@ export const choiceLine = (intent) =>
 // the form carries. It does not, and the way to get it to a person is the reply
 // this request asks for.
 export const CARRIED_SUFFIX = "This request sends only your work email, so name the topic when the reply"
-  + " reaches you. Choosing the other topic above replaces it.";
+  + " reaches you. Changing the discussion topic replaces it.";
 
 /** The same choice, where the visitor is about to type the address. */
 export const carriedLine = (intent) => `${choiceLine(intent)}. ${CARRIED_SUFFIX}`;
@@ -98,13 +98,34 @@ export function initBuyerIntent(document) {
   // chooses there is no topic to report, and an empty paragraph above a form is
   // a gap a reader has to account for.
   let carried = null;
+  let topic = null;
   function carry(intent) {
     if (!panel || !form) return;
     carried ??= panel.insertBefore(carriedNote(document), form);
     carried.textContent = carriedLine(intent);
+    if (!topic) {
+      const field = document.createElement("div");
+      field.setAttribute("class", "site-footer-field");
+      const label = document.createElement("label");
+      label.setAttribute("for", "buyer-intent-topic");
+      label.textContent = "Discussion topic";
+      topic = document.createElement("select");
+      topic.setAttribute("id", "buyer-intent-topic");
+      topic.setAttribute("aria-describedby", "buyer-intent-carried");
+      for (const value of BUYER_INTENTS) {
+        const option = document.createElement("option");
+        option.setAttribute("value", value);
+        option.textContent = FOLLOW_UP_INTENTS[value];
+        topic.append(option);
+      }
+      topic.addEventListener("change", () => choose(topic.value, false));
+      field.append(label, topic);
+      form.insertBefore(field, form.children[0]);
+    }
+    topic.value = intent;
   }
 
-  function choose(intent) {
+  function choose(intent, moveFocus = true) {
     // One pressed control at a time: the pair is a choice, not two switches.
     for (const button of buttons) {
       button.setAttribute("aria-pressed", String(button.dataset.intent === intent));
@@ -115,6 +136,7 @@ export function initBuyerIntent(document) {
     // field the reader has just landed in, rather than racing it.
     // A new choice also reopens a completed request through its existing control.
     if (form?.hidden) document.getElementById("site-footer-again")?.click();
+    if (!moveFocus) return;
     email?.focus({ preventScroll: typeof panel?.scrollIntoView === "function" });
     panel?.scrollIntoView?.({ block: "start" });
     status.textContent = announcement(intent);
@@ -128,6 +150,21 @@ export function initBuyerIntent(document) {
       if (event.button > 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
       choose(link.dataset.buyerIntent);
       // Keep native fragment navigation/history and the no-script fallback.
+    });
+  }
+  const hero = document.getElementById("hero-demonstration");
+  if (hero && form) {
+    hero.addEventListener("click", (event) => {
+      if (event.button > 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      choose(BUYER_INTENTS[0], false);
+      // Suppress native fragment focus after landing; preserve Back and the URL.
+      event.preventDefault();
+      const view = document.defaultView ?? globalThis.window;
+      const href = hero.getAttribute("href");
+      if (view?.location?.hash !== href) view?.history?.pushState?.(view.history.state ?? null, "", href);
+      // Land on the topic: its name, value and note announce the preselection.
+      topic?.focus({ preventScroll: true });
+      form.scrollIntoView?.({ block: "start" });
     });
   }
   return { buttons, choose };
