@@ -237,7 +237,8 @@ test("the painted front door leads with the promise, then names the log", async 
   const heroStops = sequence.filter((node) => ancestorIds(node).includes("top"));
   const example = hero.querySelector(".hero-actions").querySelectorAll("a")[1];
   assert.match(textOf(example), /complete example release/);
-  assert.deepEqual(heroStops, [demo, example, document.getElementById("hero-demonstration"), ...document.getElementById("repository-last-verified").querySelectorAll("a")]);
+  assert.deepEqual(heroStops, [demo, example, document.getElementById("hero-demonstration"),
+    document.getElementById("hero-evaluation-link"), ...document.getElementById("repository-last-verified").querySelectorAll("a")]);
   const demoAt = sequence.indexOf(demo);
   assert.ok(!ancestorIds(sequence[demoAt - 1]).includes("main-content"), "a stop was added above the demo link");
   assert.ok(ancestorIds(sequence[sequence.indexOf(heroStops.at(-1)) + 1]).includes("record-history"), "the recorder follows the evidence links");
@@ -288,4 +289,47 @@ test("the pilot scorecard's Team handoff names the real controls and the page ea
     "the scorecard says Releases has no import control; it now has one");
   assert.equal((await readFile(PAGE, "utf8")).match(/type="file"/g).length, 1,
     "the scorecard sends a teammate to the one file picker this page carries");
+});
+
+// #2974: a buyer deciding whether to evaluate meets the brief and the blank
+// scorecard beside the demo actions, not only after scrolling past the log.
+test("the hero links the evaluation brief and blank pilot scorecard right after the demonstration request", async (t) => {
+  const { document } = await openFrontDoor(t);
+  const hero = document.getElementById("top");
+  const link = document.getElementById("hero-evaluation-link");
+  assert.ok(link, "the hero lost its route to the evaluation materials");
+  assert.equal(link.tagName, "A");
+  assert.equal(textOf(link), "Evaluation brief and blank pilot scorecard");
+
+  // Directly after the demo-actions row, and the next tab stop after the
+  // demonstration request.
+  const blocks = hero.childElements;
+  const actions = blocks.findIndex((node) => node.getAttribute("class") === "hero-actions");
+  assert.equal(blocks[actions + 1].getAttribute("id"), "hero-evaluation-kit");
+  const sequence = tabSequence(document);
+  assert.equal(sequence.indexOf(link), sequence.indexOf(document.getElementById("hero-demonstration")) + 1);
+
+  // The href lands on the existing brief, which the scorecard follows.
+  const href = link.getAttribute("href");
+  assert.equal(href, "#shiplog-evaluation-brief");
+  const brief = document.getElementById(href.slice(1));
+  assert.equal(textOf(brief.querySelector("h2")), "Shiplog evaluation brief");
+  assert.equal(brief.getAttribute("tabindex"), "-1");
+  assert.equal(textOf(document.getElementById("shiplog-pilot-scorecard-title")), "Shiplog pilot scorecard");
+
+  // The sentence sits beside the link and is its description.
+  assert.equal(link.getAttribute("aria-describedby"), "hero-evaluation-help");
+  const help = textOf(document.getElementById("hero-evaluation-help"));
+  assert.match(help, /brief on what Shiplog records/);
+  assert.match(help, /blank .*scorecard your evaluating team completes during a pilot/);
+  assert.match(help, /no customer results/);
+  assert.doesNotMatch(help, /customer (outcome|success|stor)|testimonial/i);
+
+  // A reference link, not a fourth primary action.
+  const others = ["core-demo-link", "hero-demonstration"].map((id) => document.getElementById(id));
+  others.push(hero.querySelector(".hero-actions").querySelectorAll("a")[1]);
+  for (const other of others) {
+    assert.notEqual(textOf(other), textOf(link));
+    assert.notEqual(other.getAttribute("class"), link.getAttribute("class"));
+  }
 });
