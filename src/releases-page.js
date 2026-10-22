@@ -17,6 +17,7 @@ import {
   renderReleaseFollowUp,
   renderReleaseListStatus,
   saveReleases,
+  UNACCEPTED_ONLY,
 } from "./releases.js";
 import { initAskAboutShiplog } from "./ask-about-shiplog.js";
 import { bindReleaseFilterUrl } from "./release-filter-url.js";
@@ -241,6 +242,7 @@ export function initReleasesPage(root = document, storage = localStorage, option
   // answer is a second thing that can be wrong.
   const decisionStatusInputs = [...(root.querySelectorAll?.('input[name="release-decision-status"]') ?? [])];
   const decisionFilter = root.querySelector("#release-decision");
+  const unacceptedFilter = root.querySelector("#release-unaccepted-only");
   const locationRef = options.location ?? globalThis.window?.location;
   const historyRef = options.history ?? globalThis.window?.history;
   if (!container) return;
@@ -402,6 +404,7 @@ export function initReleasesPage(root = document, storage = localStorage, option
       if (statusFilter) statusFilter.value = "all";
       if (decisionFilter) decisionFilter.value = ALL_DECISIONS_FILTER;
       for (const input of decisionStatusInputs) input.checked = input.value === "all";
+      if (unacceptedFilter) unacceptedFilter.checked = false;
       filtersChanged();
     } else update();
   } });
@@ -435,6 +438,7 @@ export function initReleasesPage(root = document, storage = localStorage, option
       status: statusFilter?.value ?? "all",
       decisionStatus: decisionStatusInputs.find((input) => input.checked)?.value ?? "all",
       decisionId: decisionFilter?.value ?? ALL_DECISIONS_FILTER,
+      unaccepted: unacceptedFilter?.checked ? UNACCEPTED_ONLY : "all",
     };
     // The reveal narrows the array handed to the renderer rather than adding a
     // sixth filter value: the uncovered set is derived from the same resolution
@@ -463,7 +467,7 @@ export function initReleasesPage(root = document, storage = localStorage, option
     download: options.download,
   });
   const filtersChanged = bindReleaseFilterUrl({
-    root, search, statusFilter, decisionFilter, decisionStatusInputs, knownDecisionIds,
+    root, search, statusFilter, decisionFilter, decisionStatusInputs, unacceptedFilter, knownDecisionIds,
     location: locationRef, history: historyRef,
     navigation: options.navigation ?? globalThis.window,
     clipboard: options.clipboard ?? globalThis.navigator?.clipboard, update,
@@ -528,6 +532,7 @@ export function initReleasesPage(root = document, storage = localStorage, option
       if (statusFilter) statusFilter.value = "all";
       if (decisionFilter) decisionFilter.value = ALL_DECISIONS_FILTER;
       for (const input of decisionStatusInputs) input.checked = input.value === "all";
+      if (unacceptedFilter) unacceptedFilter.checked = false;
       filtersChanged();
       search?.focus?.();
     } else if (action.dataset.action === "record-release") {

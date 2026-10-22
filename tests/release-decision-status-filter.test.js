@@ -86,28 +86,33 @@ test("the filter boundary normalizes stale and malformed values once", () => {
     decisionStatus: "approved",
     decisionId: "   ",
     query: 42,
+    unaccepted: true,
   }), {
     status: "all",
     decisionStatus: "all",
     decisionId: "all",
     query: "",
+    unaccepted: "all",
   });
   assert.deepEqual(normalizeReleaseFilters({
     status: "completed",
     decisionStatus: "pending",
     decisionId: " d-queue ",
     query: "  cache  ",
+    unaccepted: "only",
   }), {
     status: "completed",
     decisionStatus: "pending",
     decisionId: "d-queue",
     query: "cache",
+    unaccepted: "only",
   });
   assert.deepEqual(normalizeReleaseFilters(null), {
     status: "all",
     decisionStatus: "all",
     decisionId: "all",
     query: "",
+    unaccepted: "all",
   });
 });
 

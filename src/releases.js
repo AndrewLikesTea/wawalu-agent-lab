@@ -215,12 +215,13 @@ export function releaseDescription(release) {
 // its title and its context: the row surfaces the title, so a search for text a
 // user can see must match it — matching context alone is a surprising dead end.
 export function filterReleases(releases, decisions = [], filters = {}) {
-  const { status, decisionStatus, decisionId, query } = normalizeReleaseFilters(filters);
+  const { status, decisionStatus, decisionId, query, unaccepted } = normalizeReleaseFilters(filters);
   const normalizedQuery = query.toLocaleLowerCase();
   return summarizeReleases(releases, decisions).filter((release) => {
     if (status !== "all" && releaseStatus(release) !== status) return false;
     if (!matchesDecisionStatus(release, decisionStatus)) return false;
     if (!matchesDecisionId(release, decisionId)) return false;
+    if (unaccepted === UNACCEPTED_ONLY && unacceptedDecisions(release).length === 0) return false;
     if (!normalizedQuery) return true;
     const searchable = [
       releaseTitle(release),
@@ -247,7 +248,55 @@ export function normalizeReleaseFilters(filters = {}) {
     decisionStatus: decisionStatusFilter(input.decisionStatus),
     decisionId: decisionIdFilter(input.decisionId),
     query: typeof input.query === "string" ? input.query.trim() : "",
+    unaccepted: input.unaccepted === UNACCEPTED_ONLY ? UNACCEPTED_ONLY : "all",
   };
+}
+
+// ---------------------------------------------------------------------------
+// Releases that shipped a decision nobody has accepted (issue #2978).
+//
+// The row's breakdown counts statuses; this names the decisions behind every
+// one that is not `accepted`, with status and owner, so a reader can see who to
+// ask and open the record without expanding the release. Every other status
+// counts — proposed, pending, superseded, or a value this log has no word for —
+// and so does a reference that resolves to nothing: an unknown decision cannot
+// be shown to be accepted. The retired "approved" folds onto accepted here as
+// it does in the breakdown and the status filter, so the three never disagree.
+// ---------------------------------------------------------------------------
+
+export const UNACCEPTED_ONLY = "only";
+export const UNKNOWN_DECISION_LABEL = "unknown decision";
+
+// One entry per linked decision that is not accepted, in association order.
+export function unacceptedDecisions(resolved) {
+  const entries = [];
+  for (const association of resolved?.associations ?? []) {
+    const decision = association.decision;
+    if (!decision) {
+      entries.push({ id: association.id, title: UNKNOWN_DECISION_LABEL, status: MISSING_DECISION_FILTER, owner: "Unknown", href: null });
+      continue;
+    }
+    const status = canonicalDecisionStatus(decision.status);
+    if (status === "accepted") continue;
+    const addressable = typeof decision.id === "string" && decision.id.trim() !== "";
+    entries.push({
+      id: association.id,
+      title: decisionLabel(decision),
+      status: typeof status === "string" && status.trim() !== "" ? status : "no status",
+      owner: decisionOwner(decision),
+      href: addressable ? decisionDetailHref(decision.id) : null,
+    });
+  }
+  return entries;
+}
+
+// "1 of 3 linked decisions is not accepted:", or "" when nothing is
+// outstanding — the caller's cue to render nothing at all.
+export function unacceptedDecisionsLead(resolved) {
+  const count = unacceptedDecisions(resolved).length;
+  if (count === 0) return "";
+  const total = resolved.associations.length;
+  return `${count} of ${total} linked ${total === 1 ? "decision" : "decisions"} ${count === 1 ? "is" : "are"} not accepted:`;
 }
 
 // ---------------------------------------------------------------------------
@@ -316,6 +365,7 @@ export function releaseFiltersActive(filters = {}) {
   return normalized.status !== "all"
     || normalized.decisionStatus !== "all"
     || normalized.decisionId !== ALL_DECISIONS_FILTER
+    || normalized.unaccepted !== "all"
     || normalized.query !== "";
 }
 
@@ -342,7 +392,7 @@ const sentenceCase = (value) => value.charAt(0).toUpperCase() + value.slice(1);
  * the first-run empty state rather than a filtered one.
  */
 export function releaseFilterSummary(filters = {}, decisions = []) {
-  const { status, decisionStatus, decisionId, query } = normalizeReleaseFilters(filters);
+  const { status, decisionStatus, decisionId, query, unaccepted } = normalizeReleaseFilters(filters);
   const parts = [];
   if (query !== "") parts.push(`your search for “${query}”`);
   if (status !== "all") parts.push(`release status ${sentenceCase(status)}`);
@@ -359,6 +409,7 @@ export function releaseFilterSummary(filters = {}, decisions = []) {
       ? "a linked decision this log does not hold"
       : `linked decision status ${sentenceCase(decisionStatus)}`);
   }
+  if (unaccepted === UNACCEPTED_ONLY) parts.push("a linked decision that is not accepted");
   return joinPhrases(parts);
 }
 
@@ -999,6 +1050,30 @@ function renderBriefControl(release, index) {
   return group;
 }
 
+// The one secondary line a release with unaccepted decisions carries, or null.
+// Text nodes only: a stored title or owner is data, never markup. Not a live
+// region — #release-count already announces what a filter change did.
+function renderUnacceptedLine(release) {
+  const entries = unacceptedDecisions(release);
+  if (entries.length === 0) return null;
+  const line = el("p", "hint release-unaccepted", unacceptedDecisionsLead(release));
+  entries.forEach((entry, position) => {
+    line.append(document.createTextNode(position === 0 ? " " : "; "));
+    if (entry.href) {
+      const link = el("a", "release-unaccepted-link", entry.title);
+      link.href = entry.href;
+      line.append(link);
+    } else {
+      line.append(el("span", "release-unaccepted-name", entry.title));
+    }
+    line.append(document.createTextNode(entry.status === MISSING_DECISION_FILTER && !entry.href
+      ? ` (${entry.id}, not in this log)`
+      : ` (${entry.status}, owner ${entry.owner})`));
+  });
+  line.append(document.createTextNode("."));
+  return line;
+}
+
 function renderReleaseItem(release, index, expanded = false, example = false) {
   const item = el("li", "release-item");
   // Render-local ids keep arbitrary stored release ids out of ARIA IDREFs.
@@ -1042,7 +1117,12 @@ function renderReleaseItem(release, index, expanded = false, example = false) {
   panel.append(renderDetailLink(release));
   panel.append(renderBriefControl(release, index));
 
-  item.append(heading, panel);
+  item.append(heading);
+  // Outside the toggle, because a button cannot hold the links this line
+  // carries, and outside the panel, so a collapsed row still shows it.
+  const unaccepted = renderUnacceptedLine(release);
+  if (unaccepted) item.append(unaccepted);
+  item.append(panel);
   return item;
 }
 
