@@ -744,7 +744,7 @@ test("a recorded release exports with its decision associations intact", async (
   // on the way out, and no link goes unresolved.
   assert.equal(payload.releases.length, 1);
   const [exported] = payload.releases;
-  assert.deepEqual(Object.keys(exported), ["id", "version", "title", "description", "owner", "status", "createdAt", "decisionIds"]);
+  assert.deepEqual(Object.keys(exported), ["id", "version", "title", "description", "owner", "status", "createdAt", "decisionIds", "decision_links", "ships_unaccepted"]);
   assert.deepEqual(exported.decisionIds, [CACHE_DECISION.id, QUEUE_DECISION.id]);
   assert.equal(exported.createdAt, "2026-07-02T00:00:00.000Z");
   assert.equal(exported.description, "Queue and cache shipped together.");

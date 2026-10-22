@@ -114,7 +114,16 @@ test("populated browser export has an explicit portable contract and only Shiplo
     decisions: [{ ...decision, shipped_in: [{ id: "r-1", version: "v1.0.0" }], shipped_while_unaccepted: false }],
     // The missing decision stays outside the resolved join, but its id
     // remains under the release as audit evidence.
-    releases: [{ ...release, decisionIds: ["d-queue"], unresolved_decision_ids: ["d-preserved-but-missing"] }],
+    releases: [{
+      ...release,
+      decisionIds: ["d-queue"],
+      unresolved_decision_ids: ["d-preserved-but-missing"],
+      decision_links: [
+        { id: "d-queue", title: decision.title, status: decision.status, unresolved: false },
+        { id: "d-preserved-but-missing", title: null, status: null, unresolved: true },
+      ],
+      ships_unaccepted: true,
+    }],
     associations: [{ decisionId: "d-queue", releaseId: "r-1", position: 0 }],
   });
   assert.equal(JSON.parse(JSON.stringify(payload)).generatedAt, GENERATED_AT);
@@ -344,7 +353,7 @@ test("a record's undeclared keys stay in the browser", () => {
   assert.deepEqual(payload.decisions,
     [{ ...decision, shipped_in: [{ id: "r-1", version: "v1.0.0" }], shipped_while_unaccepted: false }]);
   assert.deepEqual(Object.keys(payload.releases[0]).toSorted(),
-    ["createdAt", "decisionIds", "id", "title", "version"]);
+    ["createdAt", "decisionIds", "decision_links", "id", "ships_unaccepted", "title", "version"]);
   assert.deepEqual(shiplogExportViolations(payload), []);
 });
 

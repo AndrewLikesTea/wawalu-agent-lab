@@ -213,6 +213,9 @@ export const SHIPLOG_EXPORT_SHAPE = Object.freeze({
     createdAt: "string",
     decisionIds: "string[]",
     unresolved_decision_ids: "string[]?",
+    // Derived on every export (#2985), so pinned as required here.
+    decision_links: "array",
+    ships_unaccepted: "boolean",
   },
   associations: {
     decisionId: "string",

@@ -122,8 +122,13 @@ test("the fixture export keeps every existing field, record order, and top-level
     const { shipped_in: _in, shipped_while_unaccepted: _flag, ...rest } = exported;
     assert.deepEqual(rest, legacy);
   }
-  // Releases are untouched.
-  assert.deepEqual(payload.releases, FIXTURE.releases.map((release) => normalizeExportRecord(release, EXPORT_RELEASE_FIELDS)));
+  // Releases keep every legacy key and value; #2985 appends two derived keys.
+  for (const [index, stored] of FIXTURE.releases.entries()) {
+    const legacy = normalizeExportRecord(stored, EXPORT_RELEASE_FIELDS);
+    const { decision_links: _links, ships_unaccepted: _ships, ...rest } = payload.releases[index];
+    assert.deepEqual(Object.keys(payload.releases[index]), [...Object.keys(legacy), "decision_links", "ships_unaccepted"]);
+    assert.deepEqual(rest, legacy);
+  }
   assert.deepEqual(shiplogExportViolations(payload), []);
 });
 

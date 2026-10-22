@@ -28,6 +28,14 @@ Acceptance questions and definitions:
   distinct referenced ids absent from browser storage in first-reference order.
   These ids remain outside the existing resolved `decisionIds` and `associations`
   joins. Filter-hidden decisions are not missing. No phantom decisions are created.
+- **What does each release ship, and is any of it unaccepted? (#2985)**
+  `decision_links` holds one `{ id, title, status, unresolved }` per stored
+  reference, in association order, from the history row's `resolveRelease`
+  against every decision in browser storage. A missing id is `{ id, title: null,
+  status: null, unresolved: true }`. `ships_unaccepted` is
+  `shipsUnacceptedDecision`, the releases page's filter predicate. An unresolved
+  link counts as not accepted. Both keys follow every legacy release key, and
+  the importer drops them.
 
 The existing envelope, record order, fields and resolved joins remain compatible.
 Derived shipping fields are recalculated, not restored as authoritative storage

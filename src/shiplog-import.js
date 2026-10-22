@@ -373,6 +373,8 @@ export function parseImport(text, options = {}) {
     });
     const stored = { ...structuredClone(record), decisionIds };
     delete stored.unresolved_decision_ids;
+    delete stored.decision_links;
+    delete stored.ships_unaccepted;
     releases.push(stored);
   });
 

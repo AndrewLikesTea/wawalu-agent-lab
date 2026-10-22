@@ -164,6 +164,11 @@ export const EXPORT_RELEASE_FIELDS = Object.freeze({
   decisionIds: "string[]",
   // Missing from this browser, retained as evidence outside the resolved join.
   unresolved_decision_ids: "string[]?",
+  // Derived at export time (#2985), dropped on import like the field above:
+  // `{ id, title, status, unresolved }` per stored link, and whether any linked
+  // decision is not accepted (shipsUnacceptedDecision).
+  decision_links: "array?",
+  ships_unaccepted: "boolean?",
 });
 
 function typeName(value) {
