@@ -1829,9 +1829,11 @@ test("exactly five pages route a reader to the brief and the scorecard, and the 
     assert.equal((footer.match(new RegExp(`id="${ASSETS_ID}"`, "g")) ?? []).length, shipped ? 1 : 0,
       `${file}: the About block must ship ${shipped ? "exactly one" : "no"} route to the brief and the scorecard`);
     // One copy of the label on the whole document, or none: a second one would
-    // be a second answer to where those two assets are.
-    assert.equal((html.match(new RegExp(ASSETS_LINK_LABEL, "g")) ?? []).length, shipped ? 1 : 0,
-      `${file}: the label is written ${shipped ? "once" : "nowhere"} on the page`);
+    // be a second answer to where those two assets are. #2974 gave the home
+    // page's hero its one copy, beside the demo actions rather than in a footer.
+    const labelled = shipped || file === "index.html";
+    assert.equal((html.match(new RegExp(ASSETS_LINK_LABEL, "g")) ?? []).length, labelled ? 1 : 0,
+      `${file}: the label is written ${labelled ? "once" : "nowhere"} on the page`);
   }
 
   // The home page keeps its section and its controls, and keeps no footer route
