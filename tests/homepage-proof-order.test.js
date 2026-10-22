@@ -43,7 +43,7 @@ test("homepage presents the promise, demo and proof before evaluation material",
   }
   const hero = doc.getElementById("top");
   assert.deepEqual(hero.querySelectorAll("a").map((a) => a.getAttribute("href")),
-    ["#title", "/release.html?id=demo-r-1-3-0&example=1", "/decision.html?id=shiplog-pr-2547", "https://github.com/AndrewLikesTea/wawalu-agent-lab/blob/a1dc0a2dd45b24f8c114dfabed2a31f095f75557/src/build-stamp.js"]);
+    ["#title", "/release.html?id=demo-r-1-3-0&example=1", "#site-footer-form", "/decision.html?id=shiplog-pr-2547", "https://github.com/AndrewLikesTea/wawalu-agent-lab/blob/a1dc0a2dd45b24f8c114dfabed2a31f095f75557/src/build-stamp.js"]);
   const sections = doc.getElementById("main-content").children.filter((node) => node.tagName === "SECTION");
   assert.deepEqual(sections.slice(0, 5).map((node) => node.id),
     ["top", "record-history", "shiplog-entry", "shiplog-evaluation-brief", "shiplog-pilot-scorecard"]);
@@ -219,3 +219,11 @@ test("homepage workflow uses one column at every width and existing responsive f
     assert.match(css, /\.hero-actions\s*\{[^}]*flex-wrap:wrap/);
   } finally { page.restore(); }
 });
+
+ test("hero demonstration retains wrapping, touch size and visible focus", async () => {
+  const css = await readFile(file("styles.css"), "utf8");
+  assert.match(css, /\.hero-actions \{[^}]*flex-wrap:wrap/);
+  assert.match(css, /\.button-link \{[^}]*min-height:48px/);
+  const landing = await readFile(file("landing-decision.css"), "utf8");
+  assert.match(landing, /#hero-demonstration \{[^}]*max-width:100%;[^}]*white-space:normal;[^}]*overflow-wrap:anywhere/);
+  assert.match(css, /a:focus-visible \{ outline:3px solid var\(--focus-ring\)/);});

@@ -13,12 +13,12 @@
 // the chosen topic in visible text in two places, focus landing in the field a
 // visitor types next, a polite announcement, and the footer's own disclosures
 // still standing. Plus the shapes this must not disturb: the follow-up block's
-// three tab stops and the field-note form's single control.
+// existing email controls and the field-note form.
 
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { loadPage, pressEnter, pressTab, tabSequence, textOf } from "./support/browser.js";
+import { loadPage, pressKey, pressEnter, pressTab, tabSequence, textOf } from "./support/browser.js";
 import { importPageModule } from "./support/page-module.js";
 import { FOLLOW_UP_INTENTS } from "../src/lead-capture.js";
 import {
@@ -202,7 +202,7 @@ test("the chosen topic is visible beside the field, and says what the request se
   // It does not imply the topic travels with the request. The footer already
   // says only the address is sent, and this line must agree with it.
   assert.match(textOf(carried), /sends only your work email/);
-  assert.match(textOf(carried), /Choosing the other topic above replaces it\./);
+  assert.match(textOf(carried), /Changing the discussion topic replaces it\./);
 
   // Read before the field, inside the block it describes, and not a control.
   const order = [...panel.querySelectorAll("p"), ...panel.querySelectorAll("input")];
@@ -221,7 +221,7 @@ test("the chosen topic is visible beside the field, and says what the request se
 
 /* ----------------------- what must not have changed ----------------------- */
 
-test("the follow-up block keeps its three tab stops and the field-note form its one", async (t) => {
+test("the follow-up block adds an editable topic and preserves the email controls", async (t) => {
   const { document } = await openHomepage(t);
 
   const stops = () => focusables(document, byId(document, "site-footer-panel"));
@@ -234,7 +234,7 @@ test("the follow-up block keeps its three tab stops and the field-note form its 
 
   tabTo(document, "buyer-intent-pilot");
   pressEnter(document);
-  assert.deepEqual(stops(), before, "the follow-up block's tab stops changed");
+  assert.deepEqual(stops(), ["SELECT#buyer-intent-topic", ...before], "the chosen topic stays editable beside the email");
 
   // The field-note sign-up above is untouched too: one field, one submit.
   assert.deepEqual(focusables(document, byId(document, "lead-capture-form")),
@@ -288,3 +288,36 @@ test("the request this page sends is unchanged, because no key exists to carry a
     assert.doesNotMatch(String(control.value), /demonstration|pilot evaluation/i);
   }
 });
+
+for (const keyboard of [false, true]) {
+  test(`hero demonstration: ${keyboard ? "Enter" : "click"} lands on an editable follow-up`, async (t) => {
+    const { document } = await openHomepage(t);
+    const hero = byId(document, "hero-demonstration");
+    const form = byId(document, "site-footer-form");
+    assert.equal(textOf(hero), "Request a Shiplog demonstration");
+    assert.equal(hero.tagName, "A");
+    assert.equal(hero.getAttribute("href"), "#site-footer-form");
+    assert.ok(hero.parentNode === byId(document, "core-demo-link").parentNode);
+    assert.equal(byId(document, "buyer-intent-topic"), null, "ordinary arrival does not preselect");
+    let scrolled = false;
+    form.scrollIntoView = () => { scrolled = true; };
+    tabTo(document, "hero-demonstration");
+    if (keyboard) pressEnter(document); else hero.click();
+    // Focus lands on the topic itself, so what is announced on arrival is the
+    // preselected choice and the note saying only the email is sent.
+    const topic = byId(document, "buyer-intent-topic");
+    assert.ok(document.activeElement === topic, "landing must announce the chosen topic, not a bare form");
+    assert.ok(scrolled);
+    assert.equal(topic.value, "demo");
+    assert.equal(topic.getAttribute("aria-describedby"), "buyer-intent-carried");
+    assert.equal(topic.getAttribute("name"), null, "the topic must never be submitted with the email");
+    assert.ok(!tabSequence(document).includes(form));
+    assert.deepEqual(topic.querySelectorAll("option").map(textOf), Object.values(FOLLOW_UP_INTENTS).filter(label => [FOLLOW_UP_INTENTS.demo, FOLLOW_UP_INTENTS.pilot].includes(label)));
+    tabTo(document, "buyer-intent-topic");
+    pressKey(document, "ArrowDown");
+    assert.equal(topic.value, "pilot");
+    assert.ok(document.activeElement === topic, "editing does not steal focus");
+    assert.equal(byId(document, "buyer-intent-pilot").getAttribute("aria-pressed"), "true");
+    assert.equal(document.navigations.length, 0, "native navigation cannot overwrite focus");
+  });
+}

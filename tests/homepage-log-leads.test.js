@@ -254,7 +254,7 @@ test("the painted front door leads with the promise, then names the log", async 
   const heroStops = sequence.filter((node) => ancestorIds(node).includes("top"));
   const example = hero.querySelector(".hero-actions").querySelectorAll("a")[1];
   assert.match(textOf(example), /complete example release/);
-  assert.deepEqual(heroStops, [demo, example, ...document.getElementById("repository-last-verified").querySelectorAll("a")]);
+  assert.deepEqual(heroStops, [demo, example, document.getElementById("hero-demonstration"), ...document.getElementById("repository-last-verified").querySelectorAll("a")]);
   const demoAt = sequence.indexOf(demo);
   assert.ok(!ancestorIds(sequence[demoAt - 1]).includes("main-content"), "a stop was added above the demo link");
   assert.ok(ancestorIds(sequence[sequence.indexOf(heroStops.at(-1)) + 1]).includes("record-history"), "the recorder follows the evidence links");
