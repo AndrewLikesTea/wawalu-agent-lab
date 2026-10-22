@@ -1,6 +1,21 @@
+// Focus only an explicit check destination, before asynchronous data loading.
+// The heading persists across verdict updates; those updates never refocus it.
+export function bindDeploymentArrival(root, view = globalThis.window) {
+  const heading = root.querySelector("#deployment-status-title");
+  if (!heading || !view || heading.dataset.arrivalBound === "true") return;
+  heading.dataset.arrivalBound = "true";
+  const arrive = () => {
+    if (view.location?.hash !== "#deployment-status-title") return;
+    heading.focus();
+  };
+  view.addEventListener("hashchange", arrive);
+  arrive();
+}
+
 // Keep the failure message independent of the page's module graph: a missing
 // build-stamp module must not leave a repository-root link posing as evidence.
 export async function bootReleases(root, load = () => import("./releases-page.js")) {
+  bindDeploymentArrival(root);
   try {
     await load();
   } catch {

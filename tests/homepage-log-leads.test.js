@@ -121,33 +121,16 @@ test("the first focusable in the log precedes the first focusable in AI FinOps",
   assert.ok(log < finops,
     `the log's first tab stop is number ${log} and AI FinOps' is ${finops}: reading order and tab order disagree`);
 
-  // Keep the proof’s full-record link in the expected keyboard order.
-  // The twelve include the historical build source and the repository block's two links — the cited pull
-  // request and the route to every repository-backed decision (#2742) — the
-  // route to the evaluation brief and blank pilot scorecard inside the offer
-  // paragraph (#2540), the full decision record, the follow-up routes, the two
-  // deployment-check links, the deployment check's evidence disclosure (#2555),
-  // the record-list button, and the decision-to-release link.
-  //
-  // The check's copy control is NOT among them, and that is the point of
-  // counting here rather than in the markup: this page is booted without a
-  // health reading, so the check cannot answer, and a control that would copy
-  // a verdict nobody has is withdrawn rather than offered. It becomes the
-  // thirteenth stop only once the comparison comes out one way or the other, which
-  // tests/homepage-deployment-copy.test.js drives directly.
-  //
-  // The recorded-build link now lives in the opening section.
-  // The twelfth here is the coverage figure's corrective link (#2907): the example
-  // log this page boots with has one uncovered release, so the figure offers
-  // "Review the 1 uncovered release on Releases" directly after its result. It
-  // exists only while a release is uncovered; a covered or still-counting log
-  // offers eleven.
+  // The repository-to-deployment-check link adds one semantic Tab stop.
+  // The existing coverage action remains present for this uncovered log.
+  // The unavailable check's copy control remains withdrawn.
   assert.equal(
     sequence.filter((element) => ancestorIds(element).includes("shiplog-entry")).length,
-    12,
-    "the log entry section offers twelve tab stops, including the coverage figure's corrective link",
+    13,
+    "the log entry includes both the coverage action and repository deployment-check link",
   );
   assert.equal(sequence.filter((element) => element.getAttribute?.("id") === "reasoning-kept-review").length, 1);
+  assert.equal(sequence.filter((element) => element.id === "repository-deployment-check").length, 1);
 });
 
 // One assertion per block, so a regression names the block it dropped rather
