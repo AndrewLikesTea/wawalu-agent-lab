@@ -105,6 +105,13 @@ function evidencePairs(page) {
     .map((term, index) => [textOf(term), textOf(nodes.filter((node) => node.tagName === "DD")[index])]);
 }
 
+// The labeled build pair (#2967), as [label, value] rows read off the dl.
+function buildPair(page) {
+  const nodes = page.document.querySelector("#deployment-identifiers").childElements;
+  const values = nodes.filter((node) => node.tagName === "DD");
+  return nodes.filter((node) => node.tagName === "DT").map((term, index) => [textOf(term), textOf(values[index])]);
+}
+
 // Every tag inside the band that could change state. Walked rather than
 // selected: the harness rejects a descendant selector.
 //
@@ -249,8 +256,9 @@ test("a health response in an unexpected shape reads as unknown, in plain langua
   );
   // The comparison it can still make: the recorded build is last-known-good.
   assert.equal(metricText(page), "Running build not reported · Recorded build v2.1.0 · recorded 2 days ago");
-  assert.equal(nextActions(page).length, 1, "unknown must name exactly one next action");
-  assert.equal(nextActions(page)[0].href, "/release.html?id=r-2-1-0");
+  // Its one corrective action is the check's own Retry (#2967), not a link.
+  assert.equal(nextActions(page).length, 0, "a check that did not complete offered a link beside its Retry");
+  assert.equal(page.document.querySelector("#deployment-retry").hidden, false);
   assert.doesNotMatch(verdictText(page), /Error|error:|at .*\.js/, "a reader was shown an error object");
 });
 
@@ -263,7 +271,8 @@ test("an unreachable health check reads as unknown and still reports the last-kn
       + UNKNOWN_REASONS.unreachable,
   );
   assert.equal(metricText(page), "Running build not reported · Recorded build v2.1.0 · recorded 2 days ago");
-  assert.equal(nextActions(page).length, 1, "unknown must name exactly one next action");
+  assert.equal(nextActions(page).length, 0, "a check that did not complete offered a link beside its Retry");
+  assert.equal(page.document.querySelector("#deployment-retry").hidden, false);
   // The thrown message is not a thing a reader is shown.
   assert.doesNotMatch(verdictText(page), /must never reach the page/);
   assert.doesNotMatch(evidenceText(page), /must never reach the page/);
@@ -466,9 +475,10 @@ test("an identifier the page cannot show whole is refused, never stripped into a
 
   // And none of it reaches the rendered page.
   const page = await openReleases(t, { readHealth: answers({ status: "ok", build: spoofed }) });
-  const identifiers = textOf(page.document.querySelector("#deployment-identifiers"));
-  assert.equal(identifiers.includes(BIDI_OVERRIDE), false, "an invisible override reached the proof line");
-  assert.equal(identifiers, "Running build: not reported. Recorded build: v2.1.0.");
+  const identifiers = "Running build: not reported. Recorded build: v2.1.0.";
+  assert.equal(textOf(page.document.querySelector("#deployment-identifiers")).includes(BIDI_OVERRIDE), false,
+    "an invisible override reached the proof line");
+  assert.deepEqual(buildPair(page), [["Recorded build", "v2.1.0"], ["Running build", "not reported"]]);
   assert.match(verdictText(page), /The check did not complete/);
   // Nor into the copy, which is the one thing here that leaves the page: a
   // refused identifier must not ride an override into a document elsewhere.

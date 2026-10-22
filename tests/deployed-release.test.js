@@ -88,6 +88,9 @@ async function open(
 
 const marking = (page) => textOf(page.document.querySelector("#shipped-build-marking"));
 const verdictText = (page) => textOf(page.document.querySelector("#deployment-verdict"));
+// The labeled build pair (#2967), as "label: value" rows, recorded build first.
+const buildPair = (page) => page.document.querySelector("#deployment-identifiers").childElements
+  .map((node) => textOf(node)).join(" | ");
 
 /* --------------------------- the record itself ---------------------------- */
 
@@ -314,8 +317,8 @@ test("an unstamped build shows no record and withdraws the real marking", async 
   assert.match(verdictText(page), /The check did not complete/);
   assert.match(verdictText(page), /no deployment record to compare/);
   assert.equal(
-    textOf(page.document.querySelector("#deployment-identifiers")),
-    "Running build: 0123456789abcdef0123456789abcdef01234567. Recorded build: not available.",
+    buildPair(page),
+    "Recorded build | not available | Running build | 0123456789abcdef0123456789abcdef01234567",
   );
   assert.doesNotMatch(verdictText(page), /^Confirmed:/);
 });
@@ -377,18 +380,12 @@ test("a page and a deployment built from different commits read as a mismatch wi
   // resolve to nothing: this record does not live in the visitor's log.
   assert.equal(actions[0].getAttribute("href"), "/releases.html#shipped-build");
   assert.equal(textOf(actions[0]), REAL_RECORD_LINK_LABEL);
-  assert.equal(
-    textOf(page.document.querySelector("#deployment-identifiers")),
-    `Running build: ${other}. Recorded build: ${SHA}.`,
-  );
+  assert.equal(buildPair(page), `Recorded build | ${SHA} | Running build | ${other}`);
 });
 
 test("the proof names both compared version values and sits in the record's own block", async (t) => {
   const page = await open(t);
-  assert.equal(
-    textOf(page.document.querySelector("#deployment-identifiers")),
-    `Running build: ${SHA}. Recorded build: ${SHA}.`,
-  );
+  assert.equal(buildPair(page), `Recorded build | ${SHA} | Running build | ${SHA}`);
   // No link back to the record (#2487): the check is a subsection of the block
   // the record heads, so the record is already beside it.
   assert.equal(page.document.querySelectorAll("#deployment-release-record").length, 0);
@@ -459,10 +456,7 @@ test("the body the endpoint really serves is one this band reads, and it resolve
   const served = parseHealthBody(JSON.stringify(healthContract(STAMPED)));
   const page = await open(t, { readHealth: answers(served) });
 
-  assert.equal(
-    textOf(page.document.querySelector("#deployment-identifiers")),
-    `Running build: ${SHA}. Recorded build: ${SHA}.`,
-  );
+  assert.equal(buildPair(page), `Recorded build | ${SHA} | Running build | ${SHA}`);
   assert.equal(page.document.querySelector("#deployment-status").dataset.deploymentState, "match");
   assert.match(verdictText(page), /^Confirmed: the running build is [0-9a-f]{40}, matching the recorded build/);
   // And the copy a buyer takes away carries the same two values, from the same

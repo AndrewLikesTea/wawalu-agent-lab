@@ -186,24 +186,30 @@
           <h3 class="release-followup-title" id="deployment-status-title">Deployment check</h3>
           <p class="release-followup-lead" id="deployment-status-proof">The deployment check compares the recorded build with the running build. Confirmed: the running build matches the recorded build.</p>
           <p class="release-followup-lead" id="deployment-outcomes">Not a match: the running build differs from the recorded build. See the deployment record for the recorded build. Did not complete: this page cannot confirm whether the running build matches the recorded build. Check again later.</p>
+          <!-- The verdict at a glance (#2967): a filled chip naming the state in
+               words, with a shape beside it so no state is told by colour alone.
+               The sentence under it stays the live region; the chip is not one,
+               so a state change is announced once. Its corrective action follows
+               the sentence directly: the record link for a mismatch, Retry for a
+               check that did not complete, nothing otherwise. -->
+          <p class="deployment-verdict-chip" id="deployment-verdict-label" data-verdict="loading"><span aria-hidden="true">◌</span> <span>Checking…</span></p>
           <p class="release-followup-lead" id="deployment-verdict" role="status" aria-describedby="deployment-checked-at">Checking the running build against the recorded build: the result appears here in a few seconds.</p>
+          <!-- The check's own recovery (#2806) lives in the action slot and is the
+               one child a render keeps. It re-runs this probe alone: the record
+               above, the coverage count and the log below are not read again.
+               Same class as the coverage count's retry, so the two read as one kind. -->
+          <div id="deployment-next-action"><button class="empty-action empty-action-secondary" id="deployment-retry" type="button" hidden>Retry the deployment check</button></div>
           <p class="detail-summary" id="deployment-checked-at" hidden></p>
-          <!-- The check's own recovery (#2806), shown only while it could not
-               complete, and re-running this probe alone: the record above, the
-               coverage count and the log below are not read again. Same class
-               as the coverage count's retry, so the two read as one kind. -->
-          <button class="empty-action empty-action-secondary" id="deployment-retry" type="button" hidden>Retry the deployment check</button>
-          <p class="detail-summary" id="deployment-identifiers"></p>
-          <div class="shiplog-proof-share">
-            <button class="share-button" id="deployment-copy" type="button" disabled aria-describedby="deployment-copy-status">Copy the deployment check verdict and both versions</button>
-            <span class="share-status" id="deployment-copy-status" role="status" aria-live="polite" aria-atomic="true"></span>
-          </div>
+          <dl class="deployment-builds" id="deployment-identifiers"></dl>
           <p class="detail-summary" id="deployment-metric"></p>
-          <div id="deployment-next-action"></div>
           <details class="supersede-disclosure" id="deployment-evidence" data-disclosure="collapsed">
             <summary class="supersede-disclosure-summary" id="deployment-evidence-summary" aria-expanded="false" aria-controls="deployment-evidence-body">Evidence: what the running build answered, and the deployment record it was compared with</summary>
             <dl class="supersede-disclosure-body" id="deployment-evidence-body"></dl>
           </details>
+          <div class="shiplog-proof-share">
+            <button class="share-button" id="deployment-copy" type="button" disabled aria-describedby="deployment-copy-status">Copy the deployment check verdict and both versions</button>
+            <span class="share-status" id="deployment-copy-status" role="status" aria-live="polite" aria-atomic="true"></span>
+          </div>
         </div>
       </section>
       </section>

@@ -3,6 +3,23 @@
  * keeps the block's rhythm and is still the target its copied link lands on. */
 .shiplog-real-record { display:grid; gap:16px; }
 .shiplog-real .release-followup-slot { margin:0; }
+/* The deployment check's verdict at a glance (#2967). Only the dynamic verdict
+ * gets the filled wash chip, in the .badge state hues this site already ships
+ * (5.5:1 to 6.7:1 on their wash); the shape beside the word carries the state
+ * without colour. The two builds are a labeled, aligned pair: lowercase mono
+ * labels, mono values that wrap anywhere, so a 64-character identifier breaks
+ * inside the column at 390px instead of widening the page. Nothing here
+ * measures the viewport in script, so these rules are what tests assert. */
+#deployment-status-callout { min-width:0; overflow-wrap:anywhere; }
+.deployment-verdict-chip { display:inline-flex; align-items:center; gap:6px; max-width:100%; margin:12px 0 0; border-radius:99px; padding:4px 10px; font:700 12px/1.3 ui-monospace,monospace; background:#e8e6e2; color:#5c5b56; }
+.deployment-verdict-chip[data-verdict="match"] { background:#dcefdc; color:#205d2b; }
+.deployment-verdict-chip[data-verdict="drift"] { background:#f6dede; color:#8a2b2b; }
+.deployment-verdict-chip[data-verdict="unknown"] { background:#fff0c7; color:#72520a; }
+#deployment-next-action>#deployment-retry { margin-top:12px; }
+#deployment-checked-at { margin-top:10px; text-transform:lowercase; }
+.deployment-builds { display:grid; grid-template-columns:max-content minmax(0,1fr); gap:4px 12px; margin:10px 0; min-width:0; font:12px/1.5 ui-monospace,monospace; }
+.deployment-builds dt { color:#3d5163; font-weight:600; text-transform:lowercase; }
+.deployment-builds dd { margin:0; min-width:0; color:#171713; overflow-wrap:anywhere; }
 .shiplog-proof:target,.shiplog-real-record:target { outline:3px solid var(--focus-ring); outline-offset:3px; }
 .shiplog-demo { border-style:dashed; border-left-style:solid; }
 .shiplog-real { border-color:#9aa8c4; border-left-color:#1f3a6e; background:#eef2fb; }
