@@ -613,6 +613,16 @@
               </span>
             </div>
           </fieldset>
+          <!-- A checkbox beside the radios rather than a seventh radio: "any
+               linked decision is not accepted" spans several of their options
+               at once, plus an unknown decision, so it is a separate question.
+               The count it changes is #release-count above; no new live region. -->
+          <div class="filter release-unaccepted-filter">
+            <span class="filter-option">
+              <input id="release-unaccepted-only" type="checkbox" />
+              <label for="release-unaccepted-only">Only releases with unaccepted decisions</label>
+            </span>
+          </div>
         </div>
         <!-- Share whatever the filters are showing. The label is the one the
              decisions history already uses for the same control on index.html,

@@ -4,9 +4,9 @@ import { readReleaseFilters, releaseFilterSearch } from "../src/release-filter-u
 import { initReleasesPage } from "../src/releases-page.js";
 import { loadPage, DomEvent, pressKey, textOf } from "./support/browser.js";
 
-const defaults = { query: "", status: "all", decisionStatus: "all", decisionId: "all" };
+const defaults = { query: "", status: "all", decisionStatus: "all", decisionId: "all", unaccepted: "all" };
 test("URL vocabulary round-trips Unicode and reserved characters, omits defaults and preserves other parameters", () => {
-  const filters = { query: "queue & café + #?/%", status: "planned", decisionStatus: "accepted", decisionId: "a/b & c" };
+  const filters = { query: "queue & café + #?/%", status: "planned", decisionStatus: "accepted", decisionId: "a/b & c", unaccepted: "only" };
   const search = releaseFilterSearch("?focus=r1&campaign=review&campaign=team", filters);
   assert.deepEqual(readReleaseFilters(search, new Set([filters.decisionId])), filters);
   assert.match(search, /q=queue/);

@@ -1,4 +1,4 @@
-import { normalizeReleaseFilters } from "./releases.js";
+import { UNACCEPTED_ONLY, normalizeReleaseFilters } from "./releases.js";
 import { copyRecordUrl } from "./share-link.js";
 
 // Every line this control writes names "this view", the words on its button.
@@ -13,7 +13,9 @@ const COPY_SUCCESS = "Link to this view copied. It keeps your search and filters
 const COPY_ALL_SUCCESS = "Link to this view copied. No search or filters are set, so it opens the full release log.";
 const COPY_FAILURE = "Could not copy the link to this view. Copy it from the field below instead.";
 
-const PARAMETERS = { query: "q", status: "status", decisionStatus: "decision-status", decisionId: "decision" };
+const PARAMETERS = {
+  query: "q", status: "status", decisionStatus: "decision-status", decisionId: "decision", unaccepted: "unaccepted",
+};
 
 export function readReleaseFilters(search = "", knownDecisionIds) {
   const params = new URLSearchParams(search);
@@ -38,7 +40,7 @@ export function releaseFilterSearch(search = "", input = {}) {
 
 // URL writes happen only on user changes; hydration never pushes history.
 export function bindReleaseFilterUrl({ root, search, statusFilter, decisionFilter, decisionStatusInputs,
-  knownDecisionIds, location, history, navigation, update, clipboard }) {
+  unacceptedFilter, knownDecisionIds, location, history, navigation, update, clipboard }) {
   let queryString = location?.search ?? "";
   const button = root.querySelector("#release-copy-link");
   const feedback = root.querySelector("#release-copy-status");
@@ -48,6 +50,7 @@ export function bindReleaseFilterUrl({ root, search, statusFilter, decisionFilte
     query: search?.value ?? "", status: statusFilter?.value ?? "all",
     decisionId: decisionFilter?.value ?? "all",
     decisionStatus: decisionStatusInputs.find((input) => input.checked)?.value ?? "all",
+    unaccepted: unacceptedFilter?.checked ? UNACCEPTED_ONLY : "all",
   });
   let revision = 0;
   const clearFeedback = () => {
@@ -69,13 +72,16 @@ export function bindReleaseFilterUrl({ root, search, statusFilter, decisionFilte
     if (statusFilter) statusFilter.value = filters.status;
     if (decisionFilter) decisionFilter.value = filters.decisionId;
     for (const input of decisionStatusInputs) input.checked = input.value === filters.decisionStatus;
+    if (unacceptedFilter) unacceptedFilter.checked = filters.unaccepted === UNACCEPTED_ONLY;
     clearFeedback();
     sync("replaceState");
     update();
   };
   const change = () => { clearFeedback(); sync("pushState"); update(); };
   search?.addEventListener("input", change);
-  for (const control of [statusFilter, decisionFilter, ...decisionStatusInputs]) control?.addEventListener("change", change);
+  for (const control of [statusFilter, decisionFilter, ...decisionStatusInputs, unacceptedFilter]) {
+    control?.addEventListener("change", change);
+  }
   navigation?.addEventListener?.("popstate", hydrate);
   const clearButton = root.querySelector("#release-clear-filters");
   if (clearButton) clearButton.disabled = false;
@@ -84,6 +90,7 @@ export function bindReleaseFilterUrl({ root, search, statusFilter, decisionFilte
     if (statusFilter) statusFilter.value = "all";
     if (decisionFilter) decisionFilter.value = "all";
     for (const input of decisionStatusInputs) input.checked = input.value === "all";
+    if (unacceptedFilter) unacceptedFilter.checked = false;
     change();
   });
   if (button && feedback && fallback && linkField) {
