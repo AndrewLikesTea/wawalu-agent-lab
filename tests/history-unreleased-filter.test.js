@@ -196,7 +196,9 @@ test("exported records keep their key set under the filter", async (t) => {
   const after = download();
   assert.deepEqual(after.decisions.map((record) => record.id).sort(), ["unrel-cache", "unrel-cron"]);
   assert.deepEqual(keysOf(after, "unrel-cache"), keysOf(before, "unrel-cache"));
-  assert.deepEqual(keysOf(after, "unrel-cache"), Object.keys(DECISIONS[1]).sort());
+  // The stored fields plus the two the export derives (#2981).
+  assert.deepEqual(keysOf(after, "unrel-cache"),
+    [...Object.keys(DECISIONS[1]), "shipped_in", "shipped_while_unaccepted"].sort());
 });
 
 test("the shipped line wraps at any width and keeps touch-sized links when narrow", async () => {

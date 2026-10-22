@@ -111,10 +111,10 @@ test("populated browser export has an explicit portable contract and only Shiplo
     // Nothing was filtered, so the block is empty — the one reading that means
     // "this file is the whole browsed history".
     filter: {},
-    decisions: [decision],
-    // The second id named a decision this browser does not hold, so it is not
-    // written into the file: see the link integrity tests below.
-    releases: [{ ...release, decisionIds: ["d-queue"] }],
+    decisions: [{ ...decision, shipped_in: [{ id: "r-1", version: "v1.0.0" }], shipped_while_unaccepted: false }],
+    // The missing decision stays outside the resolved join, but its id
+    // remains under the release as audit evidence.
+    releases: [{ ...release, decisionIds: ["d-queue"], unresolved_decision_ids: ["d-preserved-but-missing"] }],
     associations: [{ decisionId: "d-queue", releaseId: "r-1", position: 0 }],
   });
   assert.equal(JSON.parse(JSON.stringify(payload)).generatedAt, GENERATED_AT);
@@ -341,7 +341,8 @@ test("a record's undeclared keys stay in the browser", () => {
     [RELEASE_STORAGE_KEY]: JSON.stringify([{ ...release, decisionIds: ["d-queue"], authToken: "t-1" }]),
   }), { generatedAt: GENERATED_AT });
 
-  assert.deepEqual(payload.decisions, [decision]);
+  assert.deepEqual(payload.decisions,
+    [{ ...decision, shipped_in: [{ id: "r-1", version: "v1.0.0" }], shipped_while_unaccepted: false }]);
   assert.deepEqual(Object.keys(payload.releases[0]).toSorted(),
     ["createdAt", "decisionIds", "id", "title", "version"]);
   assert.deepEqual(shiplogExportViolations(payload), []);
@@ -704,7 +705,7 @@ test("record text with markup, quotes, and backslashes survives JSON.parse uncha
   const { text } = await capture(storage({ [STORAGE_KEY]: JSON.stringify([hostile]) }));
 
   const parsed = JSON.parse(text);
-  assert.deepEqual(parsed.decisions, [hostile], "a record did not round-trip through the file byte for byte");
+  assert.deepEqual(parsed.decisions, [{ ...hostile, shipped_in: [], shipped_while_unaccepted: false }], "a record did not round-trip through the file byte for byte");
   assert.equal(parsed.record_count, 1);
   // The bytes are JSON escapes, never HTML entities: nothing on this path
   // escapes for a document, because nothing on this path writes one.

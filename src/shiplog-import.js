@@ -34,7 +34,7 @@ import {
 } from "./finops-commitment-decision.js";
 import { RELEASE_STORAGE_KEY, readReleases, saveReleases } from "./releases.js";
 import { SHIPLOG_EXPORT_SCHEMA, SHIPLOG_EXPORT_VERSION } from "./shiplog-export.js";
-import { envelopeCountMismatches } from "./shiplog-export-schema.js";
+import { DERIVED_DECISION_FIELDS, envelopeCountMismatches } from "./shiplog-export-schema.js";
 
 // One decision field is optional and validated on its own terms: the
 // `finopsCommitment` block a decision recorded from an approved FinOps
@@ -260,7 +260,11 @@ export function parseImport(text, options = {}) {
       for (const message of errors) rejected.push(rejection("decisions", index, recordId(record), message));
       return;
     }
-    decisions.push(structuredClone(record));
+    // What shipped a decision is recomputed from the releases on every export;
+    // a stored copy would only go stale (#2981).
+    const stored = structuredClone(record);
+    for (const field of DERIVED_DECISION_FIELDS) delete stored[field];
+    decisions.push(stored);
   });
 
   // A link survives when its decision will exist after the import: accepted in
@@ -367,7 +371,9 @@ export function parseImport(text, options = {}) {
       keptAt.set(id, position);
       decisionIds.push(id);
     });
-    releases.push({ ...structuredClone(record), decisionIds });
+    const stored = { ...structuredClone(record), decisionIds };
+    delete stored.unresolved_decision_ids;
+    releases.push(stored);
   });
 
   return {

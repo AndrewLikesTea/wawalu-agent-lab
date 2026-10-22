@@ -139,7 +139,15 @@ export const EXPORT_DECISION_FIELDS = Object.freeze({
   // restores.
   finopsCommitment: "object?",
   finopsReconciliation: "object?",
+  // Derived at export time, never stored (#2981): `{ id, version }` per release
+  // that carried the decision, newest first, and whether it is currently
+  // not accepted. Optional so a file written before them is still version 1;
+  // the importer drops them (DERIVED_DECISION_FIELDS).
+  shipped_in: "array?",
+  shipped_while_unaccepted: "boolean?",
 });
+
+export const DERIVED_DECISION_FIELDS = Object.freeze(["shipped_in", "shipped_while_unaccepted"]);
 
 export const EXPORT_RELEASE_FIELDS = Object.freeze({
   id: "string",
@@ -154,6 +162,8 @@ export const EXPORT_RELEASE_FIELDS = Object.freeze({
   status: "string?",
   createdAt: "string",
   decisionIds: "string[]",
+  // Missing from this browser, retained as evidence outside the resolved join.
+  unresolved_decision_ids: "string[]?",
 });
 
 function typeName(value) {

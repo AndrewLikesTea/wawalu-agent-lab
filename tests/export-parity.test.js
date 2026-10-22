@@ -747,14 +747,16 @@ test("record text survives the export byte for byte, however it is punctuated", 
   };
   const page = await openHistory(t, { decisions: [...DECISIONS, hostile], releases: RELEASES });
 
+  // No release carries it, so the derived fields (#2981) say so.
+  const written = { ...hostile, shipped_in: [], shipped_while_unaccepted: false };
   const payload = exportFromPage(page);
   const exported = payload.decisions.find((decision) => decision.id === hostile.id);
-  assert.deepEqual(exported, hostile, "the record did not round-trip through the file unchanged");
+  assert.deepEqual(exported, written, "the record did not round-trip through the file unchanged");
 
   // And it still round-trips once a filter has narrowed the file to it alone.
   chooseOption(page, "#filter-owner", hostile.owner);
   const filtered = exportFromPage(page);
-  assert.deepEqual(filtered.decisions, [hostile]);
+  assert.deepEqual(filtered.decisions, [written]);
   assert.deepEqual(filtered.filter, { owner: hostile.owner });
   assert.equal(filtered.record_count, visibleCount(page));
 });

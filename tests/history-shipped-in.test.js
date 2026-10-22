@@ -146,6 +146,17 @@ test("a decision with exactly one release renders no +N more fragment", () => {
   assert.equal(byClass(line, "record-link").length, 1, "the disclosure lists something other than the one release");
 });
 
+test("a shipped decision that is not accepted says so beside the summary, never inside it", () => {
+  const pending = DECISIONS.map((record) => (record.id === "cache" ? { ...record, status: "pending" } : record));
+  const line = shippedLine(render(pending), "Cache the read path");
+  assert.match(flat(line), /· shipped; not yet accepted$/);
+  assert.doesNotMatch(flat(first(line, "shipped-summary")), /not yet accepted/);
+  // Accepted and shipped, or not shipped at all: no cue.
+  assert.doesNotMatch(flat(shippedLine(render(), "Cache the read path")), /not yet accepted/);
+  const unshipped = DECISIONS.map((record) => (record.id === "cron" ? { ...record, status: "pending" } : record));
+  assert.equal(flat(shippedLine(render(unshipped), "Retire the cron worker")), "Not yet shipped");
+});
+
 // --- the two absences ------------------------------------------------------
 
 test("nothing shipped it and its releases could not be read are different sentences", () => {

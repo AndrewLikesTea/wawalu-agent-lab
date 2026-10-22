@@ -37,8 +37,9 @@
 // out; `createShiplogExport` is the payload alone, for the callers that only
 // want the file.
 
-import { loadDecisions } from "./app.js";
+import { indexReleasesByDecision, loadDecisions } from "./app.js";
 import { loadReleases } from "./releases.js";
+import { shippedInReleases, shippedWhileUnaccepted } from "./shipped-releases.js";
 import {
   DEFAULT_EXPORT_SOURCE,
   EXPORT_DECISION_FIELDS,
@@ -106,16 +107,37 @@ export function buildShiplogExport(storage, options = {}) {
   // Canonical order first, so everything downstream — the records, the
   // unresolved-link report, the dropped-field report — is a function of what
   // the browser holds and not of the order it happened to hold it in.
+  //
+  // Each decision also says what shipped it (#2981), read off every release the
+  // browser holds, without the history row's display limits, so
+  // the file and the row agree and a filter never changes the answer. A release
+  // naming a decision this browser lacks adds nothing here: there is no decision
+  // to attach it to, and it stays reported in `unresolvedLinks` as before.
+  const storedReleases = loadReleases(storage);
+  const releasesByDecision = indexReleasesByDecision(storedReleases);
   const decisions = withinHistoryScope(canonicalExportOrder(storedDecisions), scope.decisionIds, scope)
-    .map((decision) => collect("decisions", decision, EXPORT_DECISION_FIELDS));
+    .map((stored) => {
+      const decision = collect("decisions", stored, EXPORT_DECISION_FIELDS);
+      decision.shipped_in = shippedInReleases(releasesByDecision.get(stored.id));
+      decision.shipped_while_unaccepted = shippedWhileUnaccepted({
+        status: stored.status,
+        shippedCount: decision.shipped_in.length,
+      });
+      return decision;
+    });
   const known = new Set(decisions.map((decision) => decision.id));
 
   const unresolvedLinks = [];
   const excludedLinks = [];
   const associations = [];
-  const releases = withinHistoryScope(canonicalExportOrder(loadReleases(storage)), scope.releaseIds, scope)
+  const releases = withinHistoryScope(canonicalExportOrder(storedReleases), scope.releaseIds, scope)
     .map((stored) => {
       const release = collect("releases", stored, EXPORT_RELEASE_FIELDS);
+      // Preserve missing-record evidence without changing the legacy resolved
+      // join. Filter-hidden decisions are not missing from the browser.
+      delete release.unresolved_decision_ids;
+      const missingIds = release.decisionIds.filter((id) => !held.has(id));
+      if (missingIds.length) release.unresolved_decision_ids = [...new Set(missingIds)];
       release.decisionIds = release.decisionIds.filter((decisionId, position) => {
         if (known.has(decisionId)) return true;
         // The file stays internally consistent either way — no dangling link

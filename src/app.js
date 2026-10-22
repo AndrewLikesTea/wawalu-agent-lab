@@ -77,7 +77,7 @@ import {
   resolveRelease,
   statusSummaryText,
 } from "./releases.js";
-import { shippedState } from "./shipped-releases.js";
+import { shippedState, shippedWhileUnaccepted } from "./shipped-releases.js";
 import { BUILD_STAMP } from "./build-stamp.js";
 import { commitUrl, deployedReleaseRecord, parseShipReason, shortCommit } from "./deployed-release.js";
 
@@ -267,6 +267,8 @@ export const RELATIONSHIP_COPY = {
     label: "Shipped in",
     empty: "Not yet shipped",
     unresolved: "Shipped releases could not be read",
+    // Current acceptance state; no acceptance-at-shipment history is stored.
+    unaccepted: "· shipped; not yet accepted",
   },
   release: { label: "Decisions in this release", empty: null },
 };
@@ -281,7 +283,7 @@ export const HIDDEN_LINK_NOTE = "· not in this view";
 // re-scanned per row. Releases already resolve their decisions (resolveRelease);
 // this is the same association read from the other side, so a decision row can
 // name its releases even when the release rows are filtered away.
-function indexReleasesByDecision(releases) {
+export function indexReleasesByDecision(releases) {
   const index = new Map();
   for (const release of releases) {
     for (const id of release.decisionIds ?? []) {
@@ -293,6 +295,14 @@ function indexReleasesByDecision(releases) {
     }
   }
   return index;
+}
+
+// One decision's display state under the repository-example rule below.
+function decisionShippedState(decision, releasesByDecision) {
+  const repository = decision?.repository ?? null;
+  return repository && repository.releaseInLog !== true
+    ? shippedState([])
+    : shippedState(releasesByDecision.get(decision?.id) ?? []);
 }
 
 export function toHistoryRecords(decisions = [], releases = [], options = {}) {
@@ -320,9 +330,7 @@ export function toHistoryRecords(decisions = [], releases = [], options = {}) {
       // decision, and "never" has to be structural to stay true as the examples
       // change. The row says the absence in words — see appendShippedIn.
       const repository = decision.repository ?? null;
-      const shipped = repository && repository.releaseInLog !== true
-        ? shippedState([])
-        : shippedState(releasesByDecision.get(decision.id) ?? []);
+      const shipped = decisionShippedState(decision, releasesByDecision);
       return {
         type: "decision",
         id: decision.id,
@@ -346,6 +354,10 @@ export function toHistoryRecords(decisions = [], releases = [], options = {}) {
           missing: false,
         })),
         shipped,
+        shippedWhileUnaccepted: shippedWhileUnaccepted({
+          status: decision.status,
+          shippedCount: (releasesByDecision.get(decision.id) ?? []).length,
+        }),
         decision,
       };
     }),
@@ -1038,6 +1050,8 @@ function appendShippedIn(article, record, visibleKeys) {
   for (const entry of entries) list.append(shippedReleaseLink(entry, visibleKeys));
   disclosure.append(summary, list);
   relationship.append(disclosure);
+  // Outside the summary, so the line it names stays the one it always was.
+  if (record.shippedWhileUnaccepted) appendTextElement(relationship, "span", "record-link-note", copy.unaccepted);
 
   article.append(relationship);
   return relationship;
