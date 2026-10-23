@@ -109,7 +109,18 @@ for (const [name, document] of Object.entries(NEARBY_INVITATION)) {
     const sentence = textOf(invitation);
     assert.match(sentence, /publish/i,
       `${name}'s helper stops at the editor and never says the image has to be published`);
-    assert.ok(sentence.indexOf("Paint") < sentence.indexOf("Social"),
+    // Where publishing happens leads, ahead of any Paint or file step, so a
+    // first-time reader knows People is for browsing (#2994). The two linked
+    // steps after it still run in the order they happen.
+    const lead = "People shows image posts. To add your image post, publish it on Social, starting from Paint or from a file.";
+    assert.ok(sentence.trim().startsWith(lead),
+      `${name}'s helper no longer says first that posts are published on Social`);
+    assert.ok(sentence.indexOf(lead) + lead.length <= sentence.indexOf("From Paint:"),
+      `${name}'s helper gives the Paint step before saying where posts are published`);
+    assert.ok(sentence.indexOf(lead) + lead.length <= sentence.indexOf("From a file:"),
+      `${name}'s helper gives the file step before saying where posts are published`);
+    const steps = sentence.slice(sentence.indexOf(lead) + lead.length);
+    assert.ok(steps.indexOf("Paint") < steps.indexOf("Publish a post on Social"),
       `${name}'s helper names the two steps out of order`);
 
     // The destination, then the two linked steps that reach it. It used to read
@@ -126,7 +137,7 @@ for (const [name, document] of Object.entries(NEARBY_INVITATION)) {
     // and the conditions of publishing follow the result (#2484). What is
     // pinned is that the result is still stated, still after the steps, and
     // still before the consequence of carrying them out.
-    assert.match(sentence.trim(), /^To add yours, start from Paint or from a file\. From Paint: Create or open an image in Paint/);
+    assert.match(sentence.trim(), /^People shows image posts\. To add your image post, publish it on Social, starting from Paint or from a file\. From Paint: Create or open an image in Paint/);
     const result = "A published post with an image appears on People, under the display name you publish it with.";
     assert.equal(sentence.split(result).length - 1, 1,
       `${name}'s helper does not explain where the post appears exactly once`);
@@ -827,7 +838,11 @@ test("nothing in the image section says Paint delivers the file", () => {
 test("People names the same steps in the same words as the composer", async () => {
   const invitation = textOf(documents.People.querySelector(".feed-create")).trim();
   assert.equal(invitation,
-    "To add yours, start from Paint or from a file. "
+    // Where publishing happens comes first: People is for browsing, and a
+    // reader is told before any Paint or file step that the post is made on
+    // Social (#2994).
+    "People shows image posts. "
+    + "To add your image post, publish it on Social, starting from Paint or from a file. "
     + "From Paint: Create or open an image in Paint (opens in a new tab), then select “Use this image in a Social post”. "
     + "From a file: when you write a Social post, select Choose image to add an image from this device. "
     + "Either way, fill in the required image description. "
