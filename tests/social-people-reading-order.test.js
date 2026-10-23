@@ -63,9 +63,9 @@ for (const surface of surfaces) {
     assert.ok(stops.every((node) => !Number(node.getAttribute("tabindex"))), "no positive tabindex overrides reading order");
     if (surface.file === "social") {
       assert.deepEqual(stops.slice(0, 4).map((node) => node.id), ["post-compose-open", "post-name-filter", "post-time-filter", "post-filter-clear"]);
-      for (const id of ["post-name-filter", "post-time-filter"]) {
-        assert.match(textOf(document.querySelector(`[for="${id}"]`)), /^Filter posts by/);
-      }
+      // The time menu's label is "Published", the word on every card (#2993).
+      assert.deepEqual(["post-name-filter", "post-time-filter"].map((id) => textOf(document.querySelector(`[for="${id}"]`))),
+        ["Filter posts by display name", "Published"]);
     } else {
       assert.equal(textOf(document.querySelector("#profile-author-label")), "Filter image posts by display name");
     }

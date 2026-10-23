@@ -362,16 +362,15 @@ export const NO_FILTERS_APPLIED = "No filters applied.";
 // options do is the same rule kept, for both menus at once.
 //
 // It names each menu in that menu's own label ("Filter posts by display name",
-// "Filter posts by publication time"), so a reader matches the sentence to the
-// controls above it without translating. And it waits in the status region's
-// word — "loading", FEED_LOADING_LINE below — so the row and the feed spell one
-// open fetch one way.
+// "Published"), so a reader matches the sentence to the controls above it
+// without translating. And it waits in the status region's word — "loading",
+// FEED_LOADING_LINE below — so the row and the feed spell one open fetch one way.
 //
-// What the publication-time windows measure is no longer part of this: it is true
-// whether or not the menu is operable, so it stays on the time menu's own line
-// in every state (timeFilterHintLine).
+// What the time ranges measure is no longer part of this: it is true whether or
+// not the menu is operable, so it stays on the time menu's own line in every
+// state (timeFilterHintLine).
 export const FEED_FILTERS_UNAVAILABLE_HINT =
-  "The display-name and publication-time filters become available when posts finish loading.";
+  "The display-name and Published filters become available when posts finish loading.";
 
 export function filterStatusLine({ available = true, range = "", author = "" } = {}) {
   if (!available) return FEED_FILTERS_UNAVAILABLE_HINT;
@@ -394,14 +393,14 @@ export function filterStatusLine({ available = true, range = "", author = "" } =
 // and of a working one, which is why it no longer has a loading shape and why
 // the menu points at it from the markup in every state.
 //
-// It names the menu's own term ("publication time", from the label above the
-// control) and quotes one option exactly as the menu spells it, because a
-// description that paraphrases the thing it describes asks a reader to match
-// two wordings. The example is the middle window rather than the shortest: the
-// hour is the option whose meaning is hardest to get wrong, and the day is the
-// one a reader is most likely to read as a calendar day.
+// It says "published", the label's word, and quotes one option exactly as the
+// menu spells it, because a description that paraphrases the thing it describes
+// asks a reader to match two wordings. It used to say "publication-time window"
+// (#2993), a phrase no card or control uses. The example is the week with a
+// clock time in it: a concrete moment shows the range ends now, not at
+// midnight, which is the misreading a calendar-shaped range invites.
 export const TIME_FILTER_WINDOW_HINT =
-  "Each publication-time window counts back from the moment you choose it: From the past 24 hours shows posts published in the 24 hours before that moment.";
+  "Each range counts back from the moment you choose it: “From the past 7 days” at 3 p.m. on a Friday shows posts published since 3 p.m. the Friday before.";
 
 export function timeFilterHintLine() {
   return TIME_FILTER_WINDOW_HINT;
@@ -1532,7 +1531,7 @@ export function mountSocialFeed(root, options = {}) {
       hintPersists: true,
     });
     // The time menu's line, written the same way and in the same call order. It
-    // says one thing in every state — what a publication-time window is counted
+    // says one thing in every state — what a time range is counted
     // from — so the wait above it is the row's only wait and is said once (#2611).
     // No controls and no status region here: the menus were disabled by the call
     // above, this one only owns words, and running the focus rescue twice would
