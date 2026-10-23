@@ -24,7 +24,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readdir, readFile } from "node:fs/promises";
-import { FOLLOW_UP_PRIVACY, FOLLOW_UP_PRIVACY_WITH_MESSAGE, FOLLOW_UP_REPLY, FOLLOW_UP_USE } from "../src/lead-capture.js";
+import {
+  FOLLOW_UP_PRIVACY, FOLLOW_UP_PRIVACY_WITH_MESSAGE, FOLLOW_UP_PRIVACY_WITH_NAME, FOLLOW_UP_REPLY, FOLLOW_UP_USE,
+} from "../src/lead-capture.js";
 import { INTENT_QUESTION } from "../src/site-footer.js";
 import { parseHtml, pressEnter, pressTab, tabSequence, textOf } from "./support/browser.js";
 
@@ -101,7 +103,12 @@ const MARKETING = [/\bwe (?:will )?never\b/i, /\brest assured\b/i, /\bsecurely\b
 const ASKS_MESSAGE = new Set([
   "agents.html", "coach.html", "post.html", "profile.html", "releases.html", "social.html",
 ]);
-const expectedPrivacy = (file) => (ASKS_MESSAGE.has(file) ? FOLLOW_UP_PRIVACY_WITH_MESSAGE : FOLLOW_UP_PRIVACY);
+// #2995: the footer form also asks an optional name and organization, so its
+// plain shape names them. The AI FinOps and briefing forms ask neither, and the
+// home page's footer form is email-only by design, so those keep the first one.
+const expectedPrivacy = (file, form) => (ASKS_MESSAGE.has(file) ? FOLLOW_UP_PRIVACY_WITH_MESSAGE
+  : form.getAttribute("id") === "site-footer-form" && file !== "index.html" ? FOLLOW_UP_PRIVACY_WITH_NAME
+    : FOLLOW_UP_PRIVACY);
 
 test("the shared sentence is one sentence, under 25 words, and names all three things", () => {
   const words = FOLLOW_UP_PRIVACY.split(/\s+/).filter(Boolean);
@@ -132,7 +139,8 @@ test("the message form's sentence is one sentence too, and lists everything that
   // A longer budget than the sentence above, because it names four things
   // rather than one (#2365 added what you want to discuss). Still one sentence.
   // #2488: 37, because the page is now named by its own line's words.
-  assert.ok(words.length <= 37, `the sentence is ${words.length} words; the budget is 37`);
+  // #2995: 50, for the optional name and organization and what they are for.
+  assert.ok(words.length <= 50, `the sentence is ${words.length} words; the budget is 50`);
   assert.match(FOLLOW_UP_PRIVACY_WITH_MESSAGE, /what you want to discuss/, "it must name the intent it sends");
   assert.equal(FOLLOW_UP_PRIVACY_WITH_MESSAGE.at(-1), ".");
   assert.equal((FOLLOW_UP_PRIVACY_WITH_MESSAGE.match(/[.!?]/g) ?? []).length, 1,
@@ -225,7 +233,7 @@ test("every follow-up form renders the use sentence too, byte for byte, beside t
 
     // The hint style the privacy sentence already uses — no new class, and so
     // no new colour, size, or spacing to pay for in a stylesheet with none left.
-    const note = form.querySelectorAll("p").find((node) => textOf(node) === expectedPrivacy(file));
+    const note = form.querySelectorAll("p").find((node) => textOf(node) === expectedPrivacy(file, form));
     assert.equal(uses[0].getAttribute("class"), note.getAttribute("class"),
       `${file}: the use sentence must reuse the form-hint style, not introduce one`);
   }
@@ -284,7 +292,7 @@ test("every follow-up form renders the reply sentence too, byte for byte, above 
     // What a visitor weighs before typing, not something a receipt tells them
     // afterwards — the same rule the two sentences above it follow.
     assert.ok(!replies[0].hidden, `${file}: the reply sentence ships hidden`);
-    const note = form.querySelectorAll("p").find((node) => textOf(node) === expectedPrivacy(file));
+    const note = form.querySelectorAll("p").find((node) => textOf(node) === expectedPrivacy(file, form));
     assert.equal(replies[0].getAttribute("class"), note.getAttribute("class"),
       `${file}: the reply sentence must reuse the form-hint style, not introduce one`);
 
@@ -324,7 +332,7 @@ test("every follow-up form on the site renders that sentence, byte for byte", as
 
     // Byte for byte, not by fragment: a substring match would pass on any prose
     // that happened to contain the words, which is how six copies drifted apart.
-    assert.equal(textOf(note), expectedPrivacy(file), `${file}: the privacy sentence has drifted`);
+    assert.equal(textOf(note), expectedPrivacy(file, form), `${file}: the privacy sentence has drifted`);
 
     // And the sentence agrees with the form under it. A form with a message box
     // must not claim nothing else is sent; a form without one must not describe
@@ -341,7 +349,7 @@ test("the sentence sits between the work-email field and the submit button, once
     // they got to weigh.
     const order = form.querySelectorAll("input,p,button");
     const at = (node) => order.indexOf(node);
-    const notes = order.filter((node) => textOf(node) === expectedPrivacy(file));
+    const notes = order.filter((node) => textOf(node) === expectedPrivacy(file, form));
     assert.equal(notes.length, 1, `${file}: the sentence renders ${notes.length} times in one form`);
     assert.ok(at(field) < at(notes[0]), `${file}: the sentence is above the field it describes`);
     assert.ok(at(notes[0]) < at(submit), `${file}: the sentence is below the button it should precede`);

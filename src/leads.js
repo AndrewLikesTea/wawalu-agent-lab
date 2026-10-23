@@ -1,6 +1,11 @@
-import { isFollowUpIntent, MAX_FOLLOW_UP_MESSAGE_LENGTH } from "./lead-capture.js";
+import { isFollowUpIntent, MAX_FOLLOW_UP_MESSAGE_LENGTH, MAX_FOLLOW_UP_NAME_LENGTH } from "./lead-capture.js";
 
-export { MAX_FOLLOW_UP_MESSAGE_LENGTH };
+export { MAX_FOLLOW_UP_MESSAGE_LENGTH, MAX_FOLLOW_UP_NAME_LENGTH };
+/**
+ * The two optional identity keys (#2995). Unlike `message`, every purpose may
+ * send them: they are the footer form's, and no purpose is refused for them.
+ */
+export const FOLLOW_UP_IDENTITY_KEYS = Object.freeze(["name", "organization"]);
 export const MAX_EMAIL_LENGTH = 254;
 /**
  * The request types whose form offers a free-text message, and therefore the
@@ -98,6 +103,22 @@ export function normalizeFollowUpMessage(value) {
   return { message };
 }
 
+/**
+ * An optional name or organization, trimmed. Absent, null, or blank is
+ * `{ value: null }`, so the row stores NULL rather than an empty string. A
+ * non-string, or a value past the input's maxlength, is `{ invalid: true }` —
+ * refused rather than truncated, for the same reason the message is: the form
+ * cannot send it, so arriving here means the two halves have drifted.
+ */
+export function normalizeFollowUpIdentity(value) {
+  if (value === undefined || value === null) return { value: null };
+  if (typeof value !== "string") return { invalid: true };
+  const trimmed = value.trim();
+  if (!trimmed) return { value: null };
+  if (trimmed.length > MAX_FOLLOW_UP_NAME_LENGTH) return { invalid: true };
+  return { value: trimmed };
+}
+
 export function normalizeEmail(value) {
   if (typeof value !== "string") return null;
   const email = value.trim().toLocaleLowerCase("en-US");
@@ -124,13 +145,18 @@ function json(body, status, requestId, headers = {}) {
 // rather than the sent one. The topic moves with it because on the three tool
 // pages it is the subject chosen (FOLLOW_UP_TOOL_TOPICS); everywhere else a
 // purpose has exactly one topic, so rewriting it changes nothing.
+//
+// `identity` is `{ name, organization }`, each a trimmed string or null. Like the
+// message, a repeat request keeps the first row's.
 export function createMemoryLeadStore() {
   const submissions = new Map();
   return {
-    async capture(email, purpose, createdAt = null, topic = null, message = null, intent = null) {
+    async capture(email, purpose, createdAt = null, topic = null, message = null, intent = null, identity = {}) {
       const key = `${purpose}:${email}`;
       const created = !submissions.has(key);
-      if (created) submissions.set(key, { topic, message, intent });
+      if (created) {
+        submissions.set(key, { topic, message, intent, name: identity.name ?? null, organization: identity.organization ?? null });
+      }
       else if (FOLLOW_UP_INTENT_PURPOSES.includes(purpose)) Object.assign(submissions.get(key), { topic, intent });
       return { created, intent: submissions.get(key).intent };
     },
@@ -168,23 +194,28 @@ export function createMemoryLeadStore() {
  * lookup batched before it can, because a D1 batch is one transaction. Other
  * purposes keep the statement above untouched, so a database that has
  * not had migration 0014 applied still takes every other purpose.
+ *
+ * The same holds for migration 0015: `name` and `organization` are named in the
+ * insert only when the visitor gave them, so a request with both left blank
+ * writes exactly the statement it wrote before those columns existed.
  */
 export function createD1LeadStore(db) {
   return {
-    async capture(email, purpose, createdAt, topic = null, message = null, intent = null) {
+    async capture(email, purpose, createdAt, topic = null, message = null, intent = null, identity = {}) {
+      const given = FOLLOW_UP_IDENTITY_KEYS.filter((key) => identity[key] != null);
+      const columns = ["email", "purpose", "created_at", "topic", "message", ...given];
+      const values = [email, purpose, createdAt, topic, message, ...given.map((key) => identity[key])];
+      const insert = (extra = []) => `INSERT INTO lead_submissions (${[...columns, ...extra].join(", ")})`
+        + ` VALUES (${[...columns, ...extra].map(() => "?").join(", ")})`;
       if (!FOLLOW_UP_INTENT_PURPOSES.includes(purpose)) {
-        const result = await db.prepare(
-          "INSERT INTO lead_submissions (email, purpose, created_at, topic, message) VALUES (?, ?, ?, ?, ?)"
-          + " ON CONFLICT (email, purpose) DO NOTHING",
-        ).bind(email, purpose, createdAt, topic, message).run();
+        const result = await db.prepare(`${insert()} ON CONFLICT (email, purpose) DO NOTHING`).bind(...values).run();
         return { created: Number(result.meta?.changes ?? 0) > 0, intent: null };
       }
       const [existing, written] = await db.batch([
         db.prepare("SELECT 1 AS found FROM lead_submissions WHERE email = ? AND purpose = ?").bind(email, purpose),
         db.prepare(
-          "INSERT INTO lead_submissions (email, purpose, created_at, topic, message, intent) VALUES (?, ?, ?, ?, ?, ?)"
-          + " ON CONFLICT (email, purpose) DO UPDATE SET intent = excluded.intent, topic = excluded.topic RETURNING intent",
-        ).bind(email, purpose, createdAt, topic, message, intent),
+          `${insert(["intent"])} ON CONFLICT (email, purpose) DO UPDATE SET intent = excluded.intent, topic = excluded.topic RETURNING intent`,
+        ).bind(...values, intent),
       ]);
       return { created: (existing.results ?? []).length === 0, intent: written.results?.[0]?.intent ?? null };
     },
@@ -226,6 +257,7 @@ export async function handleLeadRequest(request, {
     ...expectedKeys,
     ...(isObject && FOLLOW_UP_MESSAGE_PURPOSES.includes(input.purpose) ? ["message"] : []),
     ...(asksIntent ? ["intent"] : []),
+    ...FOLLOW_UP_IDENTITY_KEYS,
   ];
   if (!isObject || !keys.every((key) => allowedKeys.includes(key)) || !expectedKeys.every((key) => keys.includes(key))) {
     return json({ error: { code: "invalid_request", message: "Body contains unsupported or missing fields.", request_id: requestId } }, 400, requestId);
@@ -260,9 +292,20 @@ export async function handleLeadRequest(request, {
     return json({ error: { code: "invalid_intent", message: "Choose one of the listed things to discuss.", request_id: requestId } }, 422, requestId);
   }
 
+  // The footer's inputs carry this same maxlength, so a refusal here is a
+  // request the shipped form cannot make: `invalid_request`, not a new code.
+  const identity = {};
+  for (const key of FOLLOW_UP_IDENTITY_KEYS) {
+    const { value, invalid } = normalizeFollowUpIdentity(input[key]);
+    if (invalid) {
+      return json({ error: { code: "invalid_request", message: `Name and organization must each be ${MAX_FOLLOW_UP_NAME_LENGTH} characters or fewer.`, request_id: requestId } }, 400, requestId);
+    }
+    identity[key] = value;
+  }
+
   try {
     const stored = await store.capture(email, input.purpose, now(), expectedTopic ?? null, message ?? null,
-      asksIntent ? input.intent : null);
+      asksIntent ? input.intent : null, identity);
     // `intent` is what the row holds after the write, read back by the store.
     const body = { captured: true, created: stored.created, purpose: input.purpose };
     if (asksIntent) body.intent = isFollowUpIntent(stored.intent) ? stored.intent : null;

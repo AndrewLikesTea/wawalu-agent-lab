@@ -29,10 +29,13 @@
 
 import { createFollowUpConfirmation } from "./follow-up-confirmation.js";
 import {
-  CONTACT_COPY, describeWith, emailFieldError, FOLLOW_UP_INTENTS, FOLLOW_UP_PRIVACY, FOLLOW_UP_PRIVACY_WITH_MESSAGE,
-  FOLLOW_UP_REPLY, FOLLOW_UP_USE, knownNotSent, looksLikeEmail, MAX_FOLLOW_UP_MESSAGE_LENGTH, overLengthMessage,
-  postLeadEmail, SubmissionError,
+  CONTACT_COPY, describeWith, emailFieldError, FOLLOW_UP_INTENTS, FOLLOW_UP_PRIVACY, FOLLOW_UP_PRIVACY_WITH_NAME, FOLLOW_UP_PRIVACY_WITH_MESSAGE,
+  FOLLOW_UP_REPLY, FOLLOW_UP_USE, knownNotSent, looksLikeEmail, MAX_FOLLOW_UP_MESSAGE_LENGTH, MAX_FOLLOW_UP_NAME_LENGTH,
+  overLengthMessage, postLeadEmail, SubmissionError,
 } from "./lead-capture.js";
+
+// Each optional identity field: its name, wire key and autocomplete token, then its label.
+export const IDENTITY_FIELDS = [["name", "Your name"], ["organization", "Organization"]];
 import { REPOSITORY_URL } from "./repository-url.js";
 
 export const INTENT_QUESTION = "What do you want to discuss?";
@@ -234,15 +237,18 @@ export const FOLLOW_UP_REDIRECT = Object.freeze({
  *
  * `followUpTopic` is always stated in prose. The read-only control that used to
  * be its other shape lost its last page in #2168; tests hold that shape gone.
+ *
+ * `identity` adds the optional name and organization below the address. Only
+ * the home page turns it off: its form is email-only by design.
  */
 export function siteFooterMarkup(indent = "    ", {
   redirect = null, followUpType = null, followUpTopic = null,
   collapsedDemos = false, askMessage = false, offer = false, invitation = INVITATION,
-  assets = false, tool = null,
+  assets = false, tool = null, identity = true,
 } = {}) {
   const contact = redirect ? [
     `    <a class="site-footer-redirect-link" href="${redirect.href}">${redirect.label}</a>`,
-  ] : contactFormLines(followUpType, followUpTopic, askMessage, offer, invitation, tool);
+  ] : contactFormLines(followUpType, followUpTopic, askMessage, offer, invitation, tool, identity);
   const directory = demoListLines(collapsedDemos);
   const lines = [
     '<footer class="site-footer" id="site-footer" aria-labelledby="site-footer-title">',
@@ -347,7 +353,7 @@ const subjectFieldLines = (tool) => [
   "        </fieldset>",
 ];
 
-function contactFormLines(followUpType, followUpTopic, askMessage = false, offer = false, invitation = INVITATION, tool = null) {
+function contactFormLines(followUpType, followUpTopic, askMessage = false, offer = false, invitation = INVITATION, tool = null, identity = true) {
   return [
     `    <p class="site-footer-invitation">${invitation}</p>`,
     '    <div class="site-footer-panel" id="site-footer-panel">',
@@ -369,8 +375,14 @@ function contactFormLines(followUpType, followUpTopic, askMessage = false, offer
     "               and would otherwise be read on first focus. -->",
     '          <input id="site-footer-email" name="email" type="email" maxlength="254" inputmode="email" autocomplete="email" placeholder="you@company.com" required aria-describedby="site-footer-note" />',
     "        </div>",
+    ...(identity ? IDENTITY_FIELDS : []).flatMap(([key, label]) => [
+      '        <div class="site-footer-field">',
+      `          <label for="site-footer-${key}">${label} <span class="label-optional">(optional)</span></label>`,
+      `          <input id="site-footer-${key}" name="${key}" type="text" maxlength="${MAX_FOLLOW_UP_NAME_LENGTH}" autocomplete="${key}" />`,
+      "        </div>",
+    ]),
     `        <p class="site-footer-error" id="site-footer-error" hidden></p>`,
-    `        <p class="site-footer-note" id="site-footer-note">${askMessage ? FOLLOW_UP_PRIVACY_WITH_MESSAGE : FOLLOW_UP_PRIVACY}</p>`,
+    `        <p class="site-footer-note" id="site-footer-note">${askMessage ? FOLLOW_UP_PRIVACY_WITH_MESSAGE : identity ? FOLLOW_UP_PRIVACY_WITH_NAME : FOLLOW_UP_PRIVACY}</p>`,
     `        <p class="site-footer-note" id="site-footer-use">${FOLLOW_UP_USE}</p>`,
     `        <p class="site-footer-note" id="site-footer-reply">${FOLLOW_UP_REPLY}</p>`,
     '        <p class="site-footer-recovery" id="site-footer-recovery" hidden></p>',
@@ -618,8 +630,9 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
       // Blank stays off the wire: an empty optional field sends exactly the
       // request this form sent before it existed.
       const note = message?.value.trim() || null;
+      const who = Object.fromEntries(IDENTITY_FIELDS.map(([key]) => [key, form.elements[key]?.value.trim()]).filter(([, value]) => value));
       const body = await postLeadEmail(request, email.value, form.dataset.followUpType || "follow_up", CONTACT_COPY, tool || topic, note,
-        chosen?.value ?? null);
+        chosen?.value ?? null, who);
       form.dataset.requestState = "success";
       form.dataset.state = "success";
       setRecoveryVisible(false);
