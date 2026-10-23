@@ -33,7 +33,7 @@ import {
 import { onRequest } from "../functions/api/leads.js";
 import { createMemoryLeadStore, FOLLOW_UP_TOPICS, POST_FOLLOW_UP_TOPIC, handleLeadRequest } from "../src/leads.js";
 import {
-  CONTACT_COPY, FOLLOW_UP_PRIVACY, FOLLOW_UP_PRIVACY_WITH_MESSAGE, knownNotSent, MAX_FOLLOW_UP_MESSAGE_LENGTH,
+  CONTACT_COPY, FOLLOW_UP_PRIVACY, FOLLOW_UP_PRIVACY_WITH_NAME, FOLLOW_UP_PRIVACY_WITH_MESSAGE, knownNotSent, MAX_FOLLOW_UP_MESSAGE_LENGTH,
   resolveFailure, SubmissionError,
 } from "../src/lead-capture.js";
 
@@ -69,7 +69,9 @@ const REVIEWED = [
 const ASKS_MESSAGE = new Set([
   "agents.html", "coach.html", "post.html", "profile.html", "releases.html", "social.html",
 ]);
-const expectedPrivacy = (file) => (ASKS_MESSAGE.has(file) ? FOLLOW_UP_PRIVACY_WITH_MESSAGE : FOLLOW_UP_PRIVACY);
+// #2995: the home page's form is the one that asks no name or organization.
+const expectedPrivacy = (file) => (ASKS_MESSAGE.has(file) ? FOLLOW_UP_PRIVACY_WITH_MESSAGE
+  : file === "index.html" ? FOLLOW_UP_PRIVACY : FOLLOW_UP_PRIVACY_WITH_NAME);
 
 const TYPED_EMAIL = "director@example.com";
 const pageUrl = (file) => new URL(`../src/${file}`, import.meta.url);

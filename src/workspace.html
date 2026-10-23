@@ -364,8 +364,16 @@
                    and would otherwise be read on first focus. -->
               <input id="site-footer-email" name="email" type="email" maxlength="254" inputmode="email" autocomplete="email" placeholder="you@company.com" required aria-describedby="site-footer-note" />
             </div>
+            <div class="site-footer-field">
+              <label for="site-footer-name">Your name <span class="label-optional">(optional)</span></label>
+              <input id="site-footer-name" name="name" type="text" maxlength="100" autocomplete="name" />
+            </div>
+            <div class="site-footer-field">
+              <label for="site-footer-organization">Organization <span class="label-optional">(optional)</span></label>
+              <input id="site-footer-organization" name="organization" type="text" maxlength="100" autocomplete="organization" />
+            </div>
             <p class="site-footer-error" id="site-footer-error" hidden></p>
-            <p class="site-footer-note" id="site-footer-note">The work email address you type here goes to the Wawalu team that operates Shiplog; nothing else on this page is sent.</p>
+            <p class="site-footer-note" id="site-footer-note">The work email address you type here, and your name and organization if you give them, go to the Wawalu team that operates Shiplog to reply to this request; nothing else on this page is sent.</p>
             <p class="site-footer-note" id="site-footer-use">We use your address to reply to this request and for nothing else.</p>
             <p class="site-footer-note" id="site-footer-reply">A person replies by email, usually within two working days.</p>
             <p class="site-footer-recovery" id="site-footer-recovery" hidden></p>

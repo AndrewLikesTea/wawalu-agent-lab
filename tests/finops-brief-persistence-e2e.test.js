@@ -535,6 +535,10 @@ test("the context an operator supplied comes back with the brief, dated as their
   try {
     await importExport(page.document, SPRING);
     keepBriefing(page);
+    // Two events in one millisecond carry one stamp, honestly: let the clock
+    // tick past the capture so the inequality below tests the code, not the CPU.
+    const readAt = Date.parse(heldRecord(page).capturedAt);
+    while (Date.now() <= readAt) await new Promise((resolve) => setTimeout(resolve, 1));
     declareCohort(page.document);
 
     // The declaration went into the record of the import it was about — one
