@@ -928,9 +928,16 @@ test("People offers the trip to Social's composer in one phrase, in one place", 
 
   // And the retired name is gone from both of People's layers: the paragraph a
   // visitor reads before hydration, and the sentence the module renders.
+  // Twice, deliberately: the opening sentence says where an image post is
+  // published before any Paint or file step (#2994), and the link is the one
+  // way there. A third mention is the repetition #2735 removed.
   const invitation = textOf(parseHtml(html).querySelector(".feed-create"));
-  assert.equal((invitation.match(/on Social/g) ?? []).length, 1,
-    "People offers the trip to Social more than once in the one paragraph");
+  assert.equal((invitation.match(/on Social/g) ?? []).length, 2,
+    "People offers the trip to Social more than twice in the one paragraph");
+  assert.ok(invitation.trim().startsWith("People shows image posts. To add your image post, publish it on Social,"),
+    "People's steps no longer open by saying publishing happens on Social");
+  assert.equal(invitation.split(PUBLISH_ON_SOCIAL).length - 1, 1,
+    "People links the trip to Social more than once");
   assert.doesNotMatch(loadingSummaryText(), /Open Social/,
     "the wait still names the trip a second way");
 });

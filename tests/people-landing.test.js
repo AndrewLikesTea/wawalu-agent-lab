@@ -1217,7 +1217,7 @@ test("a selected name with no image posts offers the picker, and the path is sta
     // under the grid — Paint, the control, the description, publish, People.
     const invitation = textOf(document.querySelector(".feed-create"));
     assert.match(invitation,
-      /To add yours, start from Paint or from a file\. From Paint: Create or open an image in Paint \(opens in a new tab\), then select “Use this image in a Social post”\. From a file: when you write a Social post, select Choose image to add an image from this device\. Either way, fill in the required image description\. Publish a post on Social\. A published post with an image appears on People, under the display name you publish it with\./);
+      /People shows image posts\. To add your image post, publish it on Social, starting from Paint or from a file\. From Paint: Create or open an image in Paint \(opens in a new tab\), then select “Use this image in a Social post”\. From a file: when you write a Social post, select Choose image to add an image from this device\. Either way, fill in the required image description\. Publish a post on Social\. A published post with an image appears on People, under the display name you publish it with\./);
     assert.match(invitation, /A published post is public and cannot be edited or deleted/);
     assert.match(invitation, /Do not include customer or production data\./);
     // And it is the only place the settled page names either end of the handoff.
@@ -1403,8 +1403,8 @@ function assertCaveatFollowsProvenance(document, state) {
   assert.ok(end >= invented.length && start > -1, `${state}: a caveat sentence is missing`);
   const gap = text.slice(end, start);
   assert.match(gap, /^\s*$/, `${state}: "${gap.slice(0, 40)}" sits between the Example post caveat and the display-name sentences`);
-  assert.doesNotMatch(gap, /To add yours|Anyone can read a published post/, `${state}: the publishing steps sit inside the caveat`);
-  assert.ok(text.indexOf("To add yours") > start, `${state}: the publishing steps no longer follow the caveat`);
+  assert.doesNotMatch(gap, /To add your image post|Anyone can read a published post/, `${state}: the publishing steps sit inside the caveat`);
+  assert.ok(text.indexOf("To add your image post") > start, `${state}: the publishing steps no longer follow the caveat`);
   assert.equal(text.split("Nobody owns or verifies a display name, and anyone can publish under any name.").length - 1, 1,
     `${state}: the page does not say once that nobody owns a display name`);
 }
