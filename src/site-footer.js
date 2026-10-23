@@ -29,7 +29,7 @@
 
 import { createFollowUpConfirmation } from "./follow-up-confirmation.js";
 import {
-  CONTACT_COPY, describeWith, emailFieldError, FOLLOW_UP_INTENTS, FOLLOW_UP_PRIVACY, FOLLOW_UP_PRIVACY_WITH_MESSAGE,
+  CONTACT_COPY, describeWith, emailFieldError, FOLLOW_UP_IDENTITY_LIMITS, FOLLOW_UP_INTENTS, FOLLOW_UP_PRIVACY, FOLLOW_UP_PRIVACY_WITH_MESSAGE,
   FOLLOW_UP_REPLY, FOLLOW_UP_USE, knownNotSent, looksLikeEmail, MAX_FOLLOW_UP_MESSAGE_LENGTH, overLengthMessage,
   postLeadEmail, SubmissionError,
 } from "./lead-capture.js";
@@ -222,7 +222,7 @@ export const FOLLOW_UP_REDIRECT = Object.freeze({
  * set it: the same nine doors are in the navigation at the top of the page.
  *
  * `askMessage` adds the optional free-text field above the work-email field,
- * and switches the privacy sentence with it: a form carrying a message box
+ * then the optional name and organization (#2995), and switches the privacy sentence with it: a form carrying a message box
  * cannot claim nothing else on the page is sent.
  *
  * `offer` opens the block with OFFER — what asking gets a visitor who never read
@@ -340,6 +340,13 @@ function messageFieldLines() {
   ];
 }
 
+const identityFieldLines = () => Object.entries(FOLLOW_UP_IDENTITY_LIMITS).flatMap(([key, max]) => [
+  '        <div class="site-footer-field">',
+  `          <label for="site-footer-${key}">${key[0].toUpperCase()}${key.slice(1)} <span class="label-optional">(optional)</span></label>`,
+  `          <input id="site-footer-${key}" name="${key}" type="text" maxlength="${max}" autocomplete="${key}" />`,
+  "        </div>",
+]);
+
 const subjectFieldLines = (tool) => [
   '        <fieldset class="decision-picker-field" id="site-footer-subject">',
   "          <legend>Ask about</legend>",
@@ -359,7 +366,7 @@ function contactFormLines(followUpType, followUpTopic, askMessage = false, offer
       `        <p class="site-footer-note" id="site-footer-topic-note">This request is sent about the ${followUpTopic}.</p>`,
     ] : []),
     ...(tool ? subjectFieldLines(tool) : []),
-    ...(askMessage ? [...intentFieldLines(), ...messageFieldLines()] : []),
+    ...(askMessage ? [...intentFieldLines(), ...messageFieldLines(), ...identityFieldLines()] : []),
     '        <div class="site-footer-field">',
     '          <label for="site-footer-email">Work email for your follow-up</label>',
     "          <!-- Only the note is named here. The inline error and the recovery",
@@ -618,8 +625,9 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
       // Blank stays off the wire: an empty optional field sends exactly the
       // request this form sent before it existed.
       const note = message?.value.trim() || null;
+      const typed = (key) => root.querySelector(`#site-footer-${key}`)?.value.trim() || null;
       const body = await postLeadEmail(request, email.value, form.dataset.followUpType || "follow_up", CONTACT_COPY, tool || topic, note,
-        chosen?.value ?? null);
+        chosen?.value ?? null, typed("name"), typed("organization"));
       form.dataset.requestState = "success";
       form.dataset.state = "success";
       setRecoveryVisible(false);

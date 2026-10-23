@@ -30,6 +30,8 @@ const UNREADABLE_CODES = ["invalid_request", "invalid_purpose", "invalid_json", 
 
 // One limit for both halves: src/leads.js imports it rather than repeating it.
 export const MAX_FOLLOW_UP_MESSAGE_LENGTH = 200;
+// The optional who-is-asking fields: their maxlength here, the endpoint's cap.
+export const FOLLOW_UP_IDENTITY_LIMITS = Object.freeze({ name: 120, organization: 200 });
 
 // What a visitor wants to discuss, value to label, for both halves as well.
 export const FOLLOW_UP_INTENTS = Object.freeze({
@@ -116,10 +118,12 @@ export const FOLLOW_UP_PRIVACY = "The work email address you type here goes to t
   + "operates Shiplog; nothing else on this page is sent.";
 
 // The same claim on a form that also asks what to discuss and offers a message
-// box, which cannot say nothing else is sent. It lists the four arguments
-// `postLeadEmail` builds the body from instead: everything with a route to the wire.
+// box, which cannot say nothing else is sent. It lists the arguments
+// `postLeadEmail` builds the body from instead: everything with a route to the wire,
+// and, since the optional name and organization (#2995), what those two are for.
 export const FOLLOW_UP_PRIVACY_WITH_MESSAGE = "The work email address you type here goes to the Wawalu team that "
-  + "operates Shiplog; only that address, the page this request is sent about, what you want to discuss, and anything else you type are sent.";
+  + "operates Shiplog; only that address, any name and organization you give for the reply, the page this request is sent about, "
+  + "what you want to discuss, and anything else you type are sent.";
 
 // One refusal for both message fields: how long, how far over, and the limit.
 export function overLengthMessage(length, max = MAX_FOLLOW_UP_MESSAGE_LENGTH) {
@@ -176,12 +180,12 @@ export function resolveFailure(response, body, copy) {
   return { message: copy.unconfirmed, reason: "unconfirmed" };
 }
 
-// Sends the address, routing label, optional fixed topic, message and intent.
-export async function postLeadEmail(request, email, purpose, copy, topic = null, message = null, intent = null) {
+// Sends the address, routing label, optional fixed topic, message, intent, name and organization.
+export async function postLeadEmail(request, email, purpose, copy, topic = null, message = null, intent = null, name = null, organization = null) {
   const response = await request(ENDPOINT, {
     method: "POST",
     headers: { "content-type": "application/json", accept: "application/json" },
-    body: JSON.stringify({ email, purpose, ...(topic && { topic }), ...(message && { message }), ...(intent && { intent }) }),
+    body: JSON.stringify({ email, purpose, ...(topic && { topic }), ...(message && { message }), ...(intent && { intent }), ...(name && { name }), ...(organization && { organization }) }),
     // Without this a hung request strands the visitor on "Submitting…"
     // with the control disabled and no way to recover.
     signal: globalThis.AbortSignal?.timeout?.(TIMEOUT_MS),

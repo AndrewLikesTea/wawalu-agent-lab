@@ -382,8 +382,10 @@ test("the post page's loading tab order reaches Social without a placeholder Peo
     "the stop after the exits is not the lab identity line's route to Shiplog");
   const FOOTER_FROM = FRAME_STOPS + 1;
   // The follow-up block's fields carry no text of their own, so they are named
-  // by id: the optional question #2153 added, then the work email beneath it.
+  // by id: the optional question #2153 added, the optional name and organization
+  // #2995 added, then the work email beneath them.
   const afterExit = sequence.slice(FOOTER_FROM).map((stop) => textOf(stop) || stop.id);
+  const fields = ["site-footer-message", "site-footer-name", "site-footer-organization", "site-footer-email"];
   // The band opens on the sentence that says who Shiplog is for, so its pointer
   // at the worked decision is the first footer stop, and the repository link
   // #2152 put in the shared block is the second. On this page the map is folded
@@ -394,8 +396,8 @@ test("the post page's loading tab order reaches Social without a placeholder Peo
   // assertion below walks parentNode to drop them, which is the sequence a
   // browser actually gives.
   assert.deepEqual(
-    afterExit.slice(0, bandStops.length + 7),
-    [PITCH_LINK, SOURCE_LINK_LABEL, INTENT_STOP, "site-footer-message", "site-footer-email", "Request a follow-up",
+    afterExit.slice(0, bandStops.length + 9),
+    [PITCH_LINK, SOURCE_LINK_LABEL, INTENT_STOP, ...fields, "Request a follow-up",
       DIRECTORY_SUMMARY, ...bandStops],
   );
   // A disclosure's own summary is its handle, not something inside it, so the
@@ -408,10 +410,9 @@ test("the post page's loading tab order reaches Social without a placeholder Peo
     return false;
   };
   assert.deepEqual(
-    afterExit.filter((_, index) => !closed(sequence[FOOTER_FROM + index])).slice(0, 7),
-    [PITCH_LINK, SOURCE_LINK_LABEL, INTENT_STOP,
-      "site-footer-message", "site-footer-email", "Request a follow-up", DIRECTORY_SUMMARY],
-    "with the directory closed, the form must still be five stops from the exit",
+    afterExit.filter((_, index) => !closed(sequence[FOOTER_FROM + index])).slice(0, 9),
+    [PITCH_LINK, SOURCE_LINK_LABEL, INTENT_STOP, ...fields, "Request a follow-up", DIRECTORY_SUMMARY],
+    "with the directory closed, the form must still be reached before the summary",
   );
   assert.ok(
     sequence.slice(FOOTER_FROM).every((stop) => stop.closest("#site-footer")),

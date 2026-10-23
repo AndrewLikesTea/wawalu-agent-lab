@@ -337,8 +337,10 @@ test("the permalink's tab order runs skip, nav, post, exits, follow-up, director
 
   // The whole sequence, end to end, with the directory shut. The block's fields
   // carry no text of their own — the intent group #2365 added (one stop), the
-  // optional question #2153 added, then the work email — so they are named by id.
+  // optional question #2153 added, the optional name and organization #2995
+  // added, then the work email — so they are named by id.
   assert.deepEqual(stops.slice(at(INTENT)).map((stop) => textOf(stop) || stop.id),
-    [INTENT.slice(1), "site-footer-message", "site-footer-email", "Request a follow-up", DIRECTORY_SUMMARY],
+    [INTENT.slice(1), "site-footer-message", "site-footer-name", "site-footer-organization", "site-footer-email",
+      "Request a follow-up", DIRECTORY_SUMMARY],
     "with nothing expanded the page ends on the follow-up form and then the summary");
 });

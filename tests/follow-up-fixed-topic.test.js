@@ -64,7 +64,9 @@ const INTENT_FIELDS = ["availability_pricing", "demo", "pilot", "security_data"]
 // Shiplog or about the tool on the page — one more radio group, both radios named.
 const ASKS_SUBJECT = new Set(["social.html", "profile.html", "agents.html"]);
 const SUBJECT_FIELDS = ["INPUT#site-footer-subject-shiplog", "INPUT#site-footer-subject-tool"];
-const withMessage = (baseline) => [...INTENT_FIELDS, MESSAGE_FIELD, ...baseline];
+// The optional name and organization (#2995) follow the question, above the address.
+const IDENTITY_FIELDS = ["INPUT#site-footer-name", "INPUT#site-footer-organization"];
+const withMessage = (baseline) => [...INTENT_FIELDS, MESSAGE_FIELD, ...IDENTITY_FIELDS, ...baseline];
 const expectedStops = (file, baseline) => [
   ...(ASKS_SUBJECT.has(file) ? SUBJECT_FIELDS : []),
   ...(ASKS_MESSAGE.has(file) ? withMessage(baseline) : baseline),
