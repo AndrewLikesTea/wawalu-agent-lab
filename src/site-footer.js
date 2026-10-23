@@ -347,6 +347,13 @@ const subjectFieldLines = (tool) => [
   "        </fieldset>",
 ];
 
+const identityFieldLines = () => [["name", "Name"], ["organization", "Organization"]].flatMap(([id, label]) => [
+  '        <div class="site-footer-field">',
+  `          <label for="site-footer-${id}">${label} <span class="label-optional">(optional)</span></label>`,
+  `          <input id="site-footer-${id}" name="${id}" type="text" maxlength="100" autocomplete="${id}" />`,
+  "        </div>",
+]);
+
 function contactFormLines(followUpType, followUpTopic, askMessage = false, offer = false, invitation = INVITATION, tool = null) {
   return [
     `    <p class="site-footer-invitation">${invitation}</p>`,
@@ -370,6 +377,7 @@ function contactFormLines(followUpType, followUpTopic, askMessage = false, offer
     '          <input id="site-footer-email" name="email" type="email" maxlength="254" inputmode="email" autocomplete="email" placeholder="you@company.com" required aria-describedby="site-footer-note" />',
     "        </div>",
     `        <p class="site-footer-error" id="site-footer-error" hidden></p>`,
+    ...(askMessage ? identityFieldLines() : []),
     `        <p class="site-footer-note" id="site-footer-note">${askMessage ? FOLLOW_UP_PRIVACY_WITH_MESSAGE : FOLLOW_UP_PRIVACY}</p>`,
     `        <p class="site-footer-note" id="site-footer-use">${FOLLOW_UP_USE}</p>`,
     `        <p class="site-footer-note" id="site-footer-reply">${FOLLOW_UP_REPLY}</p>`,
@@ -619,7 +627,8 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
       // request this form sent before it existed.
       const note = message?.value.trim() || null;
       const body = await postLeadEmail(request, email.value, form.dataset.followUpType || "follow_up", CONTACT_COPY, tool || topic, note,
-        chosen?.value ?? null);
+        chosen?.value ?? null, Object.fromEntries(["name", "organization"]
+          .map((id) => [id, root.querySelector(`#site-footer-${id}`)?.value.trim()]).filter(([, value]) => value)));
       form.dataset.requestState = "success";
       form.dataset.state = "success";
       setRecoveryVisible(false);

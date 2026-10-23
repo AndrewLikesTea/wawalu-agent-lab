@@ -98,6 +98,23 @@ export function normalizeFollowUpMessage(value) {
   return { message };
 }
 
+// The longest name or organization a follow-up row takes. The footer's two
+// fields carry the same number as their `maxlength`.
+export const MAX_FOLLOW_UP_IDENTITY_LENGTH = 100;
+
+/**
+ * An optional name or organization: absent, null, or blank is `null`, a usable
+ * string is its trimmed self, and anything else — not a string, or past the
+ * cap — is `undefined`, which the endpoint refuses rather than truncates.
+ */
+export function normalizeFollowUpIdentity(value) {
+  if (value === undefined || value === null) return null;
+  if (typeof value !== "string") return undefined;
+  const text = value.trim();
+  if (text.length > MAX_FOLLOW_UP_IDENTITY_LENGTH) return undefined;
+  return text || null;
+}
+
 export function normalizeEmail(value) {
   if (typeof value !== "string") return null;
   const email = value.trim().toLocaleLowerCase("en-US");
@@ -127,11 +144,15 @@ function json(body, status, requestId, headers = {}) {
 export function createMemoryLeadStore() {
   const submissions = new Map();
   return {
-    async capture(email, purpose, createdAt = null, topic = null, message = null, intent = null) {
+    async capture(email, purpose, createdAt = null, topic = null, message = null, intent = null,
+      { name = null, organization = null } = {}) {
       const key = `${purpose}:${email}`;
       const created = !submissions.has(key);
-      if (created) submissions.set(key, { topic, message, intent });
-      else if (FOLLOW_UP_INTENT_PURPOSES.includes(purpose)) Object.assign(submissions.get(key), { topic, intent });
+      if (created) submissions.set(key, { topic, message, intent, name, organization });
+      else if (FOLLOW_UP_INTENT_PURPOSES.includes(purpose)) {
+        const row = submissions.get(key);
+        Object.assign(row, { topic, intent, name: name ?? row.name, organization: organization ?? row.organization });
+      }
       return { created, intent: submissions.get(key).intent };
     },
     has: (email, purpose = "field_notes") => submissions.has(`${purpose}:${email}`),
@@ -168,10 +189,15 @@ export function createMemoryLeadStore() {
  * lookup batched before it can, because a D1 batch is one transaction. Other
  * purposes keep the statement above untouched, so a database that has
  * not had migration 0014 applied still takes every other purpose.
+ *
+ * Those same forms carry the optional name and organization (migration 0015).
+ * A repeat request fills either one in but never blanks it: a visitor who
+ * leaves a field empty the second time has not withdrawn what they said first.
  */
 export function createD1LeadStore(db) {
   return {
-    async capture(email, purpose, createdAt, topic = null, message = null, intent = null) {
+    async capture(email, purpose, createdAt, topic = null, message = null, intent = null,
+      { name = null, organization = null } = {}) {
       if (!FOLLOW_UP_INTENT_PURPOSES.includes(purpose)) {
         const result = await db.prepare(
           "INSERT INTO lead_submissions (email, purpose, created_at, topic, message) VALUES (?, ?, ?, ?, ?)"
@@ -182,9 +208,12 @@ export function createD1LeadStore(db) {
       const [existing, written] = await db.batch([
         db.prepare("SELECT 1 AS found FROM lead_submissions WHERE email = ? AND purpose = ?").bind(email, purpose),
         db.prepare(
-          "INSERT INTO lead_submissions (email, purpose, created_at, topic, message, intent) VALUES (?, ?, ?, ?, ?, ?)"
-          + " ON CONFLICT (email, purpose) DO UPDATE SET intent = excluded.intent, topic = excluded.topic RETURNING intent",
-        ).bind(email, purpose, createdAt, topic, message, intent),
+          "INSERT INTO lead_submissions (email, purpose, created_at, topic, message, intent, name, organization)"
+          + " VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+          + " ON CONFLICT (email, purpose) DO UPDATE SET intent = excluded.intent, topic = excluded.topic,"
+          + " name = COALESCE(excluded.name, name), organization = COALESCE(excluded.organization, organization)"
+          + " RETURNING intent",
+        ).bind(email, purpose, createdAt, topic, message, intent, name, organization),
       ]);
       return { created: (existing.results ?? []).length === 0, intent: written.results?.[0]?.intent ?? null };
     },
@@ -221,13 +250,20 @@ export async function handleLeadRequest(request, {
   // the field; `intent` may arrive only where the form asks for it, and its
   // absence there is refused below as `invalid_intent`. Everything else is exact.
   // A request about a separate tool asks no intent, so it may send none.
+  // `name` and `organization` are optional on the forms that render them, the
+  // footer forms with the radio group, whichever subject the visitor chose.
   const asksIntent = isObject && FOLLOW_UP_INTENT_PURPOSES.includes(input.purpose) && !toolTopic;
+  const asksIdentity = isObject && FOLLOW_UP_INTENT_PURPOSES.includes(input.purpose);
   const allowedKeys = [
     ...expectedKeys,
     ...(isObject && FOLLOW_UP_MESSAGE_PURPOSES.includes(input.purpose) ? ["message"] : []),
     ...(asksIntent ? ["intent"] : []),
+    ...(asksIdentity ? ["name", "organization"] : []),
   ];
-  if (!isObject || !keys.every((key) => allowedKeys.includes(key)) || !expectedKeys.every((key) => keys.includes(key))) {
+  const name = normalizeFollowUpIdentity(input?.name);
+  const organization = normalizeFollowUpIdentity(input?.organization);
+  if (!isObject || !keys.every((key) => allowedKeys.includes(key)) || !expectedKeys.every((key) => keys.includes(key))
+    || name === undefined || organization === undefined) {
     return json({ error: { code: "invalid_request", message: "Body contains unsupported or missing fields.", request_id: requestId } }, 400, requestId);
   }
   const email = normalizeEmail(input.email);
@@ -262,7 +298,7 @@ export async function handleLeadRequest(request, {
 
   try {
     const stored = await store.capture(email, input.purpose, now(), expectedTopic ?? null, message ?? null,
-      asksIntent ? input.intent : null);
+      asksIntent ? input.intent : null, { name, organization });
     // `intent` is what the row holds after the write, read back by the store.
     const body = { captured: true, created: stored.created, purpose: input.purpose };
     if (asksIntent) body.intent = isFollowUpIntent(stored.intent) ? stored.intent : null;

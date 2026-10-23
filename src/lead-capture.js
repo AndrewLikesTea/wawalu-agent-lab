@@ -116,10 +116,11 @@ export const FOLLOW_UP_PRIVACY = "The work email address you type here goes to t
   + "operates Shiplog; nothing else on this page is sent.";
 
 // The same claim on a form that also asks what to discuss and offers a message
-// box, which cannot say nothing else is sent. It lists the four arguments
+// box, which cannot say nothing else is sent. It lists the arguments
 // `postLeadEmail` builds the body from instead: everything with a route to the wire.
 export const FOLLOW_UP_PRIVACY_WITH_MESSAGE = "The work email address you type here goes to the Wawalu team that "
-  + "operates Shiplog; only that address, the page this request is sent about, what you want to discuss, and anything else you type are sent.";
+  + "operates Shiplog; only that address, your optional name and organization for our reply, "
+  + "the page this request is sent about, what you want to discuss, and anything else you type are sent.";
 
 // One refusal for both message fields: how long, how far over, and the limit.
 export function overLengthMessage(length, max = MAX_FOLLOW_UP_MESSAGE_LENGTH) {
@@ -176,12 +177,12 @@ export function resolveFailure(response, body, copy) {
   return { message: copy.unconfirmed, reason: "unconfirmed" };
 }
 
-// Sends the address, routing label, optional fixed topic, message and intent.
-export async function postLeadEmail(request, email, purpose, copy, topic = null, message = null, intent = null) {
+// Sends the address, routing label, optional fixed topic, message, intent, name and organization.
+export async function postLeadEmail(request, email, purpose, copy, topic = null, message = null, intent = null, identity = null) {
   const response = await request(ENDPOINT, {
     method: "POST",
     headers: { "content-type": "application/json", accept: "application/json" },
-    body: JSON.stringify({ email, purpose, ...(topic && { topic }), ...(message && { message }), ...(intent && { intent }) }),
+    body: JSON.stringify({ email, purpose, ...(topic && { topic }), ...(message && { message }), ...(intent && { intent }), ...identity }),
     // Without this a hung request strands the visitor on "Submitting…"
     // with the control disabled and no way to recover.
     signal: globalThis.AbortSignal?.timeout?.(TIMEOUT_MS),

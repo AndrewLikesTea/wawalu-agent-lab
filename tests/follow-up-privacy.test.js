@@ -132,8 +132,11 @@ test("the message form's sentence is one sentence too, and lists everything that
   // A longer budget than the sentence above, because it names four things
   // rather than one (#2365 added what you want to discuss). Still one sentence.
   // #2488: 37, because the page is now named by its own line's words.
-  assert.ok(words.length <= 37, `the sentence is ${words.length} words; the budget is 37`);
+  // #2995: 45, for the optional name and organization and what they are for.
+  assert.ok(words.length <= 45, `the sentence is ${words.length} words; the budget is 45`);
   assert.match(FOLLOW_UP_PRIVACY_WITH_MESSAGE, /what you want to discuss/, "it must name the intent it sends");
+  assert.match(FOLLOW_UP_PRIVACY_WITH_MESSAGE, /your optional name and organization for our reply/,
+    "it must name the two identity fields it sends, and the one use made of them");
   assert.equal(FOLLOW_UP_PRIVACY_WITH_MESSAGE.at(-1), ".");
   assert.equal((FOLLOW_UP_PRIVACY_WITH_MESSAGE.match(/[.!?]/g) ?? []).length, 1,
     "one sentence, not two joined by a full stop");
