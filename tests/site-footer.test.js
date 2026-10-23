@@ -29,7 +29,7 @@ import { initDecisionDetail } from "../src/decision-page.js";
 import { EXAMPLE_LABEL } from "../src/seed-records.js";
 import { REPOSITORY_URL } from "../src/repository-url.js";
 import { FOLLOW_UP_TOOL_TOPICS, FOLLOW_UP_TOPICS, POST_FOLLOW_UP_TOPIC } from "../src/leads.js";
-import { FOLLOW_UP_PRIVACY, FOLLOW_UP_REPLY, FOLLOW_UP_USE } from "../src/lead-capture.js";
+import { FOLLOW_UP_PRIVACY, FOLLOW_UP_PRIVACY_WITH_NAME, FOLLOW_UP_REPLY, FOLLOW_UP_USE } from "../src/lead-capture.js";
 import { SITE_NAV } from "../src/site-nav.js";
 import { loadPage, parseHtml, pressEnter, tabSequence, textOf, typeText } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
@@ -125,8 +125,9 @@ const describedBy = (document) => byId(document, "site-footer-email").getAttribu
 const FEED_INVITATION = `${INVITATION} The topics below are about Shiplog — whether it is available for your team, a demonstration, a pilot, and security and data handling — not about an individual post. To ask the Wawalu team to review a post, select Report post on that post.`;
 
 const FOOTER_VARIANT = new Map([
+  // #2995: the home page's form stays email-only, so it alone asks no name or organization.
   ["index.html", {
-    followUpType: "follow_up_homepage", followUpTopic: FOLLOW_UP_TOPICS.follow_up_homepage,
+    followUpType: "follow_up_homepage", followUpTopic: FOLLOW_UP_TOPICS.follow_up_homepage, identity: false,
   }],
   ["executive-briefing.html", { redirect: FOLLOW_UP_REDIRECT.briefing }],
   ["coach.html", {
@@ -1254,7 +1255,7 @@ test("the privacy sentence beside the field is what the request body actually do
   const { document } = page;
   const calls = interceptLeads(() => jsonReply({ captured: true, created: true, purpose: "follow_up" }));
   try {
-    assert.equal(shownText(document, "site-footer-note"), FOLLOW_UP_PRIVACY);
+    assert.equal(shownText(document, "site-footer-note"), FOLLOW_UP_PRIVACY_WITH_NAME);
 
     submitEmail(document, TYPED_EMAIL);
     await settled(document);

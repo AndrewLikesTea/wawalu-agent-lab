@@ -67,7 +67,9 @@ const SUBJECT_FIELDS = ["INPUT#site-footer-subject-shiplog", "INPUT#site-footer-
 const withMessage = (baseline) => [...INTENT_FIELDS, MESSAGE_FIELD, ...baseline];
 const expectedStops = (file, baseline) => [
   ...(ASKS_SUBJECT.has(file) ? SUBJECT_FIELDS : []),
-  ...(ASKS_MESSAGE.has(file) ? withMessage(baseline) : baseline),
+  ...(ASKS_MESSAGE.has(file) ? withMessage(baseline) : baseline)
+    // #2995: the home page's form stays email-only, without the name and organization.
+    .filter((stop) => file !== "index.html" || !/#site-footer-(?:name|organization)$/.test(stop)),
 ];
 
 const SENTENCE_LEAD = "This request is sent about the ";
@@ -203,8 +205,9 @@ test("the stated topic is prose in the existing hint style, and costs no tab sto
   const baseline = parseHtml(await read(BASELINE));
   const baselineStops = focusables(baseline.getElementById("site-footer-panel"));
   // An empty baseline would make the comparison below pass without looking at
-  // anything: the plain block has a field and two submit controls.
-  assert.equal(baselineStops.length, 3, `${BASELINE}: the plain follow-up block did not parse`);
+  // anything: the plain block has a field, the optional name and organization
+  // (#2995), and two submit controls.
+  assert.equal(baselineStops.length, 5, `${BASELINE}: the plain follow-up block did not parse`);
 
   for (const file of STATED) {
     const html = await read(file);
@@ -244,7 +247,8 @@ test("the topic sentence sits with the work-email field, above the control that 
   // Derived from the plain block rather than typed here, for the reason the test
   // above derives it: a shape this file invented is a shape no page has to keep.
   const baselineStops = focusables(parseHtml(await read(BASELINE)).getElementById("site-footer-panel"));
-  assert.deepEqual(baselineStops, ["INPUT#site-footer-email", "BUTTON#", "BUTTON#site-footer-retry"],
+  assert.deepEqual(baselineStops, ["INPUT#site-footer-email", "INPUT#site-footer-name", "INPUT#site-footer-organization",
+    "BUTTON#", "BUTTON#site-footer-retry"],
     `${BASELINE}: the plain follow-up block did not parse`);
 
   for (const file of STATED) {
