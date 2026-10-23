@@ -208,27 +208,28 @@
                    is the fact the menu filters on — when a post was published —
                    and it is a label for the control, exactly like the display
                    name filter beside it, so clicking it moves focus to the menu
-                   and a screen reader reads the pair. -->
-              <label for="post-time-filter">Filter posts by publication time</label>
+                   and a screen reader reads the pair. One word, the word every
+                   card already uses (#2993), and the options below finish it:
+                   Published, from the past hour. -->
+              <label for="post-time-filter">Published</label>
               <!-- The all-values option is the one option in this menu that is
                    never quoted into a sentence — src/social.js reads a set range
                    back off the control, and "all" sets no range — so it is
                    written as what the closed menu says, not as a clause. It read
                    "From any time", which opens the way a start date opens: "from"
                    plus an unbounded point, leaving a reader to decide whether the
-                   feed begins somewhere or holds everything. It is now the same
-                   shape as the neutral option in the menu beside it — "All" plus
-                   the thing the label names — so the two menus in this row say
-                   "no filter" the same way. "All publication times" rather than "All
-                   dates" because the ranges below it are measured in hours, and a
-                   reader choosing the past hour is not choosing a date. -->
+                   feed begins somewhere or holds everything. It is now the plain
+                   answer to the label's question — Published: any time — so it
+                   says "no filter" without a second noun. Not "All dates":
+                   the ranges below it are measured in hours, and a reader
+                   choosing the past hour is not choosing a date. -->
               <!-- Described by its own line at the foot of the row, the way the
                    display-name menu is described by the line beside it. The
                    description stays attached in every state, because what a
                    window means is true whether or not the menu is operable, so
                    src/social.js only ever rewrites its words. -->
               <select id="post-time-filter" aria-describedby="post-time-filter-hint">
-                <option value="all">All publication times</option>
+                <option value="all">Any time</option>
                 <option value="hour">From the past hour</option>
                 <option value="day">From the past 24 hours</option>
                 <option value="week">From the past 7 days</option>
@@ -278,7 +279,7 @@
                  shut by the same fetch and open again at the same moment — the
                  row used to answer "when can I use this?" once per menu, in two
                  near-identical sentences a line apart. -->
-            <p class="hint" id="post-filter-hint">The display-name and publication-time filters become available when posts finish loading.</p>
+            <p class="hint" id="post-filter-hint">The display-name and Published filters become available when posts finish loading.</p>
             <!-- The time menu's own line, and the answer to the question the row
                  could not answer before (#2562): what a window actually
                  measures. The menu offers three windows and an all-values
@@ -300,7 +301,7 @@
                  the line above it is both: it describes the control that names
                  it through aria-describedby, and #feed-summary owns the count
                  and the order. -->
-            <p class="hint" id="post-time-filter-hint">Each publication-time window counts back from the moment you choose it: From the past 24 hours shows posts published in the 24 hours before that moment.</p>
+            <p class="hint" id="post-time-filter-hint">Each range counts back from the moment you choose it: “From the past 7 days” at 3 p.m. on a Friday shows posts published since 3 p.m. the Friday before.</p>
           </div>
           <div class="feed-connection" hidden>
             <span class="live-dot" aria-hidden="true"></span>

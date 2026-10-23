@@ -1224,19 +1224,18 @@ test("the feed toolbar names what each control filters, in the site's own terms"
     "the ordering eyebrow survives above a summary sentence that already ends \"newest first\"");
   // "Show posts" named no field — it read as the button beside it rather than
   // as the label above a menu. The label is the fact the menu narrows on.
-  assert.match(markup, /<label for="post-time-filter">Filter posts by publication time<\/label>/,
+  assert.match(markup, /<label for="post-time-filter">Published<\/label>/,
     "the time menu is labelled by what it filters on");
   assert.doesNotMatch(markup.replace(/<!--[\s\S]*?-->/g, ""), /Show posts/,
     "the label that read like a button survives somewhere on the page");
   assert.match(markup, /<option value="hour">From the past hour<\/option>/,
     "each option states what it includes, so the closed menu is already readable");
   // The all-values option is the one option here that is never read into a
-  // sentence, so it is written as a menu entry: "All" and the thing the label
-  // names, exactly as the display-name menu writes its own. "From any time"
-  // opened like a start date — "from" and an unbounded point — which is not what
-  // choosing it does.
-  assert.match(markup, /<option value="all">All publication times<\/option>/,
-    "the all-values option names every post, in the label's own term");
+  // sentence, so it is written as a menu entry that answers the label:
+  // Published, any time. "From any time" opened like a start date — "from" and
+  // an unbounded point — which is not what choosing it does.
+  assert.match(markup, /<option value="all">Any time<\/option>/,
+    "the all-values option does not answer the label it sits under");
   assert.doesNotMatch(markup.replace(/<!--[\s\S]*?-->/g, ""), /From any time/,
     "the all-values option still opens like a start date");
   assert.equal(markup.match(/<option value="all">/g).length, 2,
@@ -1269,13 +1268,14 @@ test("the feed toolbar names what each control filters, in the site's own terms"
   // Both menus, and only these two, carry a visible label tied to their own
   // control — so neither reads as the button they sit beside.
   const labels = page.document.querySelector(".social-toolbar").querySelectorAll("label");
-  assert.deepEqual(labels.map((label) => textOf(label)), ["Filter posts by display name", "Filter posts by publication time"]);
+  assert.deepEqual(labels.map((label) => textOf(label)), ["Filter posts by display name", "Published"]);
   assert.deepEqual(labels.map((label) => label.getAttribute("for")), ["post-name-filter", "post-time-filter"]);
   // One term for when a post went out (#2810): cards, People and the post page
-  // say "published", so the time filter says it too, and "posting time" is gone.
-  assert.match(textOf(labels[1]), /publication/);
-  assert.doesNotMatch(textOf(page.document.body), /posting[ -]time/i,
-    "the rendered page still calls the time filter's subject \"posting time\"");
+  // say "published", so the time filter says it too, and "posting time" and
+  // "publication time" (#2993) are gone.
+  assert.match(textOf(labels[1]), /Published/);
+  assert.doesNotMatch(textOf(page.document.body), /(posting|publication)[ -]time/i,
+    "the rendered page still calls the time filter's subject \"posting time\" or \"publication time\"");
   const timeOptions = page.document.querySelector("#post-time-filter").options;
   assert.deepEqual(timeOptions.map((option) => option.getAttribute("value")), ["all", "hour", "day", "week"],
     "the rewording changed the time filter's values");
@@ -1931,9 +1931,11 @@ test("with the composer open, only the submit says Publish and the opener says W
   // and it is the one that makes a post public — the opener used to be in this
   // list under "Publish a post", so the word named a control that publishes
   // nothing (#2389). The opener is checked separately below, on the verb it
-  // uses instead.
+  // uses instead. The verb only: the time filter's label is "Published" (#2993),
+  // the participle every card's date uses, and names a fact, not a press.
   const publishing = document.querySelectorAll("a,button,summary,label")
-    .filter((node) => /Publish/.test(textOf(node)));
+    .filter((node) => /\bPublish\b/.test(textOf(node)));
+  assert.equal(document.querySelectorAll("label").filter((node) => textOf(node) === "Published").length, 1);
   assert.deepEqual(publishing.map((node) => textOf(node)), ["Publish post"],
     "a control on Social says Publish without being the one that publishes");
   assert.deepEqual(publishing.map((node) => node.getAttribute("id")), ["post-submit"]);

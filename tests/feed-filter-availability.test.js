@@ -104,9 +104,9 @@ test("Social's filters are not operable while the feed is loading, and say why",
   const hint = hintIn(document.querySelector(".social-toolbar"), "post-filter-hint");
   assert.equal(hint.tagName, "P");
   assert.equal(textOf(hint), FEED_FILTERS_UNAVAILABLE_HINT);
-  assert.equal(textOf(hint), "The display-name and publication-time filters become available when posts finish loading.");
+  assert.equal(textOf(hint), "The display-name and Published filters become available when posts finish loading.");
   assert.equal(classesOf(hint).includes("hint"), true, "the reason is set at content weight");
-  assert.equal((textOf(document.body).match(/The display-name and publication-time filters become available when posts finish loading\./g) ?? []).length, 1);
+  assert.equal((textOf(document.body).match(/The display-name and Published filters become available when posts finish loading\./g) ?? []).length, 1);
   // And the sentences it replaced are gone from the page, on this render path
   // and on every other one below (#2611).
   assert.doesNotMatch(textOf(document.body), /Filter posts by (display name|posting time) becomes available/);
@@ -160,7 +160,7 @@ test("Social's filters come back, in their authored order, the moment posts rend
   assert.ok(document.activeElement === clear, "Tab from the time menu does not reach Clear filters");
 });
 
-/* ---------------------- what a publication-time window is ------------------ */
+/* ------------------------- what a time range is --------------------------- */
 
 // #2562. The row said which filters were set and why they were shut, and left
 // the one thing a closed menu cannot tell a reader unsaid: what a window
@@ -199,21 +199,54 @@ test("Social's time menu says what a window measures, in the menu's own words", 
     "the working menu points at nothing that says what its windows measure");
   assert.equal(textOf(timeHint), TIME_FILTER_WINDOW_HINT);
   assert.equal(textOf(timeHint),
-    "Each publication-time window counts back from the moment you choose it: "
-    + "From the past 24 hours shows posts published in the 24 hours before that moment.");
+    "Each range counts back from the moment you choose it: "
+    + "“From the past 7 days” at 3 p.m. on a Friday shows posts published since 3 p.m. the Friday before.");
 
-  // The window it names is the menu's own option text, byte for byte, and it is
+  // The range it names is the menu's own option text, byte for byte, and it is
   // the only one quoted — so the sentence and a closed menu cannot drift.
   const windows = optionTexts(time).slice(1);
   assert.deepEqual(windows, ["From the past hour", "From the past 24 hours", "From the past 7 days"]);
-  assert.deepEqual(windows.filter((option) => textOf(timeHint).includes(option)), ["From the past 24 hours"]);
+  assert.deepEqual(windows.filter((option) => textOf(timeHint).includes(`“${option}”`)), ["From the past 7 days"]);
 
   // One word for the thing this menu filters on, and it is the label's.
-  assert.equal(textOf(document.body).includes("Filter posts by publication time"), true);
-  for (const rival of ["recency", "time range", "age", "date range", "freshness", "posting time", "posting-time"]) {
+  assert.match(textOf(timeHint), /\bpublished\b/);
+  for (const rival of ["recency", "time range", "age", "date range", "freshness", "posting time", "posting-time", "publication"]) {
     assert.equal(textOf(timeHint).toLowerCase().includes(rival), false,
-      `the line calls publication time "${rival}" as well`);
+      `the line calls when a post was published "${rival}" as well`);
   }
+});
+
+// #2993. The filter was described as "publication time" and a
+// "publication-time window", a phrase no card, control or other page uses. It
+// says "Published", the word on every card, in the label, the option a reader
+// lands on, the row's wait and the range line — and nowhere says the old phrase.
+test("Social's time filter says Published, and every range in plain words", async (t) => {
+  const page = await loadPage(SOCIAL_PAGE, {});
+  t.after(() => page.restore());
+  const { document } = page;
+  const time = document.querySelector("#post-time-filter");
+  const label = document.querySelectorAll("label").find((node) => node.getAttribute("for") === "post-time-filter");
+  const noJargon = (when) => assert.doesNotMatch(textOf(document.body), /publication[- ]time/i,
+    `the ${when} page still calls the filter's subject "publication time"`);
+
+  noJargon("served");
+  const feed = mountSocialFeed(document, { posts: [], state: "loading" });
+  assert.equal(textOf(label), "Published");
+  assert.equal(time.getAttribute("aria-label"), null, "an aria-label overrides the visible label");
+  assert.deepEqual(optionTexts(time), ["Any time", "From the past hour", "From the past 24 hours", "From the past 7 days"]);
+  assert.deepEqual([...time.options].map((option) => option.getAttribute("value")), ["all", "hour", "day", "week"],
+    "the rewording changed the filter's values");
+  assert.equal(textOf(document.querySelector("#post-filter-hint")),
+    "The display-name and Published filters become available when posts finish loading.");
+  assert.equal(textOf(document.querySelector("#post-time-filter-hint")),
+    "Each range counts back from the moment you choose it: “From the past 7 days” at 3 p.m. on a Friday "
+    + "shows posts published since 3 p.m. the Friday before.");
+  noJargon("loading");
+
+  feed.seed(MIXED);
+  time.value = "week";
+  time.dispatchEvent({ type: "change" });
+  noJargon("filtered");
 });
 
 // #2611. The row answered "when can I use this?" twice, a line apart and in
@@ -245,7 +278,7 @@ test("Social's filter row says once, for both menus, when its filters become usa
   assert.equal(waits(), 1, "the loading row states the wait more than once");
   assert.deepEqual(oldLines(), [0, 0]);
   assert.equal(says("become available when posts finish loading"), 1);
-  for (const label of ["display-name", "publication-time"]) {
+  for (const label of ["display-name", "Published"]) {
     assert.equal(FEED_FILTERS_UNAVAILABLE_HINT.includes(label), true,
       `the row's one sentence leaves the ${label} filter unaccounted for`);
   }
@@ -496,7 +529,7 @@ test("a loading filter row names both menus without promising what is in either"
   assert.equal(time.options.length, 4);
 
   assert.equal(filterStatus(document), FEED_FILTERS_UNAVAILABLE_HINT);
-  assert.equal(filterStatus(document), "The display-name and publication-time filters become available when posts finish loading.");
+  assert.equal(filterStatus(document), "The display-name and Published filters become available when posts finish loading.");
   assert.equal(filterStatus(document), filterStatusLine({ available: false }));
   // It names each menu in that menu's OWN words (#2506, #2611). The labels are
   // read off the page rather than written here a second time, so renaming a
@@ -506,8 +539,8 @@ test("a loading filter row names both menus without promising what is in either"
   const labelFor = (id) => textOf(document.querySelectorAll("label")
     .find((node) => node.getAttribute("for") === id));
   assert.equal(labelFor("post-name-filter"), "Filter posts by display name");
-  assert.equal(labelFor("post-time-filter"), "Filter posts by publication time");
-  for (const [id, term] of [["post-name-filter", "display-name"], ["post-time-filter", "publication-time"]]) {
+  assert.equal(labelFor("post-time-filter"), "Published");
+  for (const [id, term] of [["post-name-filter", "display-name"], ["post-time-filter", "Published"]]) {
     assert.equal(filterStatus(document).includes(term), true,
       `the row does not name the ${id} menu, which is labelled "${labelFor(id)}"`);
     assert.equal(labelFor(id).includes(term.replace("-", " ")), true,
@@ -526,7 +559,7 @@ test("a loading filter row names both menus without promising what is in either"
   feed.seed(RECENT);
   assert.ok(names.options.length > 1, "the display names never became available at all");
   assert.equal(names.disabled, false);
-  assert.equal(time.disabled, false, "the publication-time menu never became available at all");
+  assert.equal(time.disabled, false, "the Published menu never became available at all");
   assert.equal(time.options.length, 4, "the time menu's ranges changed when the posts landed");
   assert.doesNotMatch(textOf(document.body), /become available/, "the waiting sentence outlived the wait");
 });

@@ -204,7 +204,7 @@ test("Social says one thing while it loads, and the other three lines are not on
   // And the filter row beside it waits in the same word rather than inventing a
   // second one for the same fetch — once for both menus (#2611), not once each.
   assert.equal(textOf(document.querySelector("#post-filter-hint")),
-    "The display-name and publication-time filters become available when posts finish loading.");
+    "The display-name and Published filters become available when posts finish loading.");
   assert.equal((body.match(/become available when posts finish loading\./g) ?? []).length, 1);
 
   // The wait reserves both kinds of post card, including their metadata and
