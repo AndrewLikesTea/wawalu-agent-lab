@@ -524,6 +524,7 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
     status,
     submit,
     email,
+    replyGuidance: FOLLOW_UP_REPLY,
     // Coming back to the form clears the outcome of the last request: it reports
     // something that happened, and the visitor has just said they are not done.
     onReopen: () => {
@@ -641,7 +642,7 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
       // gone before the `finally` below could bring it back. The intent named is
       // the endpoint's stored one, never the radio still checked above.
       confirmation.show(address, topic, Boolean(note), body.intent ? FOLLOW_UP_INTENTS[body.intent] : "",
-        subjects.length ? tool || "Shiplog" : "");
+        subjects.length ? tool || "Shiplog" : "", body.created);
     } catch (error) {
       // Copy this repository owns, never a string an intermediary supplied, and
       // never a claim that the address was lost when that is not known.

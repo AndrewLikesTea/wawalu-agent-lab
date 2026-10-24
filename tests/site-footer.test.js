@@ -1310,7 +1310,7 @@ test("the painted follow-up block says who answers, once, above the button", asy
   }
 });
 
-test("neither a failure nor a receipt says who answers a second time", async () => {
+test("only a successful receipt repeats the reply expectation after replacing the form", async () => {
   const page = await openFooterPage("index.html");
   const { document } = page;
   let failNext = true;
@@ -1336,13 +1336,12 @@ test("neither a failure nor a receipt says who answers a second time", async () 
     pressEnter(document);
     await waitFor(() => byId(document, "site-footer-form").dataset.state === "success", "the retry to succeed");
 
-    // The receipt owns what happens after a request lands, in its own words.
-    // Two sentences about a reply, in the same band, would be a reader's
-    // second question rather than an answer to their first.
+    // The form's guidance is hidden after success, so the visible receipt
+    // must carry the reply expectation itself.
     const receipt = textOf(byId(document, "site-footer-confirmation"));
-    assert.doesNotMatch(receipt, /A person replies|working days|automated reply|A person from the Wawalu team/,
-      "the receipt restates who answers");
-    assert.equal(carryingReply(footer).length, 1, "the success state repeats the sentence");
+    assert.ok(receipt.includes(FOLLOW_UP_REPLY));
+    assert.equal(byId(document, "site-footer-form").hidden, true);
+    assert.equal(carryingReply(footer).length, 2, "one hidden form sentence and one visible receipt sentence");
     assert.equal(calls.length, 2);
   } finally {
     page.restore();
