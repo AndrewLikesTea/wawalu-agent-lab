@@ -376,6 +376,7 @@ export function profileEmptyText(author, { anyImages = true } = {}) {
 // still says "Publish post". If this phrase is ever re-read as a control label,
 // it is "Write a post on Social" that would name one.
 export const PUBLISH_ON_SOCIAL = "Publish a post on Social";
+export const PUBLISH_ON_SOCIAL_HREF = "/social.html#post-form";
 
 // The grid's first-load status says exactly what People is retrieving, and then
 // where those image posts come from. It used to close on the trip to Social's
@@ -790,7 +791,8 @@ function renderSkeleton(container, count = 6) {
 //
 // With no image post under any name (#2804) another name is no way out, so that
 // panel says why the grid is empty and sends the reader to the same sequence
-// instead — still one link, still on this page.
+// instead. Both panels then end on the one direct link to Social's composer
+// (#3002), after the recovery that stays on this page.
 export const CREATE_STEPS_LABEL = "Go to the steps for adding the first image post";
 
 function renderEmpty(container, author, anyImages = true, onClear = null) {
@@ -812,6 +814,12 @@ function renderEmpty(container, author, anyImages = true, onClear = null) {
     clear.addEventListener("click", onClear);
     actions.append(clear);
   }
+  // #3002 restores one direct route out of the empty grid to Social's composer,
+  // in PUBLISH_ON_SOCIAL's words and href, last so recovery on this page comes
+  // first. The sequence under the grid still owns the full Paint-then-Social path.
+  const publish = el("a", "empty-action empty-action-secondary", PUBLISH_ON_SOCIAL);
+  publish.href = PUBLISH_ON_SOCIAL_HREF;
+  actions.append(publish);
   empty.append(actions);
   container.append(empty);
 }
@@ -1140,9 +1148,27 @@ export function mountProfile(root, options = {}) {
   const message = elements.feedStatus ? el("div", "profile-load-message") : grid;
   if (elements.feedStatus) elements.feedStatus.replaceChildren(message);
   let retryButton = null;
+  // Set when Retry is pressed (#3002). Focus stays on the aria-disabled button
+  // through the wait; when the retry settles it moves once — to the results
+  // heading on success, back onto Retry on a repeated failure — and only if the
+  // reader has not moved it elsewhere in the meantime.
+  let retrying = false;
   const retryLoad = options.onRetry ? () => {
-    if (state !== "loading") return options.onRetry();
+    if (state === "loading") return;
+    retrying = true;
+    return options.onRetry();
   } : null;
+  const settleRetryFocus = () => {
+    if (!retrying || state === "loading") return;
+    retrying = false;
+    const active = root.activeElement ?? null;
+    if (active && active !== retryButton && active !== root.body) return;
+    if (state === "error" && retryButton) retryButton.focus();
+    else if (elements.heading) {
+      elements.heading.setAttribute("tabindex", "-1");
+      elements.heading.focus();
+    }
+  };
 
   let posts = options.posts ?? [];
   let state = options.state ?? "ready";
@@ -1311,12 +1337,14 @@ export function mountProfile(root, options = {}) {
     render,
     getAuthor() { return author; },
     setAuthor(next) { author = next; renderPicker(); render(); },
-    seed(next, nextAuthor = author) { posts = next ?? []; author = nextAuthor; state = "ready"; renderPicker(); render(); },
+    seed(next, nextAuthor = author) {
+      posts = next ?? []; author = nextAuthor; state = "ready"; renderPicker(); render(); settleRetryFocus();
+    },
     // Loading and error are display states only: they never discard posts
     // already on screen, so a failed refresh degrades to "stale but readable".
     // The picker re-renders too, because leaving "loading" is exactly what
     // turns "Counting…" into a number.
-    setState(next) { state = next; renderPicker(); render(); },
+    setState(next) { state = next; renderPicker(); render(); settleRetryFocus(); },
     setStatus(text) { if (elements.status) elements.status.textContent = text; },
     getPosts() { return [...posts]; },
   };

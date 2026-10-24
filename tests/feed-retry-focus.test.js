@@ -329,9 +329,12 @@ test("People keeps the same keyboard control through retry and recovery", async 
   assert.equal(document.querySelector("#profile-paint-route") === paint, true);
   resolve({ ok: true, json: async () => ({ posts: [apiPost("live-18", "Zed", "18", { withImage: true })] }) });
   await waitFor(() => drawnTiles(document).length === 1, "the retried request drew no tiles");
-  assert.equal(document.activeElement === retry, true);
+  // A successful retry lands on the results heading (#3002); the same control
+  // stays, renamed, one Tab further on.
+  assert.equal(document.activeElement === document.querySelector("#grid-title"), true);
   assert.equal(status.querySelector(".profile-retry") === retry, true);
   assert.equal(textOf(retry), "Reload image posts");
+  retry.focus();
   assert.equal(retry.getAttribute("aria-disabled"), "false");
   assert.equal(textOf(announcer), "Showing 1 image post by Zed, newest first.");
   assert.deepEqual(announcements, [PROFILE_LOADING_ANNOUNCEMENT, "Showing 1 image post by Zed, newest first."],
@@ -499,6 +502,7 @@ test("People's Retry is a real button after the selected name, and fail, fail, r
   assert.deepEqual(navigations, [], "Retry navigated instead of fetching in place");
   assert.ok(!textOf(status).includes(PEOPLE_FAILURE_COPY.failed));
   assert.equal(document.querySelector("#profile-grid").getAttribute("aria-busy"), "false");
-  assert.equal(focusedText(document), "Reload image posts", "focus left the results region");
+  assert.equal(focusedText(document), "Guest · 1 image post", "focus did not land on the results heading");
+  assert.equal(document.activeElement.getAttribute("tabindex"), "-1");
   assert.ok(status.querySelectorAll(".profile-retry").length === 1);
 });

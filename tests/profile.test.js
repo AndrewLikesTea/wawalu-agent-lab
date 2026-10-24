@@ -544,13 +544,15 @@ test("a completed empty profile names the selected display name and offers the p
   assert.equal(first(empty, "empty-title").textContent,
     "The display name “Mina” has no image posts yet.");
   const actions = byClass(empty, "empty-action");
-  assert.equal(actions.length, 1);
+  assert.equal(actions.length, 2);
   assert.equal(actions[0].textContent, "Choose another display name");
   assert.equal(actions[0].href, "#profile-name-picker");
   assert.equal(actions[0].tagName, "A");
-  // The handoff is not told a second time from inside the grid: one link out,
-  // and it stays on this page.
-  assert.equal(tags(empty, "A").length, 1);
+  // One direct route to Social's composer (#3002), after the on-page recovery;
+  // the steps themselves are not restated here (#2497).
+  assert.equal(actions[1].textContent, PUBLISH_ON_SOCIAL);
+  assert.equal(actions[1].href, "/social.html#post-form");
+  assert.equal(tags(empty, "A").length, 2);
 });
 
 test("a failed load is offered a retry, not a false empty state", () => {
@@ -862,8 +864,7 @@ test("the zero state does not vary with what the rest of the feed holds", () => 
   });
   assert.equal(first(withFilter, "empty-title").textContent, profileEmptyText("Ari"));
   const actions = byClass(withFilter, "empty-action");
-  assert.equal(actions.length, 1);
-  assert.equal(actions[0].textContent, "Choose another display name");
+  assert.deepEqual(actions.map((action) => action.textContent), ["Choose another display name", PUBLISH_ON_SOCIAL]);
   assert.equal(actions[0].href, "#profile-name-picker");
   // No button anywhere: the way back to a populated view is the picker above,
   // which is on screen in both of these situations.
@@ -1013,7 +1014,7 @@ test("empty People recovery follows safely interpolated names and replaces pendi
     assert.equal(tags(panel, "IMG").length, 0);
     assert.equal(byClass(container, "feed-status-error").length, 0);
     assert.equal(byClass(container, "profile-skeleton").length, 0);
-    assert.deepEqual(tags(panel, "A").map(link => link.href), ["#profile-name-picker"]);
+    assert.deepEqual(tags(panel, "A").map(link => link.href), ["#profile-name-picker", "/social.html#post-form"]);
     assert.equal(panel.children[1].className, "empty-actions");
   }
 });
@@ -1042,7 +1043,7 @@ test("an empty People grid with no image posts anywhere has its own words, struc
   assert.equal(panel.children[0].textContent, NO_IMAGE_POSTS_ANYWHERE);
   assert.equal(panel.children[1].tagName, "P");
   assert.doesNotMatch(textOf(panel), /published as|Guest/);
-  assert.deepEqual(tags(panel, "A").map((link) => link.href), ["#profile-create-steps"]);
+  assert.deepEqual(tags(panel, "A").map((link) => link.href), ["#profile-create-steps", "/social.html#post-form"]);
   assert.equal(first(panel, "empty-action").textContent, CREATE_STEPS_LABEL);
   assert.equal(profileLoadAnnouncement({ state: "ready", author: "Guest", anyImages: false }), NO_IMAGE_POSTS_ANYWHERE);
   assert.equal(profileLoadAnnouncement({ state: "ready", author: "Guest" }), "The display name “Guest” has no image posts yet.");

@@ -983,8 +983,9 @@ test("People tells no image posts anywhere apart from none under the selected na
   assert.equal(document.querySelectorAll(".empty-state-none").length, 1);
   const none = document.querySelector(".empty-state");
   assert.equal(textOf(none.querySelector("h3")), "No one has published an image post on Social yet.");
-  assert.equal(none.querySelectorAll("a").length, 1);
-  assert.equal(none.querySelector("a").getAttribute("href"), "#profile-create-steps");
+  // The steps under the grid, then one direct link to Social's composer (#3002).
+  assert.deepEqual(none.querySelectorAll("a").map((a) => a.getAttribute("href")),
+    ["#profile-create-steps", "/social.html#post-form"]);
   assert.equal(document.querySelectorAll(".empty-state-filtered").length, 0);
   assert.doesNotMatch(textOf(document.body), /No image posts match the selected display name/);
 
@@ -995,7 +996,7 @@ test("People tells no image posts anywhere apart from none under the selected na
   assert.equal(document.querySelectorAll(".empty-state").length, 1);
   // One panel at a time: the nobody-has-pictures panel is gone, not stacked.
   assert.equal(document.querySelectorAll(".empty-state-none").length, 0);
-  assert.equal(textOf(filtered), "The display name “Ari” has no image posts yet.Choose another display name");
+  assert.equal(textOf(filtered), "The display name “Ari” has no image posts yet.Choose another display namePublish a post on Social");
   // And the promise about image posts arriving on their own is not standing over
   // a grid the picker emptied: it would answer "why is this empty?" with the
   // wrong reason.
@@ -1006,10 +1007,11 @@ test("People tells no image posts anywhere apart from none under the selected na
   // away from the heading and the chips that carry them on screen.
   assert.equal(textOf(document.querySelector("#profile-announcer")),
     "The display name “Ari” has no image posts yet.");
-  assert.equal(filtered.querySelectorAll("a").length, 1);
-  assert.equal(textOf(filtered.querySelector("a")), "Choose another display name");
+  assert.deepEqual(filtered.querySelectorAll("a").map((a) => textOf(a)),
+    ["Choose another display name", "Publish a post on Social"]);
   // The path from Paint to a picture on this page is stated once, under the
-  // grid, and the panel does not tell three of its steps over again (#2497).
+  // grid; the panel links Social's composer directly (#3002) but does not tell
+  // three of its steps over again (#2497).
   assert.equal(document.querySelectorAll(".feed-create").length, 1);
   assert.match(textOf(document.querySelector(".feed-create")),
     /Create or open an image in Paint \(opens in a new tab\), then select “Use this image in a Social post”\. From a file: when you write a Social post, select Choose image to add an image from this device\. Either way, fill in the required image description\. Publish a post on Social\. A published post with an image appears on People, under the display name you publish it with\./);
