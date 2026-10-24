@@ -198,7 +198,8 @@ for (const [file, purpose, topic, question] of ASKS) {
     assert.ok(receipt.includes(topic), "and the page topic it was sent about");
     // Acknowledged, not echoed: the same rule the AI FinOps receipt follows.
     assert.doesNotMatch(receipt, new RegExp(question.slice(0, 20)));
-    assert.doesNotMatch(receipt, /business day|within \d|we will reply|hours/i);
+    assert.match(receipt, /A person replies by email, usually within two working days/);
+    assert.match(receipt, /What you want to discuss: A pilot/);
   });
 
   test(`${file}: the question left empty sends and stores no message`, async (t) => {
@@ -303,4 +304,46 @@ test("a refused message reads as a refused message, not as a page to reload", as
   assert.match(failure.message, new RegExp(`${MAX_FOLLOW_UP_MESSAGE_LENGTH}-character limit`));
   assert.match(failure.message, /Shorten it/);
   assert.doesNotMatch(failure.message, /Reload the page/);
+});
+
+test("a repeat receipt names the updated discussion but never claims the replacement note was saved", async (t) => {
+  const db = await createTestD1();
+  t.after(() => db.close());
+  const { document } = await mountAgainstEndpoint(t, "releases.html", db);
+  ask(document, "Original private note");
+  submit(document);
+  await settled(document);
+  byId(document, "site-footer-again").click();
+  ask(document, "Replacement private note");
+  submit(document, "demo");
+  await settled(document);
+  const receipt = textOf(byId(document, "site-footer-confirmation"));
+  assert.match(receipt, /Request received/);
+  assert.match(receipt, /What you want to discuss: A product demonstration/);
+  assert.ok(receipt.includes(FOLLOW_UP_TOPICS.follow_up_releases));
+  assert.match(receipt, /original note was kept/);
+  assert.doesNotMatch(receipt, /Original private note|Replacement private note|message you entered have been saved/);
+  assert.match(receipt, /usually within two working days/);
+  assert.deepEqual(rows(db), [{
+    email: EMAIL, purpose: "follow_up_releases", topic: FOLLOW_UP_TOPICS.follow_up_releases,
+    message: "Original private note", intent: "demo",
+  }]);
+});
+
+test("the API receipt exposes routing and capture status, never the stored note", async () => {
+  const store = createMemoryLeadStore();
+  const payload = {
+    email: EMAIL, purpose: "follow_up_releases", topic: FOLLOW_UP_TOPICS.follow_up_releases,
+    intent: "pilot", message: "Private note never returned",
+  };
+  for (const created of [true, false]) {
+    const response = await handleLeadRequest(new Request("https://test.invalid/api/leads", {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload),
+    }), { store });
+    assert.equal(response.status, created ? 201 : 200);
+    assert.deepEqual(await response.json(), {
+      captured: true, created, purpose: payload.purpose, intent: payload.intent,
+    });
+    assert.equal(store.read(EMAIL, payload.purpose).message, payload.message);
+  }
 });

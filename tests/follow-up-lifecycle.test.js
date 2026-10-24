@@ -47,6 +47,9 @@ for (const [name, failure, diagnostic] of [
       get("intent-pilot")?.click();
       const note = form.elements.message;
       if (note) note.value = "Please discuss a pilot.";
+      for (const key of ["name", "organization"]) {
+        if (form.elements[key]) form.elements[key].value = `  Retained ${key}  `;
+      }
       email.focus();
       typeText(document, "person@example.com");
       submit.focus();
@@ -79,6 +82,10 @@ for (const [name, failure, diagnostic] of [
       assert.match(textOf(retry), /Retry your follow-up request/);
       assert.equal(email.value, "person@example.com");
       if (note) assert.equal(note.value, "Please discuss a pilot.");
+      for (const key of ["name", "organization"]) {
+        if (form.elements[key]) assert.equal(form.elements[key].value, `  Retained ${key}  `);
+      }
+      if (get("intent-pilot")) assert.equal(get("intent-pilot").checked, true);
       assert.equal(status.parentNode, form);
       assert.equal(document.activeElement, email, "hidden request control hands focus to the retained field");
       assert.ok(tabSequence(document).indexOf(email) < tabSequence(document).indexOf(retry));
@@ -92,6 +99,11 @@ for (const [name, failure, diagnostic] of [
       assert.equal(retry.hidden, true);
       assert.equal(form.hidden, true);
       assert.match(textOf(get("confirmation")), /Request received/);
+      assert.match(textOf(get("confirmation")), /A person replies by email, usually within two working days/);
+      if (note) assert.ok(!textOf(get("confirmation")).includes(note.value));
+      form.dispatchEvent({ type: "submit", preventDefault() {} });
+      submit.click();
+      assert.equal(calls.length, 2, "completed submissions cannot send again");
       assert.equal(document.activeElement, get("confirmation"));
       assert.ok(!tabSequence(document).includes(retry));
       // The receipt owns the send control; settling the retry may not free it.

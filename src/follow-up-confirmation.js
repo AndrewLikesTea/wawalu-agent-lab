@@ -16,23 +16,15 @@
 // live region inserted already-populated is not reliably announced, so focus
 // landing on the receipt is what puts a reader inside it.
 
-/**
- * The receipt answers three questions and nothing else: whether the request was
- * received, what was submitted, and what did not go with it. `LEAD` is split
- * around the address so the address arrives as a text node of its own.
- *
- * The exclusion list is not decoration. `postLeadEmail` builds the whole request
- * body from the typed address and a fixed routing label, so no page state has a
- * route to the wire on any surface — the sentence is true by construction, and
- * naming what stayed behind is the point of it. It deliberately promises no
- * reply, response time, or action after storage.
- */
+// Receipt copy acknowledges submitted fields without displaying the note.
+// Surfaces supply their established reply guidance; storage guarantees no reply.
 export const CONFIRMATION_LEAD = "Request received. Submitted work email: ";
 export const CONFIRMATION_DETAIL = "Only that work email was entered by you and sent. The Wawalu team may review the request and reply; a reply is not guaranteed.";
 export const CONFIRMATION_MESSAGE_DETAIL = "Only that work email and the message you entered were entered by you and sent. The Wawalu team may review the request and reply; a reply is not guaranteed.";
 export const CONFIRMATION_INTENT_DETAIL = "Your discussion choice has been saved. The Wawalu team may review the request and reply; a reply is not guaranteed.";
 export const CONFIRMATION_INTENT_MESSAGE_DETAIL = "Your discussion choice and the message you entered have been saved. The Wawalu team may review the request and reply; a reply is not guaranteed.";
-export const TOPIC_LEAD = "Fixed page topic: ";
+export const REPEAT_NOTE_DETAIL = "Your work email was already recorded. The original note was kept; the note in this submission did not replace it.";
+export const TOPIC_LEAD ="Fixed page topic: ";
 export const INTENT_LEAD = "What you want to discuss: ";
 export const SUBJECT_LEAD = "Asked about: ";
 export const REOPEN_LABEL = "Request another follow-up";
@@ -58,7 +50,7 @@ function classBase(status) {
  * exists only after a request lands, so there is no hidden node for a screen
  * reader to find first.
  */
-export function createFollowUpConfirmation({ form, status, submit, email, onReopen = () => {} }) {
+export function createFollowUpConfirmation({ form, status, submit, email, replyGuidance = "", onReopen = () => {} }) {
   const document = form.ownerDocument;
   const base = classBase(status);
   const prefix = form.id.replace(/-form$/, "");
@@ -109,7 +101,11 @@ export function createFollowUpConfirmation({ form, status, submit, email, onReop
     email.focus();
   });
 
-  region.append(lead, detail, again);
+  const reply = document.createElement("p");
+  reply.className = `${base}-confirmation-detail`;
+  reply.textContent = replyGuidance;
+  reply.hidden = !replyGuidance;
+  region.append(lead, detail, reply, again);
 
   let sent = false;
 
@@ -122,7 +118,7 @@ export function createFollowUpConfirmation({ form, status, submit, email, onReop
    * sentence appears only where the field does. `storedIntent` is the label for
    * the intent the endpoint read back, so it too is empty unless one is known.
    */
-  function show(value, submittedTopic = "", messageProvided = false, storedIntent = "", asked = "") {
+  function show(value, submittedTopic = "", messageProvided = false, storedIntent = "", asked = "", created = true) {
     address.textContent = value;
     subject.textContent = asked ? `${SUBJECT_LEAD}${asked}. ` : "";
     topic.textContent = submittedTopic ? `${TOPIC_LEAD}${submittedTopic}. ` : "";
@@ -130,6 +126,7 @@ export function createFollowUpConfirmation({ form, status, submit, email, onReop
     explanation.textContent = storedIntent || asked
       ? (messageProvided ? CONFIRMATION_INTENT_MESSAGE_DETAIL : CONFIRMATION_INTENT_DETAIL)
       : messageProvided ? CONFIRMATION_MESSAGE_DETAIL : CONFIRMATION_DETAIL;
+    if (!created && messageProvided) explanation.textContent = REPEAT_NOTE_DETAIL;
     if (!region.parentNode) form.parentNode.insertBefore(region, form);
     // Hiding the form takes the field and both of its buttons out of the tab
     // order; disabling submit means even a stray click on it does nothing.
