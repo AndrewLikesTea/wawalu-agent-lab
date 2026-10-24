@@ -359,13 +359,14 @@ test("a forwarded name with no image posts is named, and offered the whole feed"
   // This feed has image posts, under other display names, so the region says
   // the filter emptied the view rather than that there is nothing to see. The
   // genuinely-empty invitation belongs to a feed with no images at all.
-  assert.equal(textOf(empty), `The display name “${TESS}” has no image posts yet.Choose another display nameClear selection and show all display names`);
+  assert.equal(textOf(empty), `The display name “${TESS}” has no image posts yet.Choose another display nameClear selection and show all display namesPublish a post on Social`);
 
   // The way back to the whole feed is the reset that undoes the filter, in the
-  // one label this site uses for it — and it is the panel's only route, because
-  // the publishing path is stated once, under the grid (#2497).
+  // one label this site uses for it, ahead of the one direct link to Social's
+  // composer (#3002); the full publishing path stays under the grid (#2497).
   const back = empty.querySelectorAll("a");
-  assert.equal(back.length, 1);
+  assert.equal(back.length, 2);
+  assert.equal(back[1].getAttribute("href"), "/social.html#post-form");
   assert.equal(textOf(back[0]), "Choose another display name");
   assert.equal(back[0].getAttribute("href"), "#profile-name-picker");
 

@@ -91,3 +91,5 @@
 #profile-feed-status .field-error-mark { order:-1; border:2px solid currentColor; border-radius:50%; width:24px; height:24px; text-align:center; }
 #profile-feed-status .profile-retry { max-width:100%; min-height:44px; margin-bottom:12px; white-space:normal; overflow-wrap:anywhere; }
 #profile-feed-status .profile-retry[aria-disabled="true"] { cursor:wait; }
+/* A successful Retry lands focus on the results heading (#3002). */
+#grid-title:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }

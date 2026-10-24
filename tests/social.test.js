@@ -2630,13 +2630,12 @@ test("People empty recovery links follow its message in keyboard order on the sh
   mountProfile(page.document, { posts: [], author, state: "ready" });
   const region = page.document.querySelector("#profile-feed-status");
   const links = region.querySelectorAll("a");
-  // One recovery, and it stays on this page. The publishing routes this panel
-  // used to stack beside it were the Paint-to-Social path told a second time,
-  // beside the sequence under the grid that tells it in full (#2497). With no
-  // posts at all another name is no way out, so the one link goes to that
-  // sequence instead of the picker (#2804).
-  assert.equal(links.length, 1);
-  assert.deepEqual(links.map(link => link.href), ["#profile-create-steps"]);
+  // One on-page recovery, then one direct link to Social's composer (#3002) —
+  // not the Paint-to-Social steps told a second time (#2497). With no posts at
+  // all another name is no way out, so the recovery goes to the sequence under
+  // the grid instead of the picker (#2804).
+  assert.equal(links.length, 2);
+  assert.deepEqual(links.map(link => link.href), ["#profile-create-steps", "/social.html#post-form"]);
   assert.equal(textOf(region.querySelector("h3")), "No one has published an image post on Social yet.");
   assert.equal(region.querySelectorAll("img").length, 0);
   assert.deepEqual(tabSequence(page.document).filter(node => links.includes(node)), links);
