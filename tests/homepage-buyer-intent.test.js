@@ -259,7 +259,7 @@ test("the disclosure of what is sent, and when a person replies, stays visible",
   assert.equal(reply.hidden, false);
 
   const use = byId(document, "site-footer-use");
-  assert.equal(textOf(use), "We use your address to reply to this request and for nothing else.");
+  assert.equal(textOf(use), "We use your work email only to reply to this request.");
   assert.equal(use.hidden, false);
 });
 

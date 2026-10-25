@@ -134,21 +134,28 @@ test("the shared sentence is one sentence, under 25 words, and names all three t
   }
 });
 
-test("the message form's sentence is one sentence too, and lists everything that goes", () => {
-  const words = FOLLOW_UP_PRIVACY_WITH_MESSAGE.split(/\s+/).filter(Boolean);
-  // A longer budget than the sentence above, because it names four things
-  // rather than one (#2365 added what you want to discuss). Still one sentence.
-  // #2488: 37, because the page is now named by its own line's words.
-  // #2995: 50, for the optional name and organization and what they are for.
-  assert.ok(words.length <= 50, `the sentence is ${words.length} words; the budget is 50`);
+test("the message form's note is two short sentences, and lists everything that goes", () => {
+  // #3011: one 50-word sentence became two, recipient first, then the list.
+  // Each stays under 25 words, and neither joins clauses with a semicolon.
+  assert.deepEqual(FOLLOW_UP_PRIVACY_WITH_MESSAGE.split(/(?<=\.) /), [
+    "Your request goes to the Wawalu team that operates Shiplog.",
+    "We send only your work email, name and organization if given, the page named above, what you want to"
+      + " discuss, and anything else you add.",
+  ]);
+  for (const sentence of FOLLOW_UP_PRIVACY_WITH_MESSAGE.split(/(?<=\.) /)) {
+    const words = sentence.split(/\s+/).filter(Boolean);
+    assert.ok(words.length <= 25, `"${sentence}" is ${words.length} words; the budget is 25`);
+  }
+  assert.doesNotMatch(FOLLOW_UP_PRIVACY_WITH_MESSAGE, /;/);
+  assert.doesNotMatch(FOLLOW_UP_PRIVACY_WITH_MESSAGE, /reply to this request/,
+    "the use sentence beside it says what the work email is for, once");
   assert.match(FOLLOW_UP_PRIVACY_WITH_MESSAGE, /what you want to discuss/, "it must name the intent it sends");
   assert.equal(FOLLOW_UP_PRIVACY_WITH_MESSAGE.at(-1), ".");
-  assert.equal((FOLLOW_UP_PRIVACY_WITH_MESSAGE.match(/[.!?]/g) ?? []).length, 1,
-    "one sentence, not two joined by a full stop");
 
-  // The same opening the other sentence makes, so a reader moving between two
-  // forms is reading one promise with one exception, not two promises.
-  assert.match(FOLLOW_UP_PRIVACY_WITH_MESSAGE, /work email address you type here/, "it must name what is sent");
+  // Every field is named by its label: "Work email for your follow-up", and
+  // the optional "Your name" and "Organization".
+  assert.match(FOLLOW_UP_PRIVACY_WITH_MESSAGE, /your work email\b/, "it must name what is sent");
+  assert.match(FOLLOW_UP_PRIVACY_WITH_MESSAGE, /name and organization if given/);
   assert.match(FOLLOW_UP_PRIVACY_WITH_MESSAGE, /Wawalu team that operates Shiplog/,
     "it must name who receives it");
 
@@ -161,9 +168,10 @@ test("the message form's sentence is one sentence too, and lists everything that
   // labelled a topic, and the question "What do you want to discuss?" read as
   // that topic, so the sentence seemed to list one item twice. It now repeats
   // the line's own words, "This request is sent about the Social page — …".
+  // #3011: shortened to point at that line, which every such form shows above.
   // Both old phrases are held gone, so neither can come back one page at a time.
-  assert.match(FOLLOW_UP_PRIVACY_WITH_MESSAGE, /the page this request is sent about/,
-    "it must name the page it sends in the words of the line that states it");
+  assert.match(FOLLOW_UP_PRIVACY_WITH_MESSAGE, /the page named above/,
+    "it must name the page it sends by the line that states it");
   assert.doesNotMatch(FOLLOW_UP_PRIVACY_WITH_MESSAGE, /\btopic\b/,
     "no line on the form calls the page a topic");
   assert.doesNotMatch(FOLLOW_UP_PRIVACY_WITH_MESSAGE, /fixed follow-up topic/,
@@ -171,7 +179,7 @@ test("the message form's sentence is one sentence too, and lists everything that
   // #2431: the optional field is labelled "Anything else we should know?", so
   // the sentence names it in the visitor's words rather than calling it "the
   // message you type", which matched no label on the form either.
-  assert.match(FOLLOW_UP_PRIVACY_WITH_MESSAGE, /anything else you type/,
+  assert.match(FOLLOW_UP_PRIVACY_WITH_MESSAGE, /anything else you add/,
     "it must name the optional field in the words its label uses");
   assert.doesNotMatch(FOLLOW_UP_PRIVACY_WITH_MESSAGE, /message you type/,
     "the sentence must not name the field something no label on the form says");
@@ -194,9 +202,9 @@ test("the use sentence states a use, and promises no reply, no schedule, and no 
   assert.equal(FOLLOW_UP_USE.at(-1), ".");
   assert.equal((FOLLOW_UP_USE.match(/[.!?]/g) ?? []).length, 1, "one sentence, not two");
 
-  // The use, and the limit on it.
-  assert.match(FOLLOW_UP_USE, /reply to this request/, "it must name what the address is used for");
-  assert.match(FOLLOW_UP_USE, /nothing else/, "it must say the address is used for nothing else");
+  // The use, and the limit on it, naming the field by its label (#3011).
+  assert.equal(FOLLOW_UP_USE, "We use your work email only to reply to this request.");
+  assert.match(FOLLOW_UP_USE, /\bonly to reply to this request/, "it must say the address is used for nothing else");
 
   // What a stored address cannot promise. Nobody is committed to answering by
   // this sentence, no clock starts, and no figure is quoted.
@@ -406,13 +414,13 @@ test("the footer names the page it sends in the words of the line above it (#248
     const note = textOf(form.querySelector("#site-footer-note"));
     assert.ok(!note.includes("the topic shown above"), `${file}: the footer still points at a "topic" nothing is labelled`);
     if (!ASKS_MESSAGE.has(file)) continue;
-    // The item the sentence names is the line the form shows, word for word.
-    assert.ok(note.includes("the page this request is sent about"), `${file}: the sentence does not name the page`);
+    // The item the sentence names is the line the form shows above it.
+    assert.ok(note.includes("the page named above"), `${file}: the sentence does not name the page`);
     assert.ok(textOf(form.querySelector("#site-footer-topic-note")).startsWith("This request is sent about the "),
       `${file}: the sentence names a line the form does not show`);
   }
   assert.ok(textOf(footerOn("social.html").form.querySelector("#site-footer-note"))
-    .includes("the page this request is sent about"), "Social's footer names the page it sends");
+    .includes("the page named above"), "Social's footer names the page it sends");
 });
 
 test("no page keeps a fragment of the prose the one sentence replaced", async () => {
@@ -431,6 +439,9 @@ test("no page keeps a fragment of the prose the one sentence replaced", async ()
     // vocabulary rather than the visitor's. Every page it shipped on now points
     // at the topic line above the field instead.
     "this fixed follow-up topic",
+    // #3011: the 50-word note and the use sentence it repeated.
+    "only that address, your name and organization if you give them",
+    "We use your address to reply to this request and for nothing else.",
   ];
   const files = (await readdir(SRC)).filter((name) => name.endsWith(".html"));
   for (const file of files) {

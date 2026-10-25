@@ -121,11 +121,11 @@ export const FOLLOW_UP_PRIVACY_WITH_NAME = "The work email address you type here
   + "you give them, go to the Wawalu team that operates Shiplog to reply to this request; nothing else on this page is sent.";
 
 // The same claim on a form that also asks what to discuss and offers a message
-// box, which cannot say nothing else is sent. It lists the four arguments
+// box, which cannot say nothing else is sent. It lists the arguments
 // `postLeadEmail` builds the body from instead: everything with a route to the wire.
-export const FOLLOW_UP_PRIVACY_WITH_MESSAGE = "The work email address you type here goes to the Wawalu team that "
-  + "operates Shiplog; only that address, your name and organization if you give them, the page this request is sent"
-  + " about, what you want to discuss, and anything else you type are sent, to reply to this request.";
+export const FOLLOW_UP_PRIVACY_WITH_MESSAGE = "Your request goes to the Wawalu team that operates Shiplog. We send only "
+  + "your work email, name and organization if given, the page named above, what you want to discuss, and anything"
+  + " else you add.";
 
 // One refusal for both message fields: how long, how far over, and the limit.
 export function overLengthMessage(length, max = MAX_FOLLOW_UP_MESSAGE_LENGTH) {
@@ -135,7 +135,7 @@ export function overLengthMessage(length, max = MAX_FOLLOW_UP_MESSAGE_LENGTH) {
 // What the team then does with it, beside the sentence above on every follow-up
 // form. A second string, not a second clause: the sentence above is pinned as
 // one sentence. It states a use and promises no reply and no schedule.
-export const FOLLOW_UP_USE = "We use your address to reply to this request and for nothing else.";
+export const FOLLOW_UP_USE = "We use your work email only to reply to this request.";
 
 // Who answers, beside the two sentences above, and when to expect them.
 export const FOLLOW_UP_REPLY = "A person replies by email, usually within two working days.";
