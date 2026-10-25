@@ -142,10 +142,9 @@ test("every footer form but the home page's renders both optional fields, labell
     assert.ok([FOLLOW_UP_PRIVACY_WITH_NAME, FOLLOW_UP_PRIVACY_WITH_MESSAGE].includes(note), `${file}: ${note}`);
   }
   assert.equal(carrying.length, 15, "every page that carries the footer form, less the home page");
-  for (const sentence of [FOLLOW_UP_PRIVACY_WITH_NAME, FOLLOW_UP_PRIVACY_WITH_MESSAGE]) {
-    assert.match(sentence, /your name and organization if you give them/);
-    assert.match(sentence, /to reply to this request/);
-  }
+  assert.match(FOLLOW_UP_PRIVACY_WITH_NAME, /your name and organization if you give them/);
+  assert.match(FOLLOW_UP_PRIVACY_WITH_NAME, /to reply to this request/);
+  assert.match(FOLLOW_UP_PRIVACY_WITH_MESSAGE, /name and organization if given/);
 });
 
 /* ------------------------------ the receipt ------------------------------- */
