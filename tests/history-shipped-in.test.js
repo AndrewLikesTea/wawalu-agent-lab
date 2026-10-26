@@ -23,6 +23,7 @@ import assert from "node:assert/strict";
 
 import { RELATIONSHIP_COPY, initDecisionLog, renderHistory, toHistoryRecords } from "../src/app.js";
 import { STORAGE_KEY } from "../src/app.js";
+import { UNRELEASED_LABEL } from "../src/history-filters.js";
 import { RELEASE_STORAGE_KEY } from "../src/releases.js";
 import { shippedState } from "../src/shipped-releases.js";
 import { byClass, createElement, first, installDocument, tags } from "./support/dom.js";
@@ -161,8 +162,9 @@ test("a shipped decision that is not accepted says so beside the summary, never 
 
 test("nothing shipped it and its releases could not be read are different sentences", () => {
   const unshipped = shippedLine(render(), "Retire the cron worker");
-  assert.equal(first(unshipped, "record-link-empty").textContent, RELATIONSHIP_COPY.decision.empty);
-  assert.equal(flat(unshipped), "Not yet shipped", "an unshipped decision does not say so in words");
+  // Accepted and in no release: the row uses the status filter's name (#3020).
+  assert.equal(first(unshipped, "record-link-empty").textContent, UNRELEASED_LABEL);
+  assert.equal(flat(unshipped), "Accepted, not yet released", "an unshipped decision does not say so in words");
   assert.equal(byClass(unshipped, "record-link").length, 0, "an unshipped decision rendered a release link");
 
   // The same decision, now named by a release record that cannot be named or

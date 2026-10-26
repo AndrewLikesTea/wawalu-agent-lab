@@ -3,7 +3,7 @@
 // The row already answers "which release shipped this?" (#1085, pinned by
 // tests/history-shipped-in.test.js). This suite pins the gap #2979 added: a
 // status-filter option that leaves only the accepted decisions whose row says
-// "Not yet shipped", ANDed with every other filter, counted in the existing
+// the same words (#3020), ANDed with every other filter, counted in the existing
 // count and summary, and invisible to the exported records.
 //
 // Harness rules followed here: options are proved present before a select is
@@ -168,6 +168,27 @@ test("the status select offers the option, and the count follows each AND", asyn
   typeSearch(page, "");
   assert.equal(rowTitles(page).length, 3);
   assert.match(summary(page), /^3 of 6 records/);
+});
+
+test("the filter option, the legend and a matching row use one name for the state (#3020)", async (t) => {
+  const page = await openHistory(t);
+  const option = [...page.document.querySelector("#filter-status").options]
+    .find((candidate) => candidate.value === UNRELEASED_STATUS);
+  chooseOption(page, "#filter-status", UNRELEASED_STATUS);
+  const rows = page.document.querySelector("#decision-list").querySelectorAll("article");
+  assert.equal(rows.length, 2);
+  for (const row of rows) {
+    assert.equal(textOf(row.querySelector(".record-link-empty")), textOf(option));
+    assert.doesNotMatch(textOf(row), /not yet shipped/i);
+  }
+  const terms = page.document.querySelector(".status-glossary").querySelectorAll("dt").map((dt) => textOf(dt));
+  assert.ok(terms.includes(textOf(option)), "the legend names the state differently");
+  assert.doesNotMatch(textOf(page.document.querySelector(".status-glossary")), /shipped/i);
+
+  // A pending decision in no release is a different state and keeps its words.
+  chooseOption(page, "#filter-status", "pending");
+  const [flags] = page.document.querySelector("#decision-list").querySelectorAll("article");
+  assert.equal(textOf(flags.querySelector(".record-link-empty")), "Not yet shipped");
 });
 
 test("a release version that is markup renders as its literal characters", async (t) => {
