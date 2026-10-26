@@ -173,3 +173,14 @@
 
 #hero-demonstration { max-width:100%; white-space:normal; overflow-wrap:anywhere; }
 #site-footer-form { scroll-margin-top:24px; }
+
+/* The blank framework is readable without scripts or expanded disclosures. */
+#hero-evaluation-kit { max-width:760px; min-width:0; margin-top:24px; padding:16px; border:1px solid #b9cec4; border-radius:12px; background:#eef6f2; overflow-wrap:anywhere; }
+#hero-evaluation-kit h2 { margin:0; }
+#hero-evaluation-kit .evaluation-framework { font-size:16px; line-height:1.5; }
+#hero-evaluation-kit .story-link { min-height:44px; max-width:100%; white-space:normal; }
+.evaluation-preview { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px 28px; padding-left:24px; margin-bottom:0; }
+.evaluation-preview li { min-width:0; }
+.evaluation-preview h3 { margin:0; font-size:16px; }
+#hero-evaluation-kit .evaluation-preview p { margin:6px 0 0; font-size:15px; line-height:1.5; }
+@media(max-width:520px) { .evaluation-preview { grid-template-columns:1fr; } }

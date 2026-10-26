@@ -158,7 +158,7 @@ test("the homepage names the Decision log and explains browsing and recording", 
   assert.equal(document.getElementById("home-log-title").textContent.trim(), "Decision log");
   // The introduction explains both things a visitor can do in the log. The
   // paragraph before it is the promise's explanation.
-  const lede = hero.querySelectorAll("p").filter((p) => !p.getAttribute("class"));
+  const lede = hero.querySelectorAll("p").filter((p) => p.parentNode === hero && !p.getAttribute("class"));
   assert.equal(lede.length, 2);
   assert.match(lede[0].textContent, /^Shiplog records decisions, tracks the releases they shape/);
   const ledeText = lede[1].textContent;
