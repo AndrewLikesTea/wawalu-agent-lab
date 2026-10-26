@@ -227,3 +227,60 @@ test("homepage workflow uses one column at every width and existing responsive f
   const landing = await readFile(file("landing-decision.css"), "utf8");
   assert.match(landing, /#hero-demonstration \{[^}]*max-width:100%;[^}]*white-space:normal;[^}]*overflow-wrap:anywhere/);
   assert.match(css, /a:focus-visible \{ outline:3px solid var\(--focus-ring\)/);});
+
+test("evaluation kit previews the canonical blank criteria without interaction", async (t) => {
+  const page = await loadPage(file("index.html"));
+  t.after(() => page.restore());
+  const doc = page.document;
+  const kit = doc.getElementById("hero-evaluation-kit");
+  assert.equal(kit.tagName, "SECTION");
+  assert.equal(doc.getElementById(kit.getAttribute("aria-labelledby")).tagName, "H2");
+  const rows = kit.querySelectorAll("li");
+  assert.deepEqual(rows.map((row) => textOf(row.querySelector("h3"))),
+    PILOT_SCORECARD_CRITERIA.map(([name]) => name));
+  const descriptions = [
+    "Time how long your team takes to find a release’s linked decision, its context, and the alternatives considered.",
+    "Count sampled decisions with context, alternatives, owner, and status, and releases with expected decision links. Record counts and sample sizes.",
+    "Export a record and have a teammate import the file in their own browser. Count unanswered questions about why the work shipped and who owns it.",
+    "Compare browser-local storage, retention controls, and export behavior with your team’s requirements. Record what you checked and any gaps.",
+  ];
+  assert.deepEqual(rows.map((row) => textOf(row.querySelector("p"))), descriptions);
+  const disclaimer = kit.querySelector(".evaluation-framework");
+  assert.equal(textOf(disclaimer), "Blank evaluation framework. These criteria are not customer results, benchmarks, guarantees, or promised outcomes. Your team sets its own targets and records its own observations during a pilot.");
+  assert.ok(kit.children.indexOf(disclaimer) < kit.children.indexOf(kit.querySelector("ol")));
+  for (const element of [disclaimer, ...rows]) {
+    for (let node = element; node; node = node.parentNode) {
+      assert.equal(node.hidden, false);
+      assert.notEqual(node.getAttribute("aria-hidden"), "true");
+      assert.notEqual(node.tagName, "DETAILS");
+    }
+  }
+  const artifact = await readFile(file("shiplog-evaluation-brief.txt"), "utf8");
+  for (const [index, [name]] of PILOT_SCORECARD_CRITERIA.entries()) {
+    assert.ok(artifact.includes(`${index + 1}. ${name}\n`));
+  }
+  const link = kit.querySelector("a");
+  assert.equal(textOf(link), "Evaluation brief and blank pilot scorecard");
+  assert.equal(link.getAttribute("href"), "#shiplog-evaluation-brief");
+  assert.ok(tabSequence(doc).includes(link));
+  link.focus();
+  pressEnter(doc);
+  assert.deepEqual(doc.navigations, ["#shiplog-evaluation-brief"]);
+  const destination = doc.getElementById("shiplog-evaluation-brief");
+  assert.equal(destination.getAttribute("tabindex"), "-1");
+  destination.focus();
+  assert.equal(doc.activeElement, destination);
+  for (const id of ["copy-shiplog-evaluation-brief", "download-shiplog-evaluation-brief", "copy-pilot-scorecard"]) {
+    assert.ok(tabSequence(doc).includes(doc.getElementById(id)));
+  }
+});
+
+test("evaluation preview wraps in two columns with a single column on mobile", async () => {
+  const css = await readFile(file("landing-decision.css"), "utf8");
+  assert.match(css, /#hero-evaluation-kit \{[^}]*overflow-wrap:anywhere/);
+  assert.match(css, /\.evaluation-preview \{[^}]*grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
+  assert.match(css, /@media\(max-width:520px\) \{ \.evaluation-preview \{ grid-template-columns:1fr/);
+  assert.match(css, /#hero-evaluation-kit \.story-link \{[^}]*min-height:44px;[^}]*white-space:normal/);
+  const shared = await readFile(file("styles.css"), "utf8");
+  assert.match(shared, /a:focus-visible \{ outline:3px solid var\(--focus-ring\)/);
+});
