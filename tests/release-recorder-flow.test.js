@@ -438,7 +438,7 @@ test("the recorder is always open and no control on it is a bare Open or Close",
       .filter((button) => textOf(button) === "Record release").length,
     1,
   );
-  assert.equal(textOf(page.document.querySelector("#record-release-link")), "Open the form to record a release");
+  assert.equal(textOf(page.document.querySelector("#record-release-link")), "Record a release");
 
   // Nothing folds the form away: no disclosure wraps the panel...
   const enclosing = [];

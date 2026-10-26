@@ -360,7 +360,7 @@ test("the provenance sentence is the home page's, stated once, with no second ca
 // #2941: the hero and the guide both said where records go before a visitor
 // reached the recorder. One statement, in the guide, names the archive's
 // server step.
-test("the storage promise is made once above the release recorder, with the server step", async (t) => {
+test("the walkthrough retains its storage promise and server step", async (t) => {
   const page = await openReleases(t);
   const order = [];
   const visit = (node) => {
@@ -373,7 +373,7 @@ test("the storage promise is made once above the release recorder, with the serv
   visit(page.document.body);
   const recorder = order.indexOf(byId(page, "record-release"));
   assert.ok(recorder > 0, "the release recorder is missing");
-  const claims = order.slice(0, recorder)
+  const claims = order
     .filter((node) => node.tagName === "P" && /\bstays? in this browser\b/.test(textOf(node)));
   assert.equal(claims.length, 1, claims.map(textOf).join("\n"));
   assert.equal(claims[0].getAttribute("id"), "evaluation-path-scope");
@@ -421,10 +421,9 @@ test("the guide's action is one tab stop, reached in reading order, and it navig
   const sequence = tabSequence(page.document);
   const at = (node) => sequence.indexOf(node);
   assert.equal(sequence.filter((node) => node.getAttribute?.("id") === "evaluation-path-action").length, 1);
-  // Reading order is tab order: the guide stands above the log, so its action
-  // comes before the log's search and after the example record's own controls.
+  // Supporting guidance follows both the primary log and the example controls.
   assert.ok(at(action(page)) > at(byId(page, "shiplog-proof-copy")), "the action precedes the example record it follows");
-  assert.ok(at(action(page)) < at(byId(page, "release-search")), "the action comes after the log it stands above");
+  assert.ok(at(action(page)) > at(byId(page, "release-search")), "the action must follow the primary log");
 
   let reached = null;
   for (let press = 0; press < sequence.length && reached !== action(page); press += 1) {

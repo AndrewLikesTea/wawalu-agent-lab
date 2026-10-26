@@ -1,13 +1,25 @@
-// Focus only an explicit check destination, before asynchronous data loading.
-// The heading persists across verdict updates; those updates never refocus it.
+// Focus explicit workspace and evidence destinations before asynchronous loading.
+// State updates never move focus; fragment navigation does.
 export function bindDeploymentArrival(root, view = globalThis.window) {
   const heading = root.querySelector("#deployment-status-title");
   if (!heading || !view || heading.dataset.arrivalBound === "true") return;
   heading.dataset.arrivalBound = "true";
-  const arrive = () => {
-    if (view.location?.hash !== "#deployment-status-title") return;
-    heading.focus();
+  const targets = ["main-content", "top", "releases-title", "record-release",
+    "shipped-build", "real-deployment", "deployment-status", "deployment-status-title",
+    "shiplog-proof", "repository-proof", "evaluation-path", "reasoning-proof"];
+  const focusTarget = (hash) => {
+    if (!targets.some((id) => hash === `#${id}`)) return;
+    root.querySelector(hash)?.focus?.({ preventScroll: true });
   };
+  // Native navigation still updates the URL and scrolls; explicit focus also
+  // handles repeat activation when the fragment has not changed.
+  for (const link of root.querySelectorAll('a')) {
+    const hash = link.getAttribute("href");
+    if (targets.some((id) => hash === `#${id}`)) {
+      link.addEventListener("click", () => focusTarget(hash));
+    }
+  }
+  const arrive = () => focusTarget(view.location?.hash);
   view.addEventListener("hashchange", arrive);
   arrive();
 }

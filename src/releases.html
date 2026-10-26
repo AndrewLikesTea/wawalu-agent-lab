@@ -40,7 +40,7 @@
       </header>
 
       <main id="main-content" tabindex="-1">
-      <section class="hero" id="top" aria-labelledby="page-title">
+      <section class="hero" id="top" tabindex="-1" aria-labelledby="page-title">
         <p class="eyebrow">Releases</p>
         <!-- What the log actually holds, said before a visitor meets a record
              that contradicts it. The heading used to read "See what shipped,
@@ -67,443 +67,9 @@
              Reuses the home page hero's action classes rather than adding a
              rule: styles.css is at its measured size budget. -->
         <div class="hero-actions">
-          <a class="text-link" id="record-release-link" href="#record-release">Open the form to record a release</a>
+          <a class="release-followup-action" id="record-release-link" href="#record-release">Record a release</a>
+          <a class="text-link" id="deployment-summary-link" href="#deployment-status-title">Deployment check and evidence</a>
         </div>
-      </section>
-
-      <!-- THE ONE RECORD ON THIS PAGE THAT IS NOT INVENTED, and the reason it
-           is first. The Agent observatory links here saying the merged pull
-           requests it counts shipped the releases at the other end; it lands on
-           this block, above the invented example, so what a visitor sees on
-           arrival is a record they can check rather than a disclaimer.
-
-           Filled by deployed-release-view.js from src/build-stamp.js, which the
-           build rewrites with the commit the artifact was built from. The
-           document ships no sha and no commit link: a value in these bytes
-           would be a claim about a build nobody made. The marking and the
-           heading ARE authored, because they are what makes the block legible
-           before any module runs, and neither names a commit.
-
-           THE HEADING IS THE RECORD'S NAME, in the words the copy button below
-           it, the loading note above it and the deployment check's verdict all
-           use: "Deployment record" (#2512). The adjacent marking is not a
-           shortened copy of that name — it says the one thing the heading does
-           not, which is that this record is real and the ones below are not.
-           It used to head this block with a second name for the same artifact,
-           so one screen called it two things before a reader reached the check
-           that calls it a third. One artifact, one name, everywhere. Because
-           the heading is now the record's name it goes with the record: an
-           unstamped build has none, and the module heads the block "No
-           deployment record for this build" rather than leaving a heading that
-           claims one.
-
-           The link's authored href is the public repository, which is true
-           whatever the stamp says; the module narrows it to the exact commit.
-           An unstamped build replaces the marking and the note and withdraws
-           the link rather than showing a record it cannot back.
-
-           ONE BLOCK FOR THE PAGE'S ONE CHECKABLE PROOF (#2487): the record and
-           the deployment check that compares against it share this section,
-           and the invented example stands wholly after it. The example used to
-           sit between the two, so the check needed a link back up the page to
-           the record and a sentence telling the two apart. The record keeps the
-           shipped-build id, which the copy button and the Agent observatory
-           link to, so that address still lands inside this block. -->
-      <section class="shiplog-proof shiplog-real" id="real-deployment" aria-labelledby="shipped-build-title">
-      <div class="shiplog-real-record" id="shipped-build" data-shipped-build="loading" tabindex="-1">
-        <div class="shiplog-proof-heading">
-          <div>
-            <h2 id="shipped-build-title">Deployment record</h2>
-          </div>
-          <span class="badge badge-real" id="shipped-build-marking" hidden></span>
-        </div>
-        <p class="shiplog-proof-note" id="deployment-record-definition">The deployment record identifies the build expected to be live: the recorded build. The running build is the build currently served by this site. Release-log entries can be planned, completed or cancelled; they do not necessarily represent production deployments.</p>
-        <p class="shiplog-proof-note" id="shipped-build-note" role="status" aria-live="polite" aria-atomic="true">Loading the deployment record.</p>
-        <dl class="shiplog-proof-facts" id="shipped-build-facts"></dl>
-        <div class="shiplog-proof-share">
-          <!-- One label per destination, and one link per destination. This row
-               used to open with an anchor to /releases.html#shipped-build — the
-               address of the block the anchor sits inside. It read the same
-               words as the deployment check's record link below, so a link list
-               showed the same label twice for one address, and the block offered
-               a reader a way to arrive where they already were. The button
-               beside this hands over that address. -->
-          <button class="share-button" id="shipped-build-copy" hidden type="button" aria-describedby="shipped-build-copy-status">Copy link to the deployment record</button>
-          <span class="share-status" id="shipped-build-copy-status" role="status" aria-live="polite" aria-atomic="true"></span>
-          <!-- Its own class, deliberately not .shiplog-proof-link: that class is
-               how releases-page.js finds the invented example's "Open this
-               example release" control, and a second element wearing it would
-               take the copy button's URL away from the record it names. Same
-               look, one owner each. -->
-          <a class="shiplog-real-link" id="shipped-build-source" hidden></a>
-        </div>
-        <!-- Why this build shipped: the subject line of the commit named above,
-             which the build wrote beside its sha, and the pull request that
-             subject names. It follows the commit link, so Tab reaches the pull
-             request straight after it. A build that recorded no subject says so
-             and offers no link; an unstamped build leaves both empty. -->
-        <dl class="shiplog-proof-facts" id="shipped-build-reason"></dl>
-        <p class="shiplog-proof-note" id="shipped-build-reason-note" hidden></p>
-      </div>
-      <!-- Deployment check: does what is running match the deployment record
-           directly above it, in this same block? Read only — it
-           probes /healthz, compares, and links; it never deploys, rolls back,
-           or writes a record. A subsection of the record, so its heading sits
-           one level under the record's.
-
-           WHAT IS COMPARED LEADS, as it does in the front door's copy of this
-           band (#2122): a reader meets the two versions before the machinery
-           that compares them. It used to lead with a question the reader had to
-           hold in their head until the verdict answered it; it now states the
-           comparison and what a match would prove (#2512). It is static markup,
-           not a slot: what this check proves is true before the probe answers
-           and stays true if it never does. Both sentences are the front
-           door's, byte for byte. The waiting line under it is the front door's, word for word
-           (#2423), so a reader who follows the front door's link here meets the
-           same words they left.
-
-           WHAT THE OTHER TWO OUTCOMES MEAN IS AUTHORED BESIDE IT (#2681). The
-           lead says what a match proves; the line under it says what a
-           mismatch and a check that cannot complete mean, and what to do about
-           each. Both sentences are DEPLOYMENT_OUTCOMES in
-           src/deployment-status.js and the front door ships them byte for byte,
-           so the two surfaces cannot word one outcome two ways. The mismatch
-           sentence points at the record above, in this same block.
-
-           No link back to the record: it is the rest of this block. The row
-           that used to carry one also carried the commit link, which the record
-           above already offers under the same words.
-
-           The classes are the release follow-up callout's, reused rather than
-           extended: styles.css is at its measured size budget.
-           deployment-status-view.js fills every slot below through textContent
-           and swaps the callout to the red variant off a match. The verdict's
-           live region stays outside the evidence disclosure, which is a details
-           element so Enter and Space both operate it; the summary's
-           aria-expanded is mirrored from the element's own open state. -->
-      <section class="release-followup-slot" id="deployment-status" aria-labelledby="deployment-status-title" tabindex="-1">
-        <div class="release-followup" id="deployment-status-callout">
-          <h3 class="release-followup-title" id="deployment-status-title" tabindex="-1">Deployment check</h3>
-          <p class="release-followup-lead" id="deployment-status-proof">The deployment check compares the recorded build with the running build. Confirmed: the running build matches the recorded build.</p>
-          <p class="release-followup-lead" id="deployment-outcomes">Not a match: the running build differs from the recorded build. See the deployment record for the recorded build. Did not complete: this page cannot confirm whether the running build matches the recorded build. Check again later.</p>
-          <!-- The verdict at a glance (#2967): a filled chip naming the state in
-               words, with a shape beside it so no state is told by colour alone.
-               The sentence under it stays the live region; the chip is not one,
-               so a state change is announced once. Its corrective action follows
-               the sentence directly: the record link for a mismatch, Retry for a
-               check that did not complete, nothing otherwise. -->
-          <p class="deployment-verdict-chip" id="deployment-verdict-label" data-verdict="loading"><span aria-hidden="true">◌</span> <span>Checking…</span></p>
-          <p class="release-followup-lead" id="deployment-verdict" role="status" aria-describedby="deployment-checked-at">Checking the running build against the recorded build: the result appears here in a few seconds.</p>
-          <!-- The check's own recovery (#2806) lives in the action slot and is the
-               one child a render keeps. It re-runs this probe alone: the record
-               above, the coverage count and the log below are not read again.
-               Same class as the coverage count's retry, so the two read as one kind. -->
-          <div id="deployment-next-action"><button class="empty-action empty-action-secondary" id="deployment-retry" type="button" hidden>Retry the deployment check</button></div>
-          <p class="detail-summary" id="deployment-checked-at" hidden></p>
-          <dl class="deployment-builds" id="deployment-identifiers"></dl>
-          <p class="detail-summary" id="deployment-metric"></p>
-          <details class="supersede-disclosure" id="deployment-evidence" data-disclosure="collapsed">
-            <summary class="supersede-disclosure-summary" id="deployment-evidence-summary" aria-expanded="false" aria-controls="deployment-evidence-body">Evidence: what the running build answered, and the deployment record it was compared with</summary>
-            <dl class="supersede-disclosure-body" id="deployment-evidence-body"></dl>
-          </details>
-          <div class="shiplog-proof-share">
-            <button class="share-button" id="deployment-copy" type="button" disabled aria-describedby="deployment-copy-status">Copy the deployment check verdict and both versions</button>
-            <span class="share-status" id="deployment-copy-status" role="status" aria-live="polite" aria-atomic="true"></span>
-          </div>
-        </div>
-      </section>
-      </section>
-
-      <!-- THE ASK, BELOW THE PAGE'S OWN CONTENT (#2654). The route and the line
-           that explains it used to stand in the hero row beside the recorder
-           link, which put three sentences about a form between the page's
-           promise and the one record on this page a visitor can check. The
-           opening screen now reads heading, promise, the recorder route, then
-           the deployment record — and the ask follows the evidence, the way
-           Social closes its supporting block with the same pair.
-
-           It stays as high as it can rather than moving to the foot of the page:
-           the reason #2458 put it above the log in the first place was that a
-           visitor who has seen enough should not scroll past every release to
-           reach the form that answers availability and pricing. So it sits
-           directly after the record they came to check, and wholly before the
-           example records, which still stand after it as one unbroken region.
-
-           The label and its line move as one unit, in one container, the way
-           every other page carrying this route keeps them: a label that travels
-           without the line explaining it leaves a reader guessing what it
-           costs, and the line is still the label's accessible description
-           through aria-describedby. Same classes, same bytes, same ids — only
-           the place moved, so the pair still wraps and stacks at narrow widths
-           (.hero-actions in styles.css) and costs no rule. -->
-      <div class="hero-actions" id="ask-about-shiplog-actions">
-        <a class="text-link" id="ask-about-shiplog" href="#site-footer-panel" aria-describedby="ask-about-shiplog-description">Ask about Shiplog</a>
-        <p class="hint" id="ask-about-shiplog-description">Ask about Shiplog, and a person on the Wawalu team that operates it replies by email, usually within two working days.</p>
-      </div>
-
-      <div class="hero-actions" id="release-discussion-actions">
-        <a class="text-link" href="#site-footer-intent-demo" data-release-discussion aria-describedby="release-discussion-description">Request a Shiplog demonstration</a>
-        <a class="text-link" href="#site-footer-intent-pilot" data-release-discussion aria-describedby="release-discussion-description">Discuss a Shiplog pilot</a>
-        <p class="hint" id="release-discussion-description">Choose a discussion topic in the follow-up form below, then add your work email and an optional note. There is no self-serve signup and no published price. Whether Shiplog is available for your team and what it would cost are both answered on request.</p>
-      </div>
-
-      <section class="shiplog-proof shiplog-demo" id="shiplog-proof" aria-labelledby="shiplog-proof-title" aria-describedby="shiplog-proof-note" tabindex="-1">
-        <div class="shiplog-proof-heading">
-          <div>
-            <h2 id="shiplog-proof-title">From decision to release</h2>
-          </div>
-          <span class="badge badge-example">Example records</span>
-        </div>
-        <!-- Keep the provenance beside the example records it describes.
-             Use "example records" consistently; "invented" describes them. -->
-        <p class="shiplog-proof-note" id="shiplog-proof-note">These example records are invented: no such decision or release shipped. They use no customer or production data. Open either link below to read the full record: the decision’s context, or the release and its linked decisions.</p>
-        <dl class="shiplog-proof-facts">
-          <div><dt>Linked decision</dt><dd><a href="/decision.html?id=demo-queue">Adopt a durable job queue</a></dd></div>
-          <div><dt>Decision owner</dt><dd>Kai</dd></div>
-          <div><dt>Decision status</dt><dd><span class="badge badge-accepted">Accepted</span></dd></div>
-          <div><dt>Completed release</dt><dd><a href="/release.html?id=demo-r-1-3-0">v1.3.0 · Throughput and latency</a></dd></div>
-          <div><dt>Version</dt><dd>v1.3.0</dd></div>
-          <div><dt>Release status</dt><dd><span class="badge badge-release-completed">Completed</span></dd></div>
-          <div><dt>Release owner</dt><dd>Kai</dd></div>
-          <div><dt>Summary</dt><dd>Throughput and latency</dd></div>
-        </dl>
-        <div class="shiplog-proof-share">
-          <a class="shiplog-proof-link" href="/releases.html?focus=demo-r-1-3-0#shiplog-proof">Open this example release</a>
-          <button class="share-button" id="shiplog-proof-copy" type="button" aria-describedby="shiplog-proof-copy-status">Copy link to this example release</button>
-          <span class="share-status" id="shiplog-proof-copy-status" role="status" aria-live="polite" aria-atomic="true"></span>
-        </div>
-      </section>
-
-      <!-- The real counterpart to the example story above (#2908): one decision
-           from this repository and the recorded build that contains it, filled
-           by releases-repository-proof.js. Only the status line is live. The
-           repository link is the failure state's way on: the module or
-           releases-bootstrap.js gives it its href only when the record cannot
-           load, so main authors no repository link of its own. -->
-      <section class="shiplog-proof shiplog-real" id="repository-proof" aria-labelledby="repository-proof-title" data-state="loading">
-        <div class="shiplog-proof-heading">
-          <div>
-            <h2 id="repository-proof-title">Real record from the Shiplog repository</h2>
-          </div>
-          <span class="badge badge-repository">Real record</span>
-        </div>
-        <p class="shiplog-proof-note">Read from this repository’s own development history: not invented, and not a customer result.</p>
-        <p class="shiplog-proof-note" id="repository-proof-status" role="status" aria-live="polite" aria-atomic="true">Loading the repository record.</p>
-        <div id="repository-proof-record"></div>
-        <a class="shiplog-real-link" id="repository-proof-repo" hidden>Open the public Shiplog repository on GitHub</a>
-      </section>
-
-      <!-- THE SAME FOUR-STEP DEMO GUIDE THE HOME PAGE SHIPS (#2578), and the
-           same module behind it. src/demo-progress.js owns the four sentences,
-           their order, the status words and the derivation; this page passes it
-           a surface name, which changes only which step arriving here has
-           already done and which of THIS page's controls the one next link
-           names. There is no second step model to keep in step with the first.
-
-           WHY IT STANDS HERE. It is the last thing a reader passes before the
-           log and the recorder it directs them into, and it stands after the
-           real deployment record and the example records rather than above
-           them: the guide describes what a visitor can do, not a record they
-           can check, so it must not displace the one block on this page that is
-           checkable. Its heading is an h2 like the blocks either side of it,
-           and the section takes its accessible name from that heading, so it is
-           a named region of its own rather than a second copy of one.
-
-           WHAT SHIPS IN THESE BYTES is the state of a browser that has recorded
-           nothing — which is what a reader whose scripts never ran honestly is —
-           and on this page that state is the prerequisite: the demo starts with
-           a decision, this log cannot record one, so the lead says so and the
-           one link goes to the page that can. The step sentences are the home
-           page's words verbatim, from the same constants the module repaints
-           them with.
-
-           The provenance line is the home page's sentence, not a second
-           wording, and it deliberately does not repeat the example-records
-           caveat above it: shiplog-proof.test.js counts that caveat once above
-           the recorder, and one guide adding a second occurrence would red it. -->
-      <section class="evaluation-path" id="evaluation-path" aria-labelledby="evaluation-path-title">
-        <h2 id="evaluation-path-title">Try the whole demo in four steps</h2>
-        <ol id="evaluation-path-steps">
-          <li aria-current="step"><span class="evaluation-path-status">Step 1 of 4 · Do this now</span> <span class="evaluation-path-step">Record a decision with the decision form on the Home page.</span></li>
-          <li><span class="evaluation-path-status">Step 2 of 4 · Not started</span> <span class="evaluation-path-step">Arrive here with that decision ready to link.</span></li>
-          <li><span class="evaluation-path-status">Step 3 of 4 · Not started</span> <span class="evaluation-path-step">Record a release on this page and link that decision to it.</span></li>
-          <li><span class="evaluation-path-status">Step 4 of 4 · Not started</span> <span class="evaluation-path-step">Open the release you recorded and check its summary and linked decision.</span></li>
-        </ol>
-        <div class="evaluation-path-next" id="evaluation-path-next">
-          <p id="evaluation-path-next-lead">No decision is recorded in this browser yet, so there is nothing to link to a release here. Step one is the decision form on the Home page.</p>
-          <a class="text-link" id="evaluation-path-action" href="/index.html#decision-form" aria-describedby="evaluation-path-next-lead">Open the decision form on the Home page</a>
-        </div>
-        <p class="hint" id="evaluation-path-scope">Records you add stay in this browser unless you download the complete archive, which sends them to the Shiplog server to build the file. This is a demo workflow, not a customer result.</p>
-        <!-- The one thing here that says a step changed without a reload. It
-             ships empty and stays in the accessibility tree from the first
-             paint: a live region inserted at the moment its text arrives is
-             announced by nothing. Visible text, not a hidden one and not inside
-             a disclosure element, so the change is readable as well as audible;
-             and it repeats nothing on a repaint that moved no step. -->
-        <p class="hint evaluation-path-announce" id="evaluation-path-announce" role="status" aria-live="polite"></p>
-        <!-- The finished demo (#2793). Hidden until this browser holds a
-             decision and a release that links it; demo-walkthrough-summary.js
-             writes the lines from those records. -->
-        <section id="demo-summary" aria-labelledby="demo-summary-title" hidden>
-          <h3 id="demo-summary-title">Your walkthrough summary</h3>
-          <div class="evaluation-path-next" id="demo-summary-lines"></div>
-          <div class="hero-actions">
-            <button class="share-button" id="demo-summary-copy" type="button" aria-describedby="demo-summary-status">Copy walkthrough summary</button>
-            <button class="share-button" id="demo-summary-pilot" type="button" data-release-discussion data-target="#site-footer-intent-pilot">Discuss a Shiplog pilot</button>
-          </div>
-          <p class="hint" id="demo-summary-status" role="status" aria-live="polite"></p>
-        </section>
-      </section>
-
-      <!-- HOW CONSISTENTLY THIS LOG KEEPS ITS REASONING (#2579), directly above
-           the log it is a claim about. One quotable figure, stated as two
-           numbers — how many releases kept their reasoning, out of how many
-           loaded — and beside it the three things a quoted figure needs: the
-           rule it was counted under, what it was counted over, and whose
-           records those were. Every sentence here names both numbers, and so
-           does the copy control, so the block never calls them "this count".
-
-           THE FIGURE IS NOT IN THESE BYTES. A count is a claim the page cannot
-           make until the log has loaded — the same reason the log's own count
-           sentence below ships empty — so no number is authored here and
-           release-reasoning-proof.js writes both. It is a live region from the
-           first paint rather than one inserted when its text arrives, because a
-           region that appears with its contents is announced by nothing, and the
-           numbers do move later: recording a release moves them, and so does a
-           retry that recovers the decision log. It is not a second voice for the
-           log's wait — it says nothing about loading, and the log's one status
-           region below is still the only node that says the log is loading.
-
-           WHAT THE NODE SAYS UNTIL THEN (#2645): what the two numbers are, and
-           that they are still being counted. It used to ship empty, which left a
-           reader who arrived before the log loaded holding an exclusion rule
-           about two numbers the page had never named — a rule with nothing to
-           apply it to. The sentence is one sentence and not two because this
-           block has no lead paragraph; the home page's copy of it has one, so
-           there the wait is the same opening clause and an ellipsis. Both come
-           from REASONING_PROOF_COUNTING, so the two surfaces cannot name one
-           figure two ways.
-
-           WHAT IS AUTHORED is everything that is true before any module runs:
-           the heading, the counting rule and the scope. The rule is the one
-           thing about this figure a reader cannot infer from it, and it is
-           deliberately stricter than the home page's release-coverage line:
-           here a release is covered only when it links a decision this log
-           still holds, because the question is whether the rationale can still
-           be read.
-
-           The scope sentence is the other half of "quotable": every other count
-           on this page follows the search and the filters, and this one does
-           not. The page hands the module the complete loaded log on every
-           render, never the rendered selection, so the sentence stays true.
-
-           The copy control hands over the whole proof point as text, not a link:
-           it is a sentence that has to survive being pasted into a mail, so it
-           carries its own scope and its own provenance. It ships disabled like
-           the log's share controls below — without the script there is no
-           sentence to copy — and wears the classes this page already ships, so
-           the block costs one declaration in releases-proof.css and nothing in
-           styles.css, which is at its measured size budget. -->
-      <section class="shiplog-proof" id="reasoning-proof" aria-labelledby="reasoning-proof-title" aria-busy="true">
-        <div class="shiplog-proof-heading">
-          <div>
-            <h2 id="reasoning-proof-title">Releases on this page that link a decision</h2>
-          </div>
-        </div>
-        <p class="feed-summary" id="reasoning-proof-claim" role="status" aria-live="polite" aria-atomic="true">Still counting the releases loaded in this browser: how many of them link at least one decision the decision log holds, out of how many were loaded.</p>
-        <!-- Whose records the figure counted, directly under the figure and in
-             the same type as the example records' own caveat rather than as a
-             hint below the fold of the block: which half of this number was
-             invented is not a footnote. Written by the module from the records it
-             counted, so it cannot describe a log it did not read. -->
-        <p class="shiplog-proof-note" id="reasoning-proof-provenance"></p>
-        <!-- THE RULE, AND THE WORD, IN ONE SENTENCE (#2635, #2712). Everything
-             below this line is labelled "uncovered" — the chip, the reveal's own
-             label, the announcement, the worklist's lead — and this is where the
-             page says what it means. One sentence, authored rather than written
-             by script, because a reader meets it before the log has loaded and
-             the term does not depend on what the log holds. It names the covered
-             side first and the uncovered side as its remainder, in the same
-             words the figure above already uses ("at least one decision the
-             decision log holds"), so the figure, the rule and the labels read as
-             one thing.
-
-             IT USED TO BE THREE SENTENCES. Two exclusions stood here ("a link
-             pointing at a decision the decision log does not hold does not
-             count", "neither does a release with no linked decision") and the
-             definition of the word stood again below the scope note, which gave
-             a reader the same rule twice in two registers and left them to work
-             out it was one rule. The home page's copy of this block carries
-             these same bytes, from the same constant. -->
-        <p class="shiplog-proof-note" id="coverage-gap-definition">A release is covered when it links at least one decision the decision log holds; every other release is uncovered.</p>
-        <p class="shiplog-proof-note" id="reasoning-proof-scope">Both numbers are over every release loaded on this page, not the filtered view: the search and the filters below do not change them.</p>
-        <!-- One count and one review action, derived from the existing worklist.
-             The text announces loading, success and failure; only dynamic
-             coverage status uses a filled badge. Review reveals and focuses the
-             worklist. Count completion alone never moves focus. -->
-        <p class="coverage-gap-skeleton" id="coverage-gap-skeleton" aria-hidden="true"></p>
-        <div class="coverage-gap-reveal">
-          <p class="shiplog-proof-note" id="coverage-gap-result" role="status" aria-live="polite" aria-atomic="true" tabindex="-1">Coverage count still in progress.</p>
-          <button class="empty-action empty-action-secondary" id="coverage-gap-retry" type="button" hidden>Retry coverage count</button>
-          <span class="badge" id="coverage-gap-chip" hidden></span>
-          <button class="empty-action empty-action-secondary coverage-gap-toggle" id="coverage-gap-toggle" type="button" aria-expanded="false" aria-controls="coverage-gap-worklist" hidden>Review uncovered releases</button>
-          <p class="shiplog-proof-note" id="coverage-gap-status" role="status" aria-live="polite" aria-atomic="true"></p>
-        </div>
-        <!-- THE COPIED SENTENCE, ON SCREEN (#2682). The control below hands over
-             six lines, and until now the only way to find out what they said was
-             to press it and paste somewhere. A reader checking a figure before
-             they forward it — which is the whole use this block exists for — had
-             to trust the clipboard. So the payload is rendered here, one list
-             item per line, and release-reasoning-proof.js builds the lines ONCE:
-             this region and the clipboard are the same array, rendered two ways,
-             so neither can carry a figure, a word or a space the other does not.
-
-             BELOW THE DEFINITION ABOVE IT, ON PURPOSE. One of its six lines is
-             #coverage-gap-definition quoted byte for byte — a forwarded figure
-             has to travel with the rule it was counted under — so it says
-             "uncovered" a second time, and it is placed under the definition
-             because a rendered-order check holds that definition to being the
-             page's first use of the word: anything carrying it above there moves
-             what the page says first.
-
-             IT SHIPS HIDDEN AND EMPTY. A sentence is six lines of provenance
-             around two numbers, and before the log loads there are no numbers:
-             authoring placeholders here would put a figure nobody counted in the
-             served bytes, and a third wait sentence in a block that already has
-             one for the figure and one for the control. The region is revealed by
-             the same call that paints it.
-
-             IT IS NOT A LIVE REGION, and that is the considered choice rather
-             than an omission. The figure above is already polite-live and carries
-             the first of these lines word for word, so announcing these too would
-             read the same two numbers twice for every count. aria-busy carries
-             the wait, exactly as the home page's evaluation-summary preview does
-             for the same shape of block. The list keeps an explicit list role
-             because its markers are removed, and it is labelled by the sentence
-             above it rather than by a heading, so the block still carries one
-             h2. No focusable element: nothing here is a control, and the page's
-             tab order is unchanged. Two declarations in releases-proof.css,
-             which is the releases page's own sheet and outside the measured
-             evolution size budget; styles.css gained nothing, and every line
-             takes the block's existing note class. -->
-        <div class="reasoning-proof-copyable" id="reasoning-proof-copyable" hidden>
-          <p class="shiplog-proof-note" id="reasoning-proof-sentence-label">What the copy control below puts on the clipboard, to read or select by hand:</p>
-          <ul class="reasoning-proof-sentence" id="reasoning-proof-sentence" role="list" aria-labelledby="reasoning-proof-sentence-label" aria-busy="true"></ul>
-        </div>
-        <div class="shiplog-proof-share">
-          <button class="share-button" id="reasoning-proof-copy" type="button" disabled aria-describedby="reasoning-proof-copy-status reasoning-proof-copy-availability">Copy both numbers as a sentence</button>
-          <span class="share-status" id="reasoning-proof-copy-status" role="status" aria-live="polite" aria-atomic="true"></span>
-        </div>
-        <!-- WHY THE CONTROL IS DISABLED, WHILE IT IS (#2645), in the shape the
-             home page's deployment check already uses for the same slot: "The
-             copy control becomes available once the check answers." It says "the
-             copy control" rather than quoting the button's own words, because a
-             label a page prints twice is the defect #2644 reported about the
-             share control below — and the count of that label on this page is
-             checked. release-reasoning-proof.js empties this node as it enables
-             the control, so it is never a sentence about something that
-             already works. -->
-        <p class="shiplog-proof-note" id="reasoning-proof-copy-availability">The copy control becomes available once the figures are counted.</p>
       </section>
 
       <!-- The log first, the recorder under it. A prospect following "Explore
@@ -851,6 +417,384 @@
           </div>
         </div>
       </section>
+
+      <!-- Complete deployment evidence follows the release workspace. -->
+      <section class="shiplog-proof shiplog-real" id="real-deployment" tabindex="-1" aria-labelledby="shipped-build-title">
+      <div class="shiplog-real-record" id="shipped-build" data-shipped-build="loading" tabindex="-1">
+        <div class="shiplog-proof-heading">
+          <div>
+            <h2 id="shipped-build-title">Deployment record</h2>
+          </div>
+          <span class="badge badge-real" id="shipped-build-marking" hidden></span>
+        </div>
+        <p class="shiplog-proof-note" id="deployment-record-definition">The deployment record identifies the build expected to be live: the recorded build. The running build is the build currently served by this site. Release-log entries can be planned, completed or cancelled; they do not necessarily represent production deployments.</p>
+        <p class="shiplog-proof-note" id="shipped-build-note" role="status" aria-live="polite" aria-atomic="true">Loading the deployment record.</p>
+        <dl class="shiplog-proof-facts" id="shipped-build-facts"></dl>
+        <div class="shiplog-proof-share">
+          <!-- One label per destination, and one link per destination. This row
+               used to open with an anchor to /releases.html#shipped-build — the
+               address of the block the anchor sits inside. It read the same
+               words as the deployment check's record link below, so a link list
+               showed the same label twice for one address, and the block offered
+               a reader a way to arrive where they already were. The button
+               beside this hands over that address. -->
+          <button class="share-button" id="shipped-build-copy" hidden type="button" aria-describedby="shipped-build-copy-status">Copy link to the deployment record</button>
+          <span class="share-status" id="shipped-build-copy-status" role="status" aria-live="polite" aria-atomic="true"></span>
+          <!-- Its own class, deliberately not .shiplog-proof-link: that class is
+               how releases-page.js finds the invented example's "Open this
+               example release" control, and a second element wearing it would
+               take the copy button's URL away from the record it names. Same
+               look, one owner each. -->
+          <a class="shiplog-real-link" id="shipped-build-source" hidden></a>
+        </div>
+        <!-- Why this build shipped: the subject line of the commit named above,
+             which the build wrote beside its sha, and the pull request that
+             subject names. It follows the commit link, so Tab reaches the pull
+             request straight after it. A build that recorded no subject says so
+             and offers no link; an unstamped build leaves both empty. -->
+        <dl class="shiplog-proof-facts" id="shipped-build-reason"></dl>
+        <p class="shiplog-proof-note" id="shipped-build-reason-note" hidden></p>
+      </div>
+      <!-- Deployment check: does what is running match the deployment record
+           directly above it, in this same block? Read only — it
+           probes /healthz, compares, and links; it never deploys, rolls back,
+           or writes a record. A subsection of the record, so its heading sits
+           one level under the record's.
+
+           WHAT IS COMPARED LEADS, as it does in the front door's copy of this
+           band (#2122): a reader meets the two versions before the machinery
+           that compares them. It used to lead with a question the reader had to
+           hold in their head until the verdict answered it; it now states the
+           comparison and what a match would prove (#2512). It is static markup,
+           not a slot: what this check proves is true before the probe answers
+           and stays true if it never does. Both sentences are the front
+           door's, byte for byte. The waiting line under it is the front door's, word for word
+           (#2423), so a reader who follows the front door's link here meets the
+           same words they left.
+
+           WHAT THE OTHER TWO OUTCOMES MEAN IS AUTHORED BESIDE IT (#2681). The
+           lead says what a match proves; the line under it says what a
+           mismatch and a check that cannot complete mean, and what to do about
+           each. Both sentences are DEPLOYMENT_OUTCOMES in
+           src/deployment-status.js and the front door ships them byte for byte,
+           so the two surfaces cannot word one outcome two ways. The mismatch
+           sentence points at the record above, in this same block.
+
+           No link back to the record: it is the rest of this block. The row
+           that used to carry one also carried the commit link, which the record
+           above already offers under the same words.
+
+           The classes are the release follow-up callout's, reused rather than
+           extended: styles.css is at its measured size budget.
+           deployment-status-view.js fills every slot below through textContent
+           and swaps the callout to the red variant off a match. The verdict's
+           live region stays outside the evidence disclosure, which is a details
+           element so Enter and Space both operate it; the summary's
+           aria-expanded is mirrored from the element's own open state. -->
+      <section class="release-followup-slot" id="deployment-status" aria-labelledby="deployment-status-title" tabindex="-1">
+        <div class="release-followup" id="deployment-status-callout">
+          <h3 class="release-followup-title" id="deployment-status-title" tabindex="-1">Deployment check</h3>
+          <p class="release-followup-lead" id="deployment-status-proof">The deployment check compares the recorded build with the running build. Confirmed: the running build matches the recorded build.</p>
+          <p class="release-followup-lead" id="deployment-outcomes">Not a match: the running build differs from the recorded build. See the deployment record for the recorded build. Did not complete: this page cannot confirm whether the running build matches the recorded build. Check again later.</p>
+          <!-- The verdict at a glance (#2967): a filled chip naming the state in
+               words, with a shape beside it so no state is told by colour alone.
+               The sentence under it stays the live region; the chip is not one,
+               so a state change is announced once. Its corrective action follows
+               the sentence directly: the record link for a mismatch, Retry for a
+               check that did not complete, nothing otherwise. -->
+          <p class="deployment-verdict-chip" id="deployment-verdict-label" data-verdict="loading"><span aria-hidden="true">◌</span> <span>Checking…</span></p>
+          <p class="release-followup-lead" id="deployment-verdict" role="status" aria-describedby="deployment-checked-at">Checking the running build against the recorded build: the result appears here in a few seconds.</p>
+          <!-- The check's own recovery (#2806) lives in the action slot and is the
+               one child a render keeps. It re-runs this probe alone: the record
+               above, the coverage count and the log below are not read again.
+               Same class as the coverage count's retry, so the two read as one kind. -->
+          <div id="deployment-next-action"><button class="empty-action empty-action-secondary" id="deployment-retry" type="button" hidden>Retry the deployment check</button></div>
+          <p class="detail-summary" id="deployment-checked-at" hidden></p>
+          <dl class="deployment-builds" id="deployment-identifiers"></dl>
+          <p class="detail-summary" id="deployment-metric"></p>
+          <details class="supersede-disclosure" id="deployment-evidence" data-disclosure="collapsed">
+            <summary class="supersede-disclosure-summary" id="deployment-evidence-summary" aria-expanded="false" aria-controls="deployment-evidence-body">Evidence: what the running build answered, and the deployment record it was compared with</summary>
+            <dl class="supersede-disclosure-body" id="deployment-evidence-body"></dl>
+          </details>
+          <div class="shiplog-proof-share">
+            <button class="share-button" id="deployment-copy" type="button" disabled aria-describedby="deployment-copy-status">Copy the deployment check verdict and both versions</button>
+            <span class="share-status" id="deployment-copy-status" role="status" aria-live="polite" aria-atomic="true"></span>
+          </div>
+        </div>
+      </section>
+      </section>
+
+      <div class="hero-actions" id="ask-about-shiplog-actions">
+        <a class="text-link" id="ask-about-shiplog" href="#site-footer-panel" aria-describedby="ask-about-shiplog-description">Ask about Shiplog</a>
+        <p class="hint" id="ask-about-shiplog-description">Ask about Shiplog, and a person on the Wawalu team that operates it replies by email, usually within two working days.</p>
+      </div>
+
+      <div class="hero-actions" id="release-discussion-actions">
+        <a class="text-link" href="#site-footer-intent-demo" data-release-discussion aria-describedby="release-discussion-description">Request a Shiplog demonstration</a>
+        <a class="text-link" href="#site-footer-intent-pilot" data-release-discussion aria-describedby="release-discussion-description">Discuss a Shiplog pilot</a>
+        <p class="hint" id="release-discussion-description">Choose a discussion topic in the follow-up form below, then add your work email and an optional note. There is no self-serve signup and no published price. Whether Shiplog is available for your team and what it would cost are both answered on request.</p>
+      </div>
+
+      <section class="shiplog-proof shiplog-demo" id="shiplog-proof" aria-labelledby="shiplog-proof-title" aria-describedby="shiplog-proof-note" tabindex="-1">
+        <div class="shiplog-proof-heading">
+          <div>
+            <h2 id="shiplog-proof-title">From decision to release</h2>
+          </div>
+          <span class="badge badge-example">Example records</span>
+        </div>
+        <!-- Keep the provenance beside the example records it describes.
+             Use "example records" consistently; "invented" describes them. -->
+        <p class="shiplog-proof-note" id="shiplog-proof-note">These example records are invented: no such decision or release shipped. They use no customer or production data. Open either link below to read the full record: the decision’s context, or the release and its linked decisions.</p>
+        <dl class="shiplog-proof-facts">
+          <div><dt>Linked decision</dt><dd><a href="/decision.html?id=demo-queue">Adopt a durable job queue</a></dd></div>
+          <div><dt>Decision owner</dt><dd>Kai</dd></div>
+          <div><dt>Decision status</dt><dd><span class="badge badge-accepted">Accepted</span></dd></div>
+          <div><dt>Completed release</dt><dd><a href="/release.html?id=demo-r-1-3-0">v1.3.0 · Throughput and latency</a></dd></div>
+          <div><dt>Version</dt><dd>v1.3.0</dd></div>
+          <div><dt>Release status</dt><dd><span class="badge badge-release-completed">Completed</span></dd></div>
+          <div><dt>Release owner</dt><dd>Kai</dd></div>
+          <div><dt>Summary</dt><dd>Throughput and latency</dd></div>
+        </dl>
+        <div class="shiplog-proof-share">
+          <a class="shiplog-proof-link" href="/releases.html?focus=demo-r-1-3-0#shiplog-proof">Open this example release</a>
+          <button class="share-button" id="shiplog-proof-copy" type="button" aria-describedby="shiplog-proof-copy-status">Copy link to this example release</button>
+          <span class="share-status" id="shiplog-proof-copy-status" role="status" aria-live="polite" aria-atomic="true"></span>
+        </div>
+      </section>
+
+      <!-- The real counterpart to the example story above (#2908): one decision
+           from this repository and the recorded build that contains it, filled
+           by releases-repository-proof.js. Only the status line is live. The
+           repository link is the failure state's way on: the module or
+           releases-bootstrap.js gives it its href only when the record cannot
+           load, so main authors no repository link of its own. -->
+      <section class="shiplog-proof shiplog-real" id="repository-proof" tabindex="-1" aria-labelledby="repository-proof-title" data-state="loading">
+        <div class="shiplog-proof-heading">
+          <div>
+            <h2 id="repository-proof-title">Real record from the Shiplog repository</h2>
+          </div>
+          <span class="badge badge-repository">Real record</span>
+        </div>
+        <p class="shiplog-proof-note">Read from this repository’s own development history: not invented, and not a customer result.</p>
+        <p class="shiplog-proof-note" id="repository-proof-status" role="status" aria-live="polite" aria-atomic="true">Loading the repository record.</p>
+        <div id="repository-proof-record"></div>
+        <a class="shiplog-real-link" id="repository-proof-repo" hidden>Open the public Shiplog repository on GitHub</a>
+      </section>
+
+      <!-- THE SAME FOUR-STEP DEMO GUIDE THE HOME PAGE SHIPS (#2578), and the
+           same module behind it. src/demo-progress.js owns the four sentences,
+           their order, the status words and the derivation; this page passes it
+           a surface name, which changes only which step arriving here has
+           already done and which of THIS page's controls the one next link
+           names. There is no second step model to keep in step with the first.
+
+           WHY IT STANDS HERE. It is the last thing a reader passes before the
+           log and the recorder it directs them into, and it stands after the
+           real deployment record and the example records rather than above
+           them: the guide describes what a visitor can do, not a record they
+           can check, so it must not displace the one block on this page that is
+           checkable. Its heading is an h2 like the blocks either side of it,
+           and the section takes its accessible name from that heading, so it is
+           a named region of its own rather than a second copy of one.
+
+           WHAT SHIPS IN THESE BYTES is the state of a browser that has recorded
+           nothing — which is what a reader whose scripts never ran honestly is —
+           and on this page that state is the prerequisite: the demo starts with
+           a decision, this log cannot record one, so the lead says so and the
+           one link goes to the page that can. The step sentences are the home
+           page's words verbatim, from the same constants the module repaints
+           them with.
+
+           The provenance line is the home page's sentence, not a second
+           wording, and it deliberately does not repeat the example-records
+           caveat above it: shiplog-proof.test.js counts that caveat once above
+           the recorder, and one guide adding a second occurrence would red it. -->
+      <section class="evaluation-path" id="evaluation-path" tabindex="-1" aria-labelledby="evaluation-path-title">
+        <h2 id="evaluation-path-title">Try the whole demo in four steps</h2>
+        <ol id="evaluation-path-steps">
+          <li aria-current="step"><span class="evaluation-path-status">Step 1 of 4 · Do this now</span> <span class="evaluation-path-step">Record a decision with the decision form on the Home page.</span></li>
+          <li><span class="evaluation-path-status">Step 2 of 4 · Not started</span> <span class="evaluation-path-step">Arrive here with that decision ready to link.</span></li>
+          <li><span class="evaluation-path-status">Step 3 of 4 · Not started</span> <span class="evaluation-path-step">Record a release on this page and link that decision to it.</span></li>
+          <li><span class="evaluation-path-status">Step 4 of 4 · Not started</span> <span class="evaluation-path-step">Open the release you recorded and check its summary and linked decision.</span></li>
+        </ol>
+        <div class="evaluation-path-next" id="evaluation-path-next">
+          <p id="evaluation-path-next-lead">No decision is recorded in this browser yet, so there is nothing to link to a release here. Step one is the decision form on the Home page.</p>
+          <a class="text-link" id="evaluation-path-action" href="/index.html#decision-form" aria-describedby="evaluation-path-next-lead">Open the decision form on the Home page</a>
+        </div>
+        <p class="hint" id="evaluation-path-scope">Records you add stay in this browser unless you download the complete archive, which sends them to the Shiplog server to build the file. This is a demo workflow, not a customer result.</p>
+        <!-- The one thing here that says a step changed without a reload. It
+             ships empty and stays in the accessibility tree from the first
+             paint: a live region inserted at the moment its text arrives is
+             announced by nothing. Visible text, not a hidden one and not inside
+             a disclosure element, so the change is readable as well as audible;
+             and it repeats nothing on a repaint that moved no step. -->
+        <p class="hint evaluation-path-announce" id="evaluation-path-announce" role="status" aria-live="polite"></p>
+        <!-- The finished demo (#2793). Hidden until this browser holds a
+             decision and a release that links it; demo-walkthrough-summary.js
+             writes the lines from those records. -->
+        <section id="demo-summary" aria-labelledby="demo-summary-title" hidden>
+          <h3 id="demo-summary-title">Your walkthrough summary</h3>
+          <div class="evaluation-path-next" id="demo-summary-lines"></div>
+          <div class="hero-actions">
+            <button class="share-button" id="demo-summary-copy" type="button" aria-describedby="demo-summary-status">Copy walkthrough summary</button>
+            <button class="share-button" id="demo-summary-pilot" type="button" data-release-discussion data-target="#site-footer-intent-pilot">Discuss a Shiplog pilot</button>
+          </div>
+          <p class="hint" id="demo-summary-status" role="status" aria-live="polite"></p>
+        </section>
+      </section>
+
+      <!-- HOW CONSISTENTLY THIS LOG KEEPS ITS REASONING (#2579), directly above
+           the log it is a claim about. One quotable figure, stated as two
+           numbers — how many releases kept their reasoning, out of how many
+           loaded — and beside it the three things a quoted figure needs: the
+           rule it was counted under, what it was counted over, and whose
+           records those were. Every sentence here names both numbers, and so
+           does the copy control, so the block never calls them "this count".
+
+           THE FIGURE IS NOT IN THESE BYTES. A count is a claim the page cannot
+           make until the log has loaded — the same reason the log's own count
+           sentence below ships empty — so no number is authored here and
+           release-reasoning-proof.js writes both. It is a live region from the
+           first paint rather than one inserted when its text arrives, because a
+           region that appears with its contents is announced by nothing, and the
+           numbers do move later: recording a release moves them, and so does a
+           retry that recovers the decision log. It is not a second voice for the
+           log's wait — it says nothing about loading, and the log's one status
+           region below is still the only node that says the log is loading.
+
+           WHAT THE NODE SAYS UNTIL THEN (#2645): what the two numbers are, and
+           that they are still being counted. It used to ship empty, which left a
+           reader who arrived before the log loaded holding an exclusion rule
+           about two numbers the page had never named — a rule with nothing to
+           apply it to. The sentence is one sentence and not two because this
+           block has no lead paragraph; the home page's copy of it has one, so
+           there the wait is the same opening clause and an ellipsis. Both come
+           from REASONING_PROOF_COUNTING, so the two surfaces cannot name one
+           figure two ways.
+
+           WHAT IS AUTHORED is everything that is true before any module runs:
+           the heading, the counting rule and the scope. The rule is the one
+           thing about this figure a reader cannot infer from it, and it is
+           deliberately stricter than the home page's release-coverage line:
+           here a release is covered only when it links a decision this log
+           still holds, because the question is whether the rationale can still
+           be read.
+
+           The scope sentence is the other half of "quotable": every other count
+           on this page follows the search and the filters, and this one does
+           not. The page hands the module the complete loaded log on every
+           render, never the rendered selection, so the sentence stays true.
+
+           The copy control hands over the whole proof point as text, not a link:
+           it is a sentence that has to survive being pasted into a mail, so it
+           carries its own scope and its own provenance. It ships disabled like
+           the log's share controls below — without the script there is no
+           sentence to copy — and wears the classes this page already ships, so
+           the block costs one declaration in releases-proof.css and nothing in
+           styles.css, which is at its measured size budget. -->
+      <section class="shiplog-proof" id="reasoning-proof" tabindex="-1" aria-labelledby="reasoning-proof-title" aria-busy="true">
+        <div class="shiplog-proof-heading">
+          <div>
+            <h2 id="reasoning-proof-title">Releases on this page that link a decision</h2>
+          </div>
+        </div>
+        <p class="feed-summary" id="reasoning-proof-claim" role="status" aria-live="polite" aria-atomic="true">Still counting the releases loaded in this browser: how many of them link at least one decision the decision log holds, out of how many were loaded.</p>
+        <!-- Whose records the figure counted, directly under the figure and in
+             the same type as the example records' own caveat rather than as a
+             hint below the fold of the block: which half of this number was
+             invented is not a footnote. Written by the module from the records it
+             counted, so it cannot describe a log it did not read. -->
+        <p class="shiplog-proof-note" id="reasoning-proof-provenance"></p>
+        <!-- THE RULE, AND THE WORD, IN ONE SENTENCE (#2635, #2712). Everything
+             below this line is labelled "uncovered" — the chip, the reveal's own
+             label, the announcement, the worklist's lead — and this is where the
+             page says what it means. One sentence, authored rather than written
+             by script, because a reader meets it before the log has loaded and
+             the term does not depend on what the log holds. It names the covered
+             side first and the uncovered side as its remainder, in the same
+             words the figure above already uses ("at least one decision the
+             decision log holds"), so the figure, the rule and the labels read as
+             one thing.
+
+             IT USED TO BE THREE SENTENCES. Two exclusions stood here ("a link
+             pointing at a decision the decision log does not hold does not
+             count", "neither does a release with no linked decision") and the
+             definition of the word stood again below the scope note, which gave
+             a reader the same rule twice in two registers and left them to work
+             out it was one rule. The home page's copy of this block carries
+             these same bytes, from the same constant. -->
+        <p class="shiplog-proof-note" id="coverage-gap-definition">A release is covered when it links at least one decision the decision log holds; every other release is uncovered.</p>
+        <p class="shiplog-proof-note" id="reasoning-proof-scope">Both numbers are over every release loaded on this page, not the filtered view: the search and the filters below do not change them.</p>
+        <!-- One count and one review action, derived from the existing worklist.
+             The text announces loading, success and failure; only dynamic
+             coverage status uses a filled badge. Review reveals and focuses the
+             worklist. Count completion alone never moves focus. -->
+        <p class="coverage-gap-skeleton" id="coverage-gap-skeleton" aria-hidden="true"></p>
+        <div class="coverage-gap-reveal">
+          <p class="shiplog-proof-note" id="coverage-gap-result" role="status" aria-live="polite" aria-atomic="true" tabindex="-1">Coverage count still in progress.</p>
+          <button class="empty-action empty-action-secondary" id="coverage-gap-retry" type="button" hidden>Retry coverage count</button>
+          <span class="badge" id="coverage-gap-chip" hidden></span>
+          <button class="empty-action empty-action-secondary coverage-gap-toggle" id="coverage-gap-toggle" type="button" aria-expanded="false" aria-controls="coverage-gap-worklist" hidden>Review uncovered releases</button>
+          <p class="shiplog-proof-note" id="coverage-gap-status" role="status" aria-live="polite" aria-atomic="true"></p>
+        </div>
+        <!-- THE COPIED SENTENCE, ON SCREEN (#2682). The control below hands over
+             six lines, and until now the only way to find out what they said was
+             to press it and paste somewhere. A reader checking a figure before
+             they forward it — which is the whole use this block exists for — had
+             to trust the clipboard. So the payload is rendered here, one list
+             item per line, and release-reasoning-proof.js builds the lines ONCE:
+             this region and the clipboard are the same array, rendered two ways,
+             so neither can carry a figure, a word or a space the other does not.
+
+             BELOW THE DEFINITION ABOVE IT, ON PURPOSE. One of its six lines is
+             #coverage-gap-definition quoted byte for byte — a forwarded figure
+             has to travel with the rule it was counted under — so it says
+             "uncovered" a second time, and it is placed under the definition
+             because a rendered-order check holds that definition to being the
+             page's first use of the word: anything carrying it above there moves
+             what the page says first.
+
+             IT SHIPS HIDDEN AND EMPTY. A sentence is six lines of provenance
+             around two numbers, and before the log loads there are no numbers:
+             authoring placeholders here would put a figure nobody counted in the
+             served bytes, and a third wait sentence in a block that already has
+             one for the figure and one for the control. The region is revealed by
+             the same call that paints it.
+
+             IT IS NOT A LIVE REGION, and that is the considered choice rather
+             than an omission. The figure above is already polite-live and carries
+             the first of these lines word for word, so announcing these too would
+             read the same two numbers twice for every count. aria-busy carries
+             the wait, exactly as the home page's evaluation-summary preview does
+             for the same shape of block. The list keeps an explicit list role
+             because its markers are removed, and it is labelled by the sentence
+             above it rather than by a heading, so the block still carries one
+             h2. No focusable element: nothing here is a control, and the page's
+             tab order is unchanged. Two declarations in releases-proof.css,
+             which is the releases page's own sheet and outside the measured
+             evolution size budget; styles.css gained nothing, and every line
+             takes the block's existing note class. -->
+        <div class="reasoning-proof-copyable" id="reasoning-proof-copyable" hidden>
+          <p class="shiplog-proof-note" id="reasoning-proof-sentence-label">What the copy control below puts on the clipboard, to read or select by hand:</p>
+          <ul class="reasoning-proof-sentence" id="reasoning-proof-sentence" role="list" aria-labelledby="reasoning-proof-sentence-label" aria-busy="true"></ul>
+        </div>
+        <div class="shiplog-proof-share">
+          <button class="share-button" id="reasoning-proof-copy" type="button" disabled aria-describedby="reasoning-proof-copy-status reasoning-proof-copy-availability">Copy both numbers as a sentence</button>
+          <span class="share-status" id="reasoning-proof-copy-status" role="status" aria-live="polite" aria-atomic="true"></span>
+        </div>
+        <!-- WHY THE CONTROL IS DISABLED, WHILE IT IS (#2645), in the shape the
+             home page's deployment check already uses for the same slot: "The
+             copy control becomes available once the check answers." It says "the
+             copy control" rather than quoting the button's own words, because a
+             label a page prints twice is the defect #2644 reported about the
+             share control below — and the count of that label on this page is
+             checked. release-reasoning-proof.js empties this node as it enables
+             the control, so it is never a sentence about something that
+             already works. -->
+        <p class="shiplog-proof-note" id="reasoning-proof-copy-availability">The copy control becomes available once the figures are counted.</p>
+      </section>
+
+
       </main>
     </div>
     <footer class="site-footer" id="site-footer" aria-labelledby="site-footer-title">

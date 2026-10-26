@@ -194,3 +194,13 @@
 /* The homepage's explicit check destination stays visible and out of Tab order. */
 #deployment-status-title { scroll-margin-top:24px; }
 #deployment-status-title:focus { outline:3px solid var(--focus-ring); outline-offset:4px; }
+
+/* The release workspace leads in DOM order at every width. */
+.release-workspace { margin-bottom:24px; }
+#top.hero { padding-top:24px; padding-bottom:24px; }
+#top h1 { font-size:clamp(28px,4vw,40px); }
+#release-count,.release-workspace .share-control { min-width:0; overflow-wrap:anywhere; }
+#release-copy-fallback { min-width:0; max-width:100%; }
+#main-content [tabindex="-1"]:focus { outline:3px solid var(--focus-ring); outline-offset:3px; }
+/* Reset flex basis when the filter row becomes a column. */
+@media(max-width:520px) { .release-decision-id-filter{flex-basis:auto} }

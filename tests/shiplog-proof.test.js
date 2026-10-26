@@ -53,56 +53,11 @@ test("renders one clearly disclosed synthetic proof connecting decision, owner, 
   assert.equal(page.document.querySelector(".shiplog-proof-link").getAttribute("href"), `/releases.html?focus=${SAMPLE_RELEASE_ID}#shiplog-proof`);
 });
 
-// The caveat used to be printed twice above the form — once in the page intro
-// and once here — in two different sets of words. Counted by walking the
-// rendered text of every block above the record form, so a caveat reintroduced
-// anywhere up there fails, not only one reintroduced in the intro.
-test("the example-records caveat is stated once above the record form", async (t) => {
+test("the example caveat stays with the supporting example after the workspace", async (t) => {
   const page = await open(t);
-  const main = page.document.getElementById("main-content");
-  const form = page.document.getElementById("record-release");
-  let above = "";
-  let reachedForm = false;
-  // The recorder is no longer a top-level block: the log stands above it inside
-  // the workspace, so the walk descends into whichever block holds the form and
-  // keeps counting the log's own text on the way down. A caveat reintroduced in
-  // the log is still a caveat above the form.
-  for (const block of main.children) {
-    if (block === form) { reachedForm = true; break; }
-    if ([...(block.children ?? [])].includes(form)) {
-      for (const part of block.children) {
-        if (part === form) { reachedForm = true; break; }
-        above += ` ${part.textContent ?? ""}`;
-      }
-      break;
-    }
-    above += ` ${block.textContent ?? ""}`;
-  }
-  assert.equal(reachedForm, true, "the walk never reached the record form");
-  above = above.replace(/\s+/g, " ");
-
-  // ONE REGION ABOVE THE FORM IS ALLOWED TO RESTATE IT (#2682): the copied
-  // sentence rendered beside the reasoning figure's copy control. That text is
-  // the clipboard payload, printed so it can be checked without pasting, and it
-  // has to carry the caveat because the figure gets forwarded to people who
-  // never saw this page — so excluding it is the fix, not rewording it.
-  //
-  // The claim under test is unchanged: how many times the page says this in its
-  // own voice, above the form. Blanked rather than cut, the way
-  // tests/release-coverage-gaps.test.js excludes rendered record text, and the
-  // exclusion asserts that it matched, so a renamed region fails here instead of
-  // quietly stopping excluding anything.
-  const copyable = page.document.getElementById("reasoning-proof-copyable");
-  const recited = (copyable?.textContent ?? "").replace(/\s+/g, " ").trim();
-  assert.match(recited, /no customer or production data/,
-    "the copied sentence no longer carries the caveat it travels with");
-  const parts = above.split(recited);
-  assert.equal(parts.length, 2, "the copied sentence is not in the walk exactly once");
-  above = parts.join(" ".repeat(recited.length));
-
-  assert.equal((above.match(/no customer or production data/g) ?? []).length, 1);
-  assert.equal((above.match(/These example records are invented:/g) ?? []).length, 1);
-  // Said where the example records are, not in the page intro above it.
+  const example = textOf(page.document.querySelector("#shiplog-proof"));
+  assert.equal((example.match(/These example records are invented:/g) ?? []).length, 1);
+  assert.match(example, /no customer or production data/);
   assert.doesNotMatch(textOf(page.document.querySelector(".hero")), /example records/i);
 });
 
@@ -177,9 +132,6 @@ test("the log's heading, count, search, filters, records and export all come bef
     .querySelectorAll("#shipped-build,#shiplog-proof,#deployment-status,#releases-title,#release-count,#release-search,#release-status,#release-decision,#release-decision-status-all,#release-export,#release-list,#record-release,#release-form-title,#release-version")
     .map((node) => node.id);
   assert.deepEqual(order, [
-    "shipped-build",
-    "deployment-status",
-    "shiplog-proof",
     "releases-title",
     "release-count",
     "release-search",
@@ -191,6 +143,9 @@ test("the log's heading, count, search, filters, records and export all come bef
     "record-release",
     "release-form-title",
     "release-version",
+    "shipped-build",
+    "deployment-status",
+    "shiplog-proof",
   ]);
 
   // Scrolling from the top with the log loaded, a release record arrives before
@@ -219,16 +174,13 @@ test("tab order reaches the log's controls before the recorder's fields, and add
   assert.ok(firstToggle >= 0 && firstToggle < at("release-version"),
     "a release row is not reachable before the recorder's first field");
 
-  // The hero's one route: the page's own action. The ask that #2458 put beside
-  // it moved below the deployment record in #2654, so the opening screen is the
-  // promise and the recorder rather than a paragraph about a follow-up form.
-  // Counted, so a second control has to be added here before it can be added to
-  // the hero.
+  // The primary action and compact deployment anchor lead; sales follows the workspace.
   const hero = page.document.querySelector(".hero");
   const heroStops = sequence.filter((node) => isWithin(node, hero));
-  assert.equal(heroStops.length, 1, "the hero gained a control beyond its one route");
+  assert.equal(heroStops.length, 2);
+  assert.equal(heroStops[1].getAttribute("href"), "#deployment-status-title");
   assert.equal(heroStops[0].id, "record-release-link");
-  assert.equal(textOf(heroStops[0]), "Open the form to record a release");
+  assert.equal(textOf(heroStops[0]), "Record a release");
   assert.equal(heroStops[0].getAttribute("href"), "#record-release");
 
   // And the ask is still reached exactly once, after the record it follows and
@@ -271,9 +223,9 @@ test("the jump control names the form it opens and reads unlike the links that o
   const page = await open(t);
   const link = page.document.querySelector("#record-release-link");
   const label = textOf(link);
-  assert.match(label, /^Open the form to /, "the link no longer says a form is what it opens");
+  assert.equal(label, "Record a release");
   const heading = textOf(page.document.querySelector("#release-form-title"));
-  assert.ok(label.endsWith(heading.toLowerCase()),
+  assert.ok(label === heading,
     `the link ends "${label}" but the form it opens is headed "${heading}"`);
 
   // Distinguishable from the real record, the example record and the repository:

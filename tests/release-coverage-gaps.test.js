@@ -323,14 +323,14 @@ function pageVocabulary(document) {
   return said;
 }
 
-test("the page says what covered and uncovered mean before either word is used", async (t) => {
+test("the coverage report defines covered and uncovered before its controls", async (t) => {
   const { page } = await openPage(t);
   assert.equal(textOf(byId(page, "coverage-gap-definition")), COVERAGE_DEFINITION);
 
   // RENDERED order, not source order: the definition has to reach the screen
   // ahead of the chip and the reveal's label, both of which are written by
   // script after the log loads. Read off the painted body for that reason.
-  const said = pageVocabulary(page.document);
+  const said = textOf(byId(page, "reasoning-proof"));
   const defined = said.indexOf(COVERAGE_DEFINITION);
   assert.ok(defined >= 0, "the definition never rendered on the page");
   const firstUse = said.search(/uncovered/i);
@@ -358,7 +358,7 @@ test("the worklist is named by the defined word, and states both ways in", async
   assert.equal(textOf(byId(page, "coverage-gap-worklist-title")), COVERAGE_GAP_HEADING);
   const said = textOf(page.document.body);
   assert.ok(said.includes(COVERAGE_GAP_HEADING), "the worklist heading never rendered");
-  assert.ok(said.indexOf(COVERAGE_GAP_HEADING) > said.indexOf(COVERAGE_DEFINITION));
+  assert.ok(said.indexOf(COVERAGE_GAP_HEADING) < said.indexOf(COVERAGE_DEFINITION), "the worklist belongs to the primary log");
 
   // Both ways a release gets here, in one authored sentence directly under the
   // heading: nothing linked, or every link pointing at a record this log lost.
@@ -466,7 +466,7 @@ test("while the log is unknown there is no reveal, and the coverage block says i
   assert.equal(textOf(skeleton), "");
   // And the authored page — before any module runs — is already in that state.
   const markup = await readFile(RELEASES_PAGE, "utf8");
-  assert.match(markup, /id="reasoning-proof" aria-labelledby="reasoning-proof-title" aria-busy="true"/);
+  assert.match(markup, /id="reasoning-proof"[^>]* aria-labelledby="reasoning-proof-title" aria-busy="true"/);
   assert.match(markup, /id="coverage-gap-toggle"[^>]*hidden/);
   assert.match(markup, /id="coverage-gap-worklist"[^>]*hidden/);
 });
@@ -567,7 +567,7 @@ test("the reveal takes its place in reading order and adds one tab stop", async 
   // log has. Nothing existing moved.
   assert.equal(at("coverage-gap-toggle") >= 0, true, "the reveal is not reachable");
   assert.ok(at("coverage-gap-toggle") < at("reasoning-proof-copy"));
-  assert.ok(at("reasoning-proof-copy") < at("release-search"));
+  assert.ok(at("release-search") < at("coverage-gap-toggle"));
   assert.ok(at("release-search") < at("release-status"));
   assert.equal(
     sequence.filter((stop) => stop.getAttribute?.("id") === "coverage-gap-toggle").length,

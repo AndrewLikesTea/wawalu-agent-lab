@@ -25,7 +25,7 @@ const STORED = [
   { id: "r-one", version: "v1.0.0", title: "First", description: "One.", owner: "Kai", status: "completed", createdAt: "2026-02-01T00:00:00.000Z", decisionIds: ["d-queue"] },
 ];
 const RECORD = { id: "shipped-abc1234", version: "abc1234", title: "Deployed build", status: "completed", owner: "CI", createdAt: "2026-02-01T00:00:00.000Z" };
-const REGIONS = ["real-deployment", "shipped-build", "deployment-status", "reasoning-proof", "releases-title", "release-list-status"];
+const REGIONS = ["releases-title", "release-list-status", "real-deployment", "shipped-build", "deployment-status", "reasoning-proof"];
 
 // One health read per call, each settled by the test; `calls` counts reads.
 function healthStub() {
@@ -177,7 +177,7 @@ test("a region that did not change keeps its live text unwritten", async (t) => 
   assert.deepEqual([coverage.writes, record.writes, logHeading.writes, verdict.writes], [0, 0, 0, 1]);
 });
 
-test("recovery buttons come first in region order, then the filters, then the log", async (t) => {
+test("log filters and recovery precede supporting recovery buttons", async (t) => {
   const { page, health } = await openPage(t, { refuse: true });
   health.pending[0].reject(new Error("offline"));
   await settle();
@@ -185,7 +185,7 @@ test("recovery buttons come first in region order, then the filters, then the lo
   const at = (key) => ids.findIndex((id) => id.includes(key));
   assert.ok(at("deployment-retry") >= 0 && at("coverage-gap-retry") >= 0 && at("release-retry-action") >= 0);
   assert.ok(at("deployment-retry") < at("coverage-gap-retry"));
-  assert.ok(at("coverage-gap-retry") < at("release-search"));
+  assert.ok(at("release-retry-action") < at("deployment-retry"));
   // The log's retry stands in the status region it recovers, directly above
   // the rows, so it follows the filters that narrow those rows.
   assert.ok(at("release-search") < at("release-retry-action"));
@@ -205,14 +205,14 @@ test("every region's state text and recovery control may wrap anywhere", async (
   for (const selector of [".release-followup-lead", ".detail-summary"]) assert.ok(wraps(styles, selector), `${selector} must wrap`);
 });
 
-test("with the log loaded, the check's retry precedes the filters, which precede the rows", async (t) => {
+test("with the log loaded, filters and rows precede the deployment retry", async (t) => {
   const { page, health } = await openPage(t);
   health.pending[0].reject(new Error("offline"));
   await settle();
   const ids = tabSequence(page.document).map((node) => node.getAttribute("id") ?? node.className);
   const at = (key) => ids.findIndex((id) => id.includes(key));
   assert.ok(at("deployment-retry") >= 0 && at("release-toggle") >= 0);
-  assert.ok(at("deployment-retry") < at("release-search"));
+  assert.ok(at("release-toggle") < at("deployment-retry"));
   assert.ok(at("release-search") < at("release-toggle"));
   assert.equal(at("coverage-gap-retry"), -1);
 });
