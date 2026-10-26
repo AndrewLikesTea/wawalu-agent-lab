@@ -91,7 +91,7 @@ test("the filter keeps only releases with an unaccepted decision and names itsel
   const ids = (list) => list.map((release) => release.id);
   assert.deepEqual(ids(filterReleases(RELEASES, DECISIONS, { unaccepted: "only" })), ["r-mixed", "r-gone"]);
   assert.deepEqual(ids(filterReleases(RELEASES, DECISIONS, { unaccepted: "yes" })), ["r-mixed", "r-gone", "r-clear", "r-none"]);
-  assert.equal(releaseFilterSummary({ unaccepted: "only" }), "a linked decision that is not accepted");
+  assert.equal(releaseFilterSummary({ unaccepted: "only" }), "an unaccepted linked decision (Proposed, Pending, Superseded, or missing from this log)");
 });
 
 test("the filter rides in the shared link and survives a reload", () => {
@@ -164,7 +164,7 @@ test("a deleted decision shows as an unknown decision, unlinked, with its id", a
 test("the checkbox narrows and restores the list, and the existing count says so both times", async (t) => {
   const page = await bootedReleases(t);
   assert.equal(checkbox(page).checked, false);
-  assert.equal(textOf(page.document.querySelector('label[for="release-unaccepted-only"]')), "Only releases with unaccepted decisions");
+  assert.equal(textOf(page.document.querySelector('label[for="release-unaccepted-only"]')), "Only releases with unaccepted linked decisions");
   assert.ok(tabSequence(page.document).includes(checkbox(page)), "the checkbox is a tab stop");
   assert.equal(countText(page), "Showing 4 releases, newest first.");
 
@@ -207,4 +207,50 @@ test("the line's renderer builds nodes, never markup strings", async () => {
   assert.ok(start > 0 && body.includes("createTextNode"));
   assert.equal(/innerHTML|outerHTML|insertAdjacentHTML/.test(body), false);
   assert.equal(/innerHTML|insertAdjacentHTML/.test(source), false, "releases.js writes no HTML strings anywhere");
+});
+
+const FILTER_HELP = "Unaccepted linked decisions are Proposed, Pending, or Superseded. "
+  + "A linked decision missing from this log also qualifies. "
+  + "This filter checks linked decisions, not the release’s own Planned, Completed, or Cancelled status.";
+
+function assertFilterHelp(page) {
+  assert.equal(checkbox(page).getAttribute("aria-describedby"), "release-unaccepted-hint");
+  assert.equal(textOf(page.document.querySelector("#release-unaccepted-hint")), FILTER_HELP);
+}
+
+test("filter help renders before filtering, with results, and after clearing", async (t) => {
+  const page = await bootedReleases(t);
+  assertFilterHelp(page);
+  checkbox(page).click();
+  assertFilterHelp(page);
+  page.document.querySelector("#release-clear-filters").click();
+  assertFilterHelp(page);
+});
+
+test("no results names the same unaccepted linked decisions and retains the definition", async (t) => {
+  const page = await bootedReleases(t, { releases: [RELEASES[1]] });
+  checkbox(page).click();
+  assert.equal(rows(page).length, 0);
+  const state = page.document.querySelector(".list-state-no-match");
+  assert.equal(textOf(state.querySelector("h3")), "No releases match your search and filters");
+  assert.equal(textOf(state.querySelector("p")), "The log still holds releases; none of them matches "
+    + "an unaccepted linked decision (Proposed, Pending, Superseded, or missing from this log).");
+  assertFilterHelp(page);
+});
+
+test("each qualifying linked decision appears for every release status", async (t) => {
+  const statuses = ["proposed", "pending", "superseded", "accepted", "approved"];
+  const decisions = statuses.map((status) => ({ ...DECISIONS[0], id: status, status }));
+  const releases = ["planned", "completed", "cancelled"].flatMap((status) =>
+    [...statuses, "missing"].map((decisionId) => ({
+      ...RELEASES[0], id: status + "-" + decisionId, title: status + "-" + decisionId,
+      status, decisionIds: [decisionId],
+    })));
+  const page = await bootedReleases(t, { decisions, releases });
+  checkbox(page).click();
+  assert.deepEqual(rows(page).map(rowTitle).sort(), releases
+    .filter((release) => !["accepted", "approved"].includes(release.decisionIds[0]))
+    .map((release) => release.title).sort());
+  assert.equal(countText(page), "Showing 12 of 18 releases, newest first.");
+  assertFilterHelp(page);
 });

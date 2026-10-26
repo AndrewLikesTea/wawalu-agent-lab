@@ -414,7 +414,7 @@ export function releaseFilterSummary(filters = {}, decisions = []) {
       ? "a linked decision this log does not hold"
       : `linked decision status ${sentenceCase(decisionStatus)}`);
   }
-  if (unaccepted === UNACCEPTED_ONLY) parts.push("a linked decision that is not accepted");
+  if (unaccepted === UNACCEPTED_ONLY) parts.push("an unaccepted linked decision (Proposed, Pending, Superseded, or missing from this log)");
   return joinPhrases(parts);
 }
 
