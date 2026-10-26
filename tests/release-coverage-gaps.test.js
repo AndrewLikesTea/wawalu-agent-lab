@@ -562,13 +562,13 @@ test("the reveal takes its place in reading order and adds one tab stop", async 
   const sequence = tabSequence(page.document);
   const at = (id) => sequence.findIndex((stop) => stop.getAttribute?.("id") === id);
 
-  // Coverage status, then the reveal, then the log: the chip is not focusable, so
-  // the reveal is the block's first stop and it stands before every control the
-  // log has. Nothing existing moved.
+  // The log, then coverage status, then the reveal: the log leads the page
+  // (#3018), and the chip is not focusable, so the reveal is the block's first
+  // stop, after every control the log has.
   assert.equal(at("coverage-gap-toggle") >= 0, true, "the reveal is not reachable");
-  assert.ok(at("coverage-gap-toggle") < at("reasoning-proof-copy"));
-  assert.ok(at("reasoning-proof-copy") < at("release-search"));
   assert.ok(at("release-search") < at("release-status"));
+  assert.ok(at("release-status") < at("coverage-gap-toggle"));
+  assert.ok(at("coverage-gap-toggle") < at("reasoning-proof-copy"));
   assert.equal(
     sequence.filter((stop) => stop.getAttribute?.("id") === "coverage-gap-toggle").length,
     1,

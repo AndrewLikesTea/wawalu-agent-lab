@@ -68,7 +68,7 @@ export const COVERAGE_DEFINITION =
 // What the two numbers are over. Static, because it is true on every render.
 export const REASONING_PROOF_SCOPE =
   "Both numbers are over every release loaded on this page, not the filtered view: "
-  + "the search and the filters below do not change them.";
+  + "the search and the filters do not change them.";
 
 // The same fact, for a reader who has the sentence and not the page.
 //

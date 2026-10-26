@@ -71,15 +71,18 @@ export function initShiplogProof(root, options = {}) {
 // fragment-focus behaviour. Nothing is prevented — the fragment still reaches
 // the URL, so the arrival stays shareable and the back button undoes it — and
 // the destination is the same anchor the deployment check's "Record the release
-// that is running" has always pointed at, so both arrive in one place.
+// that is running" has always pointed at, so both arrive in one place. The
+// hero's link down to the deployment check, below the log, lands the same way.
 export function initRecordReleaseJump(root) {
-  const link = root.querySelector("#record-release-link");
-  const panel = root.querySelector("#record-release");
-  if (!link || !panel) return;
-  link.addEventListener("click", () => {
-    panel.focus?.({ preventScroll: true });
-    panel.scrollIntoView?.({ block: "start" });
-  });
+  for (const [linkId, targetId] of [["record-release-link", "record-release"], ["deployment-check-link", "deployment-status"]]) {
+    const link = root.querySelector(`#${linkId}`);
+    const target = root.querySelector(`#${targetId}`);
+    if (!link || !target) continue;
+    link.addEventListener("click", () => {
+      target.focus?.({ preventScroll: true });
+      target.scrollIntoView?.({ block: "start" });
+    });
+  }
 }
 
 // The recorder. Returns null when the page carries no form, so the list wiring
