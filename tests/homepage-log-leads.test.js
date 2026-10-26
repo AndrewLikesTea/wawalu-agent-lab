@@ -218,6 +218,15 @@ test("the painted front door leads with the promise, then names the log", async 
   assert.equal(at("page-title"), 0, `the promise must open the hero: ${order.join(" | ")}`);
   assert.match(textOf(blocks[1]),
     /^Shiplog records decisions, tracks the releases they shape, and keeps the link between them\./);
+  // #3019: the paragraph under the promise names who it is for and the
+  // situation that makes it worth adopting, on load and above the decision form.
+  assert.match(textOf(blocks[1]),
+    /It is for engineering leads and release managers whose reasoning behind a release is scattered across chat, tickets, and documents\./);
+  assert.equal((textOf(main).match(/engineering leads and release managers/g) ?? []).length, 1);
+  assert.equal(blocks[1].querySelectorAll("a,button,details").length, 0, "the buyer sentence must add no tab stop");
+  assert.ok(!ancestorIds(document.getElementById("decision-form")).includes("top"),
+    "the buyer and trigger sit in the hero, which the decision form follows");
+  assert.ok(ancestorIds(document.getElementById("decision-form")).includes("record-history"));
   assert.ok(at("home-log-title") > 1, `the log's name must follow the promise: ${order.join(" | ")}`);
   assert.equal(textOf(document.getElementById("home-log-title")), "Decision log");
   assert.match(textOf(blocks[at("home-log-title") + 1]), /^Browse existing decisions or record a new one/);
