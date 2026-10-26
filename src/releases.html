@@ -619,9 +619,10 @@
                The count it changes is #release-count above; no new live region. -->
           <div class="filter release-unaccepted-filter">
             <span class="filter-option">
-              <input id="release-unaccepted-only" type="checkbox" />
-              <label for="release-unaccepted-only">Only releases with unaccepted decisions</label>
+              <input id="release-unaccepted-only" type="checkbox" aria-describedby="release-unaccepted-hint" />
+              <label for="release-unaccepted-only">Only releases with unaccepted linked decisions</label>
             </span>
+            <p class="hint" id="release-unaccepted-hint">Unaccepted linked decisions are Proposed, Pending, or Superseded. A linked decision missing from this log also qualifies. This filter checks linked decisions, not the release’s own Planned, Completed, or Cancelled status.</p>
           </div>
         </div>
         <!-- Share whatever the filters are showing. The label is the one the
