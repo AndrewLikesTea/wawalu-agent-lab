@@ -96,12 +96,17 @@ test("the example-records caveat is stated once above the record form", async (t
   const recited = (copyable?.textContent ?? "").replace(/\s+/g, " ").trim();
   assert.match(recited, /no customer or production data/,
     "the copied sentence no longer carries the caveat it travels with");
-  const parts = above.split(recited);
-  assert.equal(parts.length, 2, "the copied sentence is not in the walk exactly once");
-  above = parts.join(" ".repeat(recited.length));
 
-  assert.equal((above.match(/no customer or production data/g) ?? []).length, 1);
-  assert.equal((above.match(/These example records are invented:/g) ?? []).length, 1);
+  // Since #3018 the log and the recorder lead the page, so the example records
+  // and their caveat stand below the form: nothing above it says it at all, and
+  // the page says it once in its own voice, beside the records.
+  assert.equal((above.match(/no customer or production data/g) ?? []).length, 0);
+  let said = textOf(main).replace(/\s+/g, " ");
+  const parts = said.split(recited);
+  assert.equal(parts.length, 2, "the copied sentence is not on the page exactly once");
+  said = parts.join(" ");
+  assert.equal((said.match(/no customer or production data/g) ?? []).length, 1);
+  assert.equal((said.match(/These example records are invented:/g) ?? []).length, 1);
   // Said where the example records are, not in the page intro above it.
   assert.doesNotMatch(textOf(page.document.querySelector(".hero")), /example records/i);
 });
@@ -167,19 +172,15 @@ const isWithin = (node, ancestor) => {
 // A prospect follows "Explore the decision and release log" from the home page.
 // What they used to reach, in this order, was the pitch, the example record,
 // the deployment check and then nine fields to fill in, with the log itself at
-// the bottom of the page. The record of this deployment and the check against
-// it still lead, together, ahead of the example (#2487) — they are what the
-// observatory's link lands on — and the log now stands between them and the
-// recorder.
+// the bottom of the page. Since #3018 the log leads and the recorder follows it;
+// the record of this deployment and the check against it still stand together,
+// ahead of the example (#2487), below both.
 test("the log's heading, count, search, filters, records and export all come before the first form field", async (t) => {
   const page = await open(t);
   const order = page.document
     .querySelectorAll("#shipped-build,#shiplog-proof,#deployment-status,#releases-title,#release-count,#release-search,#release-status,#release-decision,#release-decision-status-all,#release-export,#release-list,#record-release,#release-form-title,#release-version")
     .map((node) => node.id);
   assert.deepEqual(order, [
-    "shipped-build",
-    "deployment-status",
-    "shiplog-proof",
     "releases-title",
     "release-count",
     "release-search",
@@ -191,6 +192,9 @@ test("the log's heading, count, search, filters, records and export all come bef
     "record-release",
     "release-form-title",
     "release-version",
+    "shipped-build",
+    "deployment-status",
+    "shiplog-proof",
   ]);
 
   // Scrolling from the top with the log loaded, a release record arrives before
@@ -219,15 +223,14 @@ test("tab order reaches the log's controls before the recorder's fields, and add
   assert.ok(firstToggle >= 0 && firstToggle < at("release-version"),
     "a release row is not reachable before the recorder's first field");
 
-  // The hero's one route: the page's own action. The ask that #2458 put beside
-  // it moved below the deployment record in #2654, so the opening screen is the
-  // promise and the recorder rather than a paragraph about a follow-up form.
-  // Counted, so a second control has to be added here before it can be added to
-  // the hero.
+  // The hero's two routes: the page's own action, then the way down to the
+  // deployment check, which #3018 moved below the log. The ask that #2458 put
+  // beside them moved below the deployment record in #2654. Counted, so a third
+  // control has to be added here before it can be added to the hero.
   const hero = page.document.querySelector(".hero");
   const heroStops = sequence.filter((node) => isWithin(node, hero));
-  assert.equal(heroStops.length, 1, "the hero gained a control beyond its one route");
-  assert.equal(heroStops[0].id, "record-release-link");
+  assert.deepEqual(heroStops.map((node) => node.id), ["record-release-link", "deployment-check-link"],
+    "the hero gained a control beyond its two routes");
   assert.equal(textOf(heroStops[0]), "Open the form to record a release");
   assert.equal(heroStops[0].getAttribute("href"), "#record-release");
 

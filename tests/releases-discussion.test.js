@@ -37,7 +37,9 @@ for (const [intent, label] of [['demo', 'Request a Shiplog demonstration'], ['pi
     test(`${label}: ${keyboard ? 'Enter' : 'click'} selects, focuses the email and submits the existing topic`, async (t) => {
       const { document, calls, view } = await setup(t);
       const email = document.getElementById('site-footer-email');
-      const link = document.querySelectorAll('[data-release-discussion]').find((link) => textOf(link) === label);
+      // The link, not the walkthrough summary's button of the same name, which
+      // stands above it since #3018.
+      const link = document.querySelectorAll('[data-release-discussion]').find((link) => link.tagName === 'A' && textOf(link) === label);
       assert.equal(link.getAttribute('href'), `#site-footer-intent-${intent}`);
       link.focus();
       if (keyboard) pressEnter(document); else link.click();
