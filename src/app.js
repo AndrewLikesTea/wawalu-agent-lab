@@ -21,6 +21,7 @@ import { renderReleaseCoverage } from "./homepage-release-coverage.js";
 import {
   DEFAULT_HISTORY_FILTERS,
   RECORD_TYPES,
+  UNRELEASED_LABEL,
   UNRELEASED_STATUS,
   absoluteHistoryUrl,
   currentOnlySearch,
@@ -395,7 +396,7 @@ export function toHistoryRecords(decisions = [], releases = [], options = {}) {
 }
 
 // The "Accepted, not yet released" filter (#2979): an accepted decision whose
-// row says "Not yet shipped". Read off the same `shipped` state that row is
+// row says the same words (#3020). Read off the same `shipped` state that row is
 // drawn from, so the filter and the line can never disagree. "unresolved" is
 // excluded — a release names it, the log just cannot read that release — and so
 // is a repository record, which shipped through a pull request this row links.
@@ -997,7 +998,12 @@ function appendShippedIn(article, record, visibleKeys) {
     // false of it: it shipped, in a pull request this row links, into a release
     // this log does not hold. Composition guarantees it reaches this branch —
     // see the release link rule in toHistoryRecords.
-    const empty = isRepositoryRecord(record) ? REPOSITORY_RELEASE_ABSENT : copy.empty;
+    //
+    // An accepted decision no release names takes the status filter's label
+    // (#3020), so the option and the row use one name for one state. Other
+    // statuses keep "Not yet shipped": nobody has committed to them yet.
+    const empty = isRepositoryRecord(record) ? REPOSITORY_RELEASE_ABSENT
+      : awaitingRelease(record) ? UNRELEASED_LABEL : copy.empty;
     appendTextElement(
       relationship,
       "span",
