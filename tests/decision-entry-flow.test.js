@@ -572,7 +572,12 @@ test("the painted page lists the four-step evaluation path above the recorder", 
   // It spends no tab stop in the state a first visitor arrives in: the action
   // for step one is the form below it, and the path's own link appears only
   // once this browser holds a record to act on (demo-progress.test.js).
-  assert.equal(list.parentNode.querySelectorAll("a").length, 0, "the path list added a focusable");
+  // The finished state's links (#3033) ship in the path but hidden until the
+  // demo is done, so they are subtracted here and their region pinned hidden.
+  const finished = byId(page, "evaluation-path-done");
+  assert.ok(finished.hidden, "the finished state shows before anything was recorded");
+  assert.equal(list.parentNode.querySelectorAll("a").length - finished.querySelectorAll("a").length, 0,
+    "the path list added a focusable");
   assert.equal(nextStep(page).hidden, true, "the next step is offered before anything was recorded");
 });
 
