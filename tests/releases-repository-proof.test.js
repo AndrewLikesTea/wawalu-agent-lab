@@ -12,6 +12,7 @@ import {
   LAST_VERIFIED_BUILD, LAST_VERIFIED_ON, LAST_VERIFIED_STAMP_COMMIT, REPOSITORY_PROOF_FAILED, REPOSITORY_PROOF_LOADED, REPOSITORY_PROOF_NOT_LIVE, repositoryProofPair,
 } from "../src/releases-repository-proof.js";
 import { REPOSITORY_DECISIONS } from "../src/seed-records.js";
+import { SHIPPED_BUILD_FAILED_NOTE } from "../src/deployed-release-view.js";
 import { loadPage, pressTab, tabSequence, textOf } from "./support/browser.js";
 
 const RELEASES_PAGE = new URL("../src/releases.html", import.meta.url);
@@ -140,6 +141,49 @@ test("a page script that fails to load keeps the record and says the refresh fai
   assert.equal(textOf(byId(page, "repository-proof-status")), REPOSITORY_PROOF_FAILED, "bootstrap repeats the module's sentence");
   assert.deepEqual(recordOf(page), authored);
   assert.doesNotMatch(textOf(byId(page, "repository-proof")), /customer/i);
+});
+
+// --- each region fails on its own (#3028) ------------------------------------
+
+const throwing = (key) => Object.defineProperty({}, key, { get() { throw new Error(`${key} unreadable`); } });
+const logState = (page) => byId(page, "release-list-status").getAttribute("class");
+
+test("a pairing that throws mid-render fails only the repository block, which keeps its heading and record", async (t) => {
+  const page = await loadPage(RELEASES_PAGE, { storage: {} });
+  t.after(() => page.restore());
+  const authored = recordOf(page);
+  initReleasesPage(page.document, page.storage, { seed: NO_SEED, readHealth: () => new Promise(() => {}), repositoryProof: throwing("decision") });
+  assert.equal(byId(page, "repository-proof").dataset.state, "failed");
+  assert.equal(textOf(byId(page, "repository-proof-title")), "Real record from the Shiplog repository");
+  assert.equal(textOf(byId(page, "repository-proof-status")), REPOSITORY_PROOF_FAILED);
+  assert.match(REPOSITORY_PROOF_FAILED, /this record from the repository failed/);
+  assert.deepEqual(recordOf(page), authored, "a half-built refresh replaced the last-verified record");
+  // Its neighbours settled: the log on its first-run state, the record painted.
+  assert.equal(logState(page), "list-state list-state-empty");
+  assert.equal(byId(page, "shipped-build").dataset.shippedBuild, "real");
+});
+
+test("a deployment record that throws says so in its own block and stalls nothing else", async (t) => {
+  const page = await openPage(t, { deployedRelease: throwing("commitSha") });
+  const panel = byId(page, "shipped-build");
+  assert.equal(panel.dataset.shippedBuild, "failed");
+  assert.equal(textOf(byId(page, "shipped-build-title")), "Deployment record");
+  assert.equal(textOf(byId(page, "shipped-build-note")), SHIPPED_BUILD_FAILED_NOTE);
+  assert.equal(byId(page, "shipped-build-note").getAttribute("role"), "status");
+  // Reload, not Retry: the stamp is baked into this build.
+  assert.match(SHIPPED_BUILD_FAILED_NOTE, /^The deployment record could not load\. Reload this page/);
+  assert.equal(byId(page, "shipped-build-marking").hidden, true, "a failed record kept its Real marking");
+  assert.equal(byId(page, "shipped-build-copy").hidden, true);
+  assert.equal(byId(page, "shipped-build-facts").children.length, 0);
+  assert.equal(page.document.activeElement === panel, false, "a failure moved focus");
+  // The page script failing to load says the very same sentence.
+  const html = await readFile(new URL("../src/releases-bootstrap.js", import.meta.url), "utf8");
+  assert.ok(html.includes(`"${SHIPPED_BUILD_FAILED_NOTE}"`));
+  // Neighbours booted rather than staying on their loading lines.
+  assert.equal(logState(page), "list-state list-state-empty");
+  assert.equal(byId(page, "repository-proof").dataset.state, "loaded");
+  assert.equal(page.document.querySelectorAll(".decision-picker-loading").length, 0);
+  assert.equal(byId(page, "deployment-status").dataset.checkState, "loading", "the deployment check never started");
 });
 
 test("the invented story beside it keeps its Example label and stays apart from the real record", async (t) => {

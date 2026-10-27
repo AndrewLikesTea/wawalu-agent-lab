@@ -28,7 +28,7 @@ import { initWalkthroughSummary } from "./demo-walkthrough-summary.js";
 import { recordsChanged } from "./shiplog-records.js";
 import { BUILD_STAMP } from "./build-stamp.js";
 import { deployedReleaseRecord } from "./deployed-release.js";
-import { renderShippedBuild } from "./deployed-release-view.js";
+import { renderShippedBuild, renderShippedBuildFailed } from "./deployed-release-view.js";
 import { initDeploymentStatus } from "./deployment-status-view.js";
 import { RELEASE_FORM_ERRORS, createRelease, mountDecisionPicker, recordedSummaryText } from "./release-form.js";
 import { copyRecordUrl } from "./share-link.js";
@@ -262,10 +262,18 @@ export function initReleasesPage(root = document, storage = localStorage, option
   // stamp this artifact shipped with, and null when that stamp names no commit —
   // in which case the block says so and no record is manufactured.
   const buildStamp = options.buildStamp ?? BUILD_STAMP;
-  const deployedRelease = options.deployedRelease !== undefined
-    ? options.deployedRelease
-    : deployedReleaseRecord(buildStamp);
-  renderShippedBuild(root, deployedRelease, options);
+  // A record that throws fails in its own block: the log, the recorder and the
+  // checks below still boot rather than staying on their loading lines.
+  let deployedRelease = null;
+  try {
+    deployedRelease = options.deployedRelease !== undefined
+      ? options.deployedRelease
+      : deployedReleaseRecord(buildStamp);
+    renderShippedBuild(root, deployedRelease, options);
+  } catch {
+    deployedRelease = null;
+    renderShippedBuildFailed(root);
+  }
 
   // The log's one live region, and the only place any of its five states is
   // drawn. Loading, empty, no-match and failed-load are shown and announced by
@@ -650,7 +658,12 @@ export function initReleasesPage(root = document, storage = localStorage, option
     if (!deploymentChecking) checkDeployment();
   });
   checkDeployment();
-  renderRepositoryProof(root, options.repositoryProof);
+  // Same isolation: a pairing that throws is a failed refresh of that block.
+  try {
+    renderRepositoryProof(root, options.repositoryProof);
+  } catch {
+    renderRepositoryProof(root, null);
+  }
 
   update();
   // The home page's coverage link (#2907) lands here with the uncovered list

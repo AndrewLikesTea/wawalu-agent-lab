@@ -251,6 +251,31 @@ test("a retry that fails again keeps the same Retry under the reader's focus", a
   assert.equal(count(page, ".decision-picker-check"), 0);
 });
 
+test("a failed decisions read and both retries leave every other field and the log's search as entered", async (t) => {
+  const { page, control } = await openPage(t, { refuse: true });
+  const entered = { "release-title": "A".repeat(140), "release-version": "v9.9.9-rc.1", "release-description": "Summary kept through a failed read." };
+  for (const [id, value] of Object.entries(entered)) byId(page, id).value = value;
+  byId(page, "release-search").value = "First";
+  const disabledBefore = ["release-title", "release-version", "release-description", "release-owner"].map((id) => byId(page, id).disabled);
+
+  retry(page).focus();
+  retry(page).click();
+  assert.equal(summaryText(page), DECISION_PICKER_FAILED_STATUS_TEXT);
+  assert.ok(page.document.activeElement === retry(page), "focus left the control's Retry");
+  control.refuse = false;
+  retry(page).click();
+  assert.equal(activeId(page), "release-decision-0", "focus left the linked-decisions control");
+
+  for (const [id, value] of Object.entries(entered)) assert.equal(byId(page, id).value, value, `${id} was cleared`);
+  assert.equal(byId(page, "release-search").value, "First");
+  assert.deepEqual(["release-title", "release-version", "release-description", "release-owner"].map((id) => byId(page, id).disabled), disabledBefore);
+  // The log stays loaded, and the redraw the recovered decisions caused still
+  // honours the search the reader typed: one of the two rows, not a reset.
+  assert.equal(byId(page, "release-list-status").getAttribute("class"), "list-state");
+  assert.equal(count(page, ".release-item"), 1);
+  assert.match(textOf(page.document.querySelector(".release-item")), /First/);
+});
+
 test("a retry visibly switches the panel to its loading text while the read runs", async (t) => {
   const { page, control } = await openPage(t, { refuse: true });
   // Read what the panel is showing at the moment the log is read, which is the

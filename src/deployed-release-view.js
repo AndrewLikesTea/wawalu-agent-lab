@@ -213,3 +213,25 @@ export function renderShippedBuild(root, record, options = {}) {
   }
   return record;
 }
+
+// releases-bootstrap.js repeats this sentence for a page script that never
+// loaded; this is the same failure met after it loaded. The stamp is baked
+// into the build, so a Retry would re-read the same bytes: reload is the action.
+export const SHIPPED_BUILD_FAILED_NOTE = "The deployment record could not load. Reload this page to try again.";
+
+// A record that threw while being derived or painted. The heading stays, the
+// marking and every half-painted value go, and only the live note speaks.
+export function renderShippedBuildFailed(root) {
+  const panel = byId(root, SHIPPED_BUILD_IDS.panel);
+  if (!panel) return;
+  panel.dataset.shippedBuild = "failed";
+  for (const key of ["marking", "copy", "source"]) {
+    const node = byId(root, SHIPPED_BUILD_IDS[key]);
+    if (node) node.hidden = true;
+  }
+  for (const key of ["facts", "reason", "copyStatus"]) byId(root, SHIPPED_BUILD_IDS[key])?.replaceChildren();
+  const reasonNote = byId(root, SHIPPED_BUILD_IDS.reasonNote);
+  if (reasonNote) reasonNote.hidden = true;
+  const note = byId(root, SHIPPED_BUILD_IDS.note);
+  if (note) note.textContent = SHIPPED_BUILD_FAILED_NOTE;
+}
