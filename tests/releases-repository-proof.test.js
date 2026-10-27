@@ -5,10 +5,11 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { initReleasesPage } from "../src/releases-page.js";
 import { bootReleases } from "../src/releases-bootstrap.js";
 import {
-  LAST_VERIFIED_BUILD, LAST_VERIFIED_STAMP_COMMIT, REPOSITORY_PROOF_FAILED, REPOSITORY_PROOF_LOADED, REPOSITORY_PROOF_NOT_LIVE, repositoryProofPair,
+  LAST_VERIFIED_BUILD, LAST_VERIFIED_ON, LAST_VERIFIED_STAMP_COMMIT, REPOSITORY_PROOF_FAILED, REPOSITORY_PROOF_LOADED, REPOSITORY_PROOF_NOT_LIVE, repositoryProofPair,
 } from "../src/releases-repository-proof.js";
 import { REPOSITORY_DECISIONS } from "../src/seed-records.js";
 import { loadPage, pressTab, tabSequence, textOf } from "./support/browser.js";
@@ -38,6 +39,7 @@ test("the real record names the decision, its status and owner, the recorded bui
     "DecisionMark every record row with whose record it is",
     "Decision statusAccepted",
     "Decision ownerMina",
+    "Source repositoryAndrewLikesTea/wawalu-agent-lab on GitHub",
     "Recorded buildCommit 28b2398ff49c, which merged pull request #2547",
     "Last verified 25 September 2026.",
     REPOSITORY_PROOF_NOT_LIVE,
@@ -49,7 +51,7 @@ test("the real record names the decision, its status and owner, the recorded bui
   assert.equal(textOf(status), REPOSITORY_PROOF_LOADED);
   assert.equal(status.getAttribute("role"), "status");
   assert.equal(status.getAttribute("aria-live"), "polite");
-  assert.equal(byId(page, "repository-proof-repo").hidden, true);
+  assert.doesNotMatch(textOf(section), /customer/i);
 
   const links = byId(page, "repository-proof-record").querySelectorAll("a");
   assert.deepEqual(links.map((link) => [link.getAttribute("href"), textOf(link)]), [
@@ -62,7 +64,6 @@ test("the real record names the decision, its status and owner, the recorded bui
   assert.ok(start > 0, "source links are reachable from the preceding control");
   stops[start - 1].focus();
   for (const link of links) assert.ok(pressTab(page.document) === link);
-  assert.equal(stops.includes(byId(page, "repository-proof-repo")), false);
   assert.notEqual(page.document.activeElement?.getAttribute?.("id"), "repository-proof");
 });
 
@@ -74,31 +75,71 @@ test("the pair is the home page's own: the canonical decision citing the stamp's
   assert.equal(repositoryProofPair(REPOSITORY_DECISIONS, { ...LAST_VERIFIED_BUILD, builtAt: "not a date" }), null);
 });
 
-test("a record that cannot load says so honestly, links the repository and shows no figure", async (t) => {
-  const page = await openPage(t, { repositoryProof: repositoryProofPair([]) });
+// The record as text plus every link's href, so two states compare by value.
+// Whitespace is dropped: authored markup indents where rendered nodes do not.
+const recordOf = (page) => {
+  const record = byId(page, "repository-proof-record");
+  return [textOf(record).replace(/\s+/g, ""), record.querySelectorAll("a").map((link) => `${link.getAttribute("href")} ${textOf(link)}`)];
+};
+const LAST_VERIFIED_RECORD = [
+  "Mark every record row with whose record it is",
+  "AndrewLikesTea/wawalu-agent-lab",
+  "pull request #2547",
+  `Last verified ${LAST_VERIFIED_ON}.`,
+];
+
+test("releases.html authors the last-verified record itself, with its repository links", async () => {
+  const html = await readFile(RELEASES_PAGE, "utf8");
+  const section = html.slice(html.indexOf('id="repository-proof"'), html.indexOf("</section>", html.indexOf('id="repository-proof"')));
+  assert.equal(LAST_VERIFIED_ON, "25 September 2026");
+  for (const value of [...LAST_VERIFIED_RECORD, `href="${REPO}/pull/2547"`, `href="${REPO}/commit/${LAST_VERIFIED_BUILD.commitSha}"`]) {
+    assert.ok(section.includes(value), value);
+  }
+  assert.doesNotMatch(section, /customer|uncovered/i);
+});
+
+test("with no script yet, or a refresh still pending, the authored record is already shown", async (t) => {
+  const page = await loadPage(RELEASES_PAGE, { storage: {} });
+  t.after(() => page.restore());
+  assert.equal(byId(page, "repository-proof").dataset.state, "loading");
+  const [text, links] = recordOf(page);
+  for (const value of LAST_VERIFIED_RECORD) assert.ok(text.includes(value.replace(/\s+/g, "")), value);
+  assert.equal(links.length, 3);
+  assert.equal(textOf(byId(page, "repository-proof-status")), "Checking this last-verified record against the repository record.");
+});
+
+test("a confirmed refresh renders exactly the authored record and no failure label", async (t) => {
+  const page = await loadPage(RELEASES_PAGE, { storage: {} });
+  t.after(() => page.restore());
+  const authored = recordOf(page);
+  initReleasesPage(page.document, page.storage, { seed: NO_SEED, readHealth: () => new Promise(() => {}) });
+  assert.equal(byId(page, "repository-proof").dataset.state, "loaded");
+  assert.deepEqual(recordOf(page), authored, "markup and LAST_VERIFIED_BUILD cannot drift");
+  assert.doesNotMatch(textOf(byId(page, "repository-proof")), /failed/i);
+});
+
+test("a refresh that cannot prove the pairing keeps the last-verified record and labels the failure", async (t) => {
+  const page = await loadPage(RELEASES_PAGE, { storage: {} });
+  t.after(() => page.restore());
+  const authored = recordOf(page);
+  initReleasesPage(page.document, page.storage, { seed: NO_SEED, readHealth: () => new Promise(() => {}), repositoryProof: repositoryProofPair([]) });
   const section = byId(page, "repository-proof");
   assert.equal(section.dataset.state, "failed");
   assert.equal(textOf(byId(page, "repository-proof-status")), REPOSITORY_PROOF_FAILED);
-  const repo = byId(page, "repository-proof-repo");
-  assert.equal(repo.hidden, false);
-  assert.equal(repo.getAttribute("href"), REPO);
-  assert.ok(tabSequence(page.document).includes(repo), "failure recovery stays keyboard reachable");
-  assert.equal(textOf(repo), "Open the public Shiplog repository on GitHub");
-  assert.equal(byId(page, "repository-proof-record").children.length, 0);
-  assert.doesNotMatch(textOf(section), /\d/, "no number, date or commit from the fixture");
-  assert.doesNotMatch(textOf(section), /Mark every record row|Mina|Accepted|Last verified/);
+  assert.equal(REPOSITORY_PROOF_FAILED, "Refreshing this record from the repository failed, so it shows the proof last verified on 25 September 2026.");
+  assert.deepEqual(recordOf(page), authored);
+  assert.doesNotMatch(textOf(section), /customer/i);
 });
 
-test("a page script that fails to load leaves the same honest failure, not a stuck loading line", async (t) => {
+test("a page script that fails to load keeps the record and says the refresh failed", async (t) => {
   const page = await loadPage(RELEASES_PAGE, { storage: {} });
   t.after(() => page.restore());
-  assert.equal(textOf(byId(page, "repository-proof-status")), "Loading the repository record.");
-  assert.equal(byId(page, "repository-proof-repo").getAttribute("href"), null, "main authors no repository link");
+  const authored = recordOf(page);
   await bootReleases(page.document, () => Promise.reject(new Error("offline")));
-  assert.equal(textOf(byId(page, "repository-proof-status")), REPOSITORY_PROOF_FAILED);
-  assert.equal(byId(page, "repository-proof-repo").hidden, false);
-  assert.equal(byId(page, "repository-proof-repo").getAttribute("href"), REPO);
-  assert.doesNotMatch(textOf(byId(page, "repository-proof")), /\d/);
+  assert.equal(byId(page, "repository-proof").dataset.state, "failed");
+  assert.equal(textOf(byId(page, "repository-proof-status")), REPOSITORY_PROOF_FAILED, "bootstrap repeats the module's sentence");
+  assert.deepEqual(recordOf(page), authored);
+  assert.doesNotMatch(textOf(byId(page, "repository-proof")), /customer/i);
 });
 
 test("the invented story beside it keeps its Example label and stays apart from the real record", async (t) => {

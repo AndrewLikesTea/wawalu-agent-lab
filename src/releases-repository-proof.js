@@ -6,7 +6,9 @@
 // historical build stamp the home page's "Last verified" block transcribes
 // (docs/repository-proof.md). That stamp is public and immutable at
 // LAST_VERIFIED_STAMP_COMMIT, so every value shown here can be checked there.
-// Anything the pairing cannot prove renders the failure sentence and no field.
+// releases.html authors the same record (#3029), so it shows with no script
+// and survives a failed refresh: this module re-derives and confirms it, and a
+// pairing it cannot prove changes only the status line, never the record.
 import { repositoryReleasePair } from "./app.js";
 import { REPOSITORY_DECISIONS } from "./seed-records.js";
 import { REPOSITORY_URL, commitUrl, pullRequestUrl, shortCommit } from "./deployed-release.js";
@@ -20,7 +22,6 @@ export const LAST_VERIFIED_BUILD = Object.freeze({
 });
 
 export const REPOSITORY_PROOF_LOADED = "Loaded: one decision from the Shiplog repository and the recorded build that contains it.";
-export const REPOSITORY_PROOF_FAILED = "The repository record could not load, so no decision or build from it is shown here. The public Shiplog repository holds every decision and build.";
 export const REPOSITORY_PROOF_NOT_LIVE = "This describes a recorded build, not the deployment running now.";
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -28,6 +29,9 @@ const utcDay = (iso) => {
   const date = new Date(iso);
   return `${date.getUTCDate()} ${MONTHS[date.getUTCMonth()]} ${date.getUTCFullYear()}`;
 };
+export const LAST_VERIFIED_ON = utcDay(LAST_VERIFIED_BUILD.builtAt);
+// releases-bootstrap.js repeats this sentence so it needs no module graph.
+export const REPOSITORY_PROOF_FAILED = `Refreshing this record from the repository failed, so it shows the proof last verified on ${LAST_VERIFIED_ON}.`;
 
 export function repositoryProofPair(decisions = REPOSITORY_DECISIONS, stamp = LAST_VERIFIED_BUILD) {
   try {
@@ -37,23 +41,17 @@ export function repositoryProofPair(decisions = REPOSITORY_DECISIONS, stamp = LA
   }
 }
 
-// Only #repository-proof-status is live; the record itself is static once
-// written, and nothing here moves focus.
+// Only #repository-proof-status is live; nothing here moves focus. A failed
+// pairing leaves the authored last-verified record exactly as it was.
 export function renderRepositoryProof(root, pair = repositoryProofPair()) {
   const section = root.querySelector("#repository-proof");
   const status = root.querySelector("#repository-proof-status");
   const target = root.querySelector("#repository-proof-record");
-  const fallback = root.querySelector("#repository-proof-repo");
   if (!section || !status || !target) return;
-  target.replaceChildren();
   section.dataset.state = pair ? "loaded" : "failed";
   status.textContent = pair ? REPOSITORY_PROOF_LOADED : REPOSITORY_PROOF_FAILED;
-  if (fallback) {
-    fallback.hidden = Boolean(pair);
-    if (pair) fallback.removeAttribute("href");
-    else fallback.setAttribute("href", REPOSITORY_URL);
-  }
   if (!pair) return;
+  target.replaceChildren();
   const { decision, release, pullNumber, status: decisionStatus } = pair;
   const commit = shortCommit(release.commitSha);
   const facts = root.createElement("dl");
@@ -62,6 +60,7 @@ export function renderRepositoryProof(root, pair = repositoryProofPair()) {
     ["Decision", decision.title],
     ["Decision status", decisionStatus[0].toUpperCase() + decisionStatus.slice(1)],
     ["Decision owner", decision.owner],
+    ["Source repository", `${REPOSITORY_URL.replace("https://github.com/", "")} on GitHub`],
     ["Recorded build", `Commit ${commit}, which merged pull request #${pullNumber}`],
   ]) {
     const row = root.createElement("div");
