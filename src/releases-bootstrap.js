@@ -12,8 +12,9 @@ export function bindDeploymentArrival(root, view = globalThis.window) {
   arrive();
 }
 
-// Keep the failure message independent of the page's module graph: a missing
-// build-stamp module must not leave a repository-root link posing as evidence.
+// Keep the failure message independent of the page's module graph: the
+// authored last-verified record stays, and only its status line says the
+// refresh failed (REPOSITORY_PROOF_FAILED, pinned equal by its test).
 export async function bootReleases(root, load = () => import("./releases-page.js")) {
   bindDeploymentArrival(root);
   try {
@@ -22,10 +23,7 @@ export async function bootReleases(root, load = () => import("./releases-page.js
     const proof = root.querySelector("#repository-proof");
     if (proof?.dataset.state === "loading") {
       proof.dataset.state = "failed";
-      root.querySelector("#repository-proof-status").textContent = "The repository record could not load, so no decision or build from it is shown here. The public Shiplog repository holds every decision and build.";
-      const repo = root.querySelector("#repository-proof-repo");
-      repo.setAttribute("href", "https://github.com/AndrewLikesTea/wawalu-agent-lab");
-      repo.hidden = false;
+      root.querySelector("#repository-proof-status").textContent = "Refreshing this record from the repository failed, so it shows the proof last verified on 25 September 2026.";
     }
     const panel = root.querySelector("#shipped-build");
     if (!panel || panel.dataset.shippedBuild !== "loading") return;
