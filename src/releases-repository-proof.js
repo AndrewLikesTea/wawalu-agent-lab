@@ -48,10 +48,14 @@ export function renderRepositoryProof(root, pair = repositoryProofPair()) {
   const status = root.querySelector("#repository-proof-status");
   const target = root.querySelector("#repository-proof-record");
   if (!section || !status || !target) return;
-  section.dataset.state = pair ? "loaded" : "failed";
-  status.textContent = pair ? REPOSITORY_PROOF_LOADED : REPOSITORY_PROOF_FAILED;
-  if (!pair) return;
-  target.replaceChildren();
+  if (!pair) {
+    section.dataset.state = "failed";
+    status.textContent = REPOSITORY_PROOF_FAILED;
+    return;
+  }
+  // Built off-screen and swapped in last, so a pair that throws mid-render
+  // leaves the authored record whole for the failed state to point at.
+  const nodes = [];
   const { decision, release, pullNumber, status: decisionStatus } = pair;
   const commit = shortCommit(release.commitSha);
   const facts = root.createElement("dl");
@@ -71,12 +75,12 @@ export function renderRepositoryProof(root, pair = repositoryProofPair()) {
     row.append(dt, dd);
     facts.append(row);
   }
-  target.append(facts);
+  nodes.push(facts);
   for (const text of [`Last verified ${utcDay(release.createdAt)}.`, REPOSITORY_PROOF_NOT_LIVE]) {
     const note = root.createElement("p");
     note.setAttribute("class", "shiplog-proof-note");
     note.textContent = text;
-    target.append(note);
+    nodes.push(note);
   }
   const share = root.createElement("div");
   share.setAttribute("class", "shiplog-proof-share");
@@ -91,5 +95,8 @@ export function renderRepositoryProof(root, pair = repositoryProofPair()) {
     link.textContent = text;
     share.append(link);
   }
-  target.append(share);
+  nodes.push(share);
+  target.replaceChildren(...nodes);
+  section.dataset.state = "loaded";
+  status.textContent = REPOSITORY_PROOF_LOADED;
 }
