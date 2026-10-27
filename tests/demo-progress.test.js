@@ -17,10 +17,12 @@ import { readFile } from "node:fs/promises";
 import { STORAGE_KEY, initDecisionLog } from "../src/app.js";
 import { RELEASE_STORAGE_KEY } from "../src/releases.js";
 import {
+  DEMO_PROGRESS_DONE_ANNOUNCEMENT,
   DEMO_PROGRESS_STATUS,
   demoProgress,
   demoProgressSteps,
 } from "../src/demo-progress.js";
+import { recordsChanged } from "../src/shiplog-records.js";
 import { DomEvent, loadPage, pressEnter, pressTab, tabSequence, textOf, typeText } from "./support/browser.js";
 
 const HOME = new URL("../src/index.html", import.meta.url);
@@ -154,22 +156,112 @@ test("a recorded decision completes step one and offers one link to Releases", a
   assert.doesNotMatch(lead, /publish|shared|synced|uploaded|sent to/i, "the lead claims the record left this browser");
 });
 
-test("a release linked to that decision completes step three and opens its details", async (t) => {
+// The finished demo (#3033): a decision and a release that links it, both in
+// this browser, is the whole proof, and the home page answers it with the two
+// asks and the evaluation kit instead of one more step.
+const done = (page) => byId(page, "evaluation-path-done");
+const DONE_LINKS = [
+  "evaluation-path-pilot",
+  "evaluation-path-demonstration",
+  "evaluation-path-brief",
+  "evaluation-path-scorecard",
+];
+
+test("a release linked to that decision finishes the demo on the home page", async (t) => {
   const page = await openHome(t, { decisions: [DECISION], releases: [RELEASE] });
 
-  assert.deepEqual(statuses(page), [
-    `Step 1 of 4 · ${DEMO_PROGRESS_STATUS.done}`,
-    `Step 2 of 4 · ${DEMO_PROGRESS_STATUS.done}`,
-    `Step 3 of 4 · ${DEMO_PROGRESS_STATUS.done}`,
-    `Step 4 of 4 · ${DEMO_PROGRESS_STATUS.current}`,
-  ]);
-  assert.deepEqual(currentSteps(page), [STEPS[3]]);
+  // (a) All four steps say done, none is the one to do, and no link is left in
+  // the next-action region.
+  assert.deepEqual(statuses(page), [1, 2, 3, 4].map((n) => `Step ${n} of 4 · ${DEMO_PROGRESS_STATUS.done}`));
+  assert.deepEqual(currentSteps(page), []);
+  assert.doesNotMatch(textOf(byId(page, "evaluation-path-steps")), new RegExp(DEMO_PROGRESS_STATUS.current));
+  assert.equal(actionCount(page), 0);
+  assert.ok(!done(page).hidden, "the finished state is still hidden");
+  assert.equal(textOf(byId(page, "evaluation-path-done-lead")), "All four steps are done.");
 
-  assert.equal(actionCount(page), 1);
-  assert.equal(action(page).getAttribute("href"), `/release.html?id=${RELEASE.id}`);
-  assert.match(textOf(action(page)), /Open release v1\.3\.0 and its linked decision/);
-  const lead = textOf(byId(page, "evaluation-path-next-lead"));
-  assert.match(lead, /Release v1\.3\.0 is recorded in this browser and links “Adopt a durable job queue”/);
+  // (b) What the visitor proved, in one line.
+  assert.equal(textOf(byId(page, "evaluation-path-proved")),
+    "You proved it: a release now opens to the decision behind it.");
+
+  // (c) Both asks are the availability section's own pair, byte for byte: the
+  // same address, topic key, description and words.
+  for (const [id, heroId] of [["evaluation-path-pilot", "discuss-pilot"], ["evaluation-path-demonstration", "ask-about-shiplog"]]) {
+    const link = byId(page, id);
+    const hero = byId(page, heroId);
+    for (const name of ["href", "data-buyer-intent", "aria-describedby", "class"]) {
+      assert.equal(link.getAttribute(name), hero.getAttribute(name), `${id} differs from #${heroId} on ${name}`);
+    }
+    assert.equal(textOf(link), textOf(hero));
+  }
+  assert.equal(byId(page, "evaluation-path-pilot").getAttribute("data-buyer-intent"), "pilot");
+  assert.equal(byId(page, "evaluation-path-demonstration").getAttribute("data-buyer-intent"), "demo");
+
+  // (d) The evaluation kit, at the sections this page already carries.
+  assert.equal(byId(page, "evaluation-path-brief").getAttribute("href"), "#shiplog-evaluation-brief");
+  assert.equal(textOf(byId(page, "evaluation-path-brief")), "Shiplog evaluation brief");
+  assert.equal(byId(page, "evaluation-path-scorecard").getAttribute("href"), "#shiplog-pilot-scorecard");
+  assert.equal(textOf(byId(page, "evaluation-path-scorecard")), "Blank pilot scorecard");
+  assert.equal(page.document.querySelectorAll("#shiplog-evaluation-brief").length, 1);
+  assert.equal(page.document.querySelectorAll("#shiplog-pilot-scorecard").length, 1);
+
+  // (e) The demo caveat stays in view, and the new block adds no number and no
+  // testimonial or result claim.
+  assert.ok(!byId(page, "evaluation-path-scope").hidden);
+  assert.match(textOf(byId(page, "evaluation-path-scope")), /This is a demo workflow, not a customer result\./);
+  const block = textOf(done(page));
+  assert.doesNotMatch(block, /\d/);
+  assert.doesNotMatch(block, /customer|testimonial|results?\b|saved|faster|%|“|"/i);
+  assert.equal(done(page).querySelectorAll("a").length, DONE_LINKS.length);
+});
+
+test("the finished state's links are reached by Tab in reading order and follow with Enter", async (t) => {
+  const page = await openHome(t, { decisions: [DECISION], releases: [RELEASE] });
+  const targets = DONE_LINKS.map((id) => byId(page, id));
+
+  // (f) Bounded by the page's own tab stops: pressTab restarts at stop zero.
+  const sequence = tabSequence(page.document);
+  let reached = null;
+  for (let press = 0; press < sequence.length && reached !== targets[0]; press += 1) {
+    reached = pressTab(page.document);
+  }
+  assert.ok(reached === targets[0], "the pilot link is not reachable by Tab");
+  for (const target of targets.slice(1)) {
+    assert.ok(pressTab(page.document) === target, `Tab did not move on to #${target.getAttribute("id")}`);
+  }
+  for (const target of targets) assert.equal(target.tagName, "A");
+});
+
+test("before the demo is finished its block is hidden and out of the tab order", async (t) => {
+  for (const records of [{}, { decisions: [DECISION] }, { decisions: [DECISION], releases: [{ ...RELEASE, decisionIds: [] }] }]) {
+    const page = await openHome(t, records);
+    assert.ok(done(page).hidden, "the finished state shows before the demo is finished");
+    const sequence = tabSequence(page.document);
+    for (const id of DONE_LINKS) {
+      assert.equal(sequence.filter((node) => node.getAttribute("id") === id).length, 0, `#${id} is a tab stop`);
+    }
+    // The tracker itself is unchanged: one step is still the one to do.
+    assert.equal(currentSteps(page).length, 1);
+    assert.match(textOf(byId(page, "evaluation-path-steps")), new RegExp(DEMO_PROGRESS_STATUS.current));
+    page.restore();
+  }
+});
+
+test("finishing the demo without a reload announces it politely", async (t) => {
+  const page = await openHome(t, { decisions: [DECISION] });
+  assert.ok(done(page).hidden);
+  page.storage.setItem(RELEASE_STORAGE_KEY, JSON.stringify([RELEASE]));
+  recordsChanged(page.document);
+
+  assert.ok(!done(page).hidden, "the finished state did not appear");
+  assert.equal(announced(page), DEMO_PROGRESS_DONE_ANNOUNCEMENT);
+  assert.equal(actionCount(page), 0);
+});
+
+test("on Releases a linked release still leaves step four as the one to do", () => {
+  const progress = demoProgress({ decisions: [DECISION], releases: [RELEASE], surface: "releases" });
+  assert.equal(progress.complete, false);
+  assert.equal(progress.currentIndex, 3);
+  assert.equal(progress.steps[3].status, DEMO_PROGRESS_STATUS.current);
 });
 
 test("a release linked to no stored decision leaves the path on step two", async (t) => {
@@ -300,17 +392,19 @@ test("the state is a function of the records alone", async () => {
   // step, which is what makes a revisit restore what the last visit left.
   assert.equal(demoProgress({}).currentIndex, 0);
   assert.equal(demoProgress({ decisions: [DECISION] }).currentIndex, 1);
-  assert.equal(demoProgress({ decisions: [DECISION], releases: [RELEASE] }).currentIndex, 3);
+  assert.equal(demoProgress({ decisions: [DECISION], releases: [RELEASE] }).complete, true);
 
   // A newer decision recorded after the demo was finished does not walk the
   // reader back: the tracked decision is the newest one that has a release.
   const later = { ...DECISION, id: "d-cache", title: "Cache the read path" };
   const finished = demoProgress({ decisions: [later, DECISION], releases: [RELEASE] });
-  assert.equal(finished.currentIndex, 3);
+  assert.equal(finished.complete, true);
   assert.equal(finished.release.id, RELEASE.id);
   assert.equal(finished.decision.id, DECISION.id);
 
-  // Step four is never reported done: nothing in this browser records that a
-  // detail page was read, and claiming it would be a fact we cannot observe.
-  assert.equal(finished.steps[3].status, DEMO_PROGRESS_STATUS.current);
+  // On the home page the linked pair is the finish (#3033): every step is done
+  // and none is current. Releases keeps step four current (tested above).
+  assert.deepEqual(finished.steps.map((step) => step.status), Array(4).fill(DEMO_PROGRESS_STATUS.done));
+  assert.equal(finished.steps.filter((step) => step.current).length, 0);
+  assert.equal(finished.action, null);
 });

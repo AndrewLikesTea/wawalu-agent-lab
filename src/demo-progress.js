@@ -225,14 +225,19 @@ const ACTIONS = Object.freeze({ home: homeAction, releases: releasesAction });
 export function demoProgress({ decisions = [], releases = [], surface = "home" } = {}) {
   const { decision, release } = trackedRecords(decisions, releases);
   // Step four has no stored consequence — nothing in this browser records that
-  // a detail page was read — so it is the current step once the release exists
-  // and is never reported as done. Saying "done" about something we cannot
-  // observe is the one claim this indicator must not make.
+  // a detail page was read — so on Releases it is the current step once the
+  // release exists; that page's walkthrough summary is the read it asks for.
+  // The home page is the exception (#3033): there the linked release is the
+  // finish, and the page answers it with the asks rather than one more step.
+  // Same tracked pair, so there is still nothing remembered outside the store.
   // With a decision recorded, step one is done and the next step is whichever
   // of the two that follow arriving here has not left done: the step after the
   // one this page satisfies, and never earlier than step two.
   const arrived = ARRIVED_AT_STEP[surface] ?? ARRIVED_AT_STEP.home;
-  const currentIndex = release ? 3 : (decision ? Math.max(1, arrived + 1) : 0);
+  const complete = surface === "home" && Boolean(release);
+  const currentIndex = complete
+    ? DEMO_PROGRESS_STEP_COUNT
+    : (release ? 3 : (decision ? Math.max(1, arrived + 1) : 0));
 
   const steps = demoProgressSteps(surface).map((text, index) => {
     const status = index < currentIndex
@@ -247,12 +252,15 @@ export function demoProgress({ decisions = [], releases = [], surface = "home" }
     };
   });
 
-  const action = (ACTIONS[surface] ?? ACTIONS.home)(decision, release);
-  return { steps, currentIndex, action, decision, release };
+  const action = complete ? null : (ACTIONS[surface] ?? ACTIONS.home)(decision, release);
+  return { steps, currentIndex, action, decision, release, complete };
 }
+
+export const DEMO_PROGRESS_DONE_ANNOUNCEMENT = "Demo progress: all four steps are done.";
 
 /** What the live region says when the state moves under a reader's feet. */
 export function demoProgressAnnouncement(progress) {
+  if (progress.complete) return DEMO_PROGRESS_DONE_ANNOUNCEMENT;
   const step = progress.steps[progress.currentIndex];
   return `Demo progress: step ${progress.currentIndex + 1} of ${DEMO_PROGRESS_STEP_COUNT}. ${step.text}`;
 }
@@ -297,8 +305,16 @@ export function renderDemoProgress(root, progress, { previous = null } = {}) {
     else item.removeAttribute("aria-current");
   });
 
+  // The finished state shows the shipped region that carries the asks, and
+  // empties the next-action one: its class sets a display, which a hidden
+  // attribute alone would not override. Every earlier state leaves both as
+  // shipped.
+  const done = root.querySelector("#evaluation-path-done");
   const next = root.querySelector("#evaluation-path-next");
-  if (next) {
+  if (done) done.hidden = !progress.complete;
+  if (done && progress.complete) {
+    next?.replaceChildren();
+  } else if (next) {
     const lead = doc.createElement("p");
     lead.setAttribute("id", "evaluation-path-next-lead");
     lead.textContent = progress.action?.lead ?? DEMO_PROGRESS_EMPTY_LEAD;

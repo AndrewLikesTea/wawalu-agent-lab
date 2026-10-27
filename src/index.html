@@ -130,6 +130,23 @@
             <div class="evaluation-path-next" id="evaluation-path-next">
               <p id="evaluation-path-next-lead">Nothing is recorded in this browser yet. Step one is the form below.</p>
             </div>
+            <!-- THE FINISHED DEMO (#3033). Shown by src/demo-progress.js once this
+                 browser holds a decision and a release that links it, and hidden
+                 until then, so the first screen gains no tab stop. Shipped rather
+                 than drawn: homepage-buyer-intent.js wires every buyer-intent link
+                 it finds when it boots, so these two preselect the topic exactly as
+                 the pair in the availability section does. The outer wrapper has
+                 no class because a display rule would override its hidden state. -->
+            <div id="evaluation-path-done" hidden>
+              <div class="evaluation-path-next">
+                <p id="evaluation-path-done-lead">All four steps are done.</p>
+                <p id="evaluation-path-proved">You proved it: a release now opens to the decision behind it.</p>
+                <a class="text-link" id="evaluation-path-pilot" data-buyer-intent="pilot" href="#site-footer-panel" aria-describedby="ask-about-shiplog-description">Discuss a Shiplog pilot</a>
+                <a class="text-link" id="evaluation-path-demonstration" data-buyer-intent="demo" href="#site-footer-panel" aria-describedby="ask-about-shiplog-description">Request a Shiplog demonstration</a>
+                <a class="text-link" id="evaluation-path-brief" href="#shiplog-evaluation-brief">Shiplog evaluation brief</a>
+                <a class="text-link" id="evaluation-path-scorecard" href="#shiplog-pilot-scorecard">Blank pilot scorecard</a>
+              </div>
+            </div>
             <p class="hint" id="evaluation-path-scope">Records you add stay in this browser unless you download the complete archive, which sends them to the Shiplog server to build the file. This is a demo workflow, not a customer result.</p>
             <!-- The one thing on this page that says a step changed without a
                  reload. It ships empty, and stays in the accessibility tree
