@@ -140,7 +140,13 @@
             <div id="evaluation-path-done" hidden>
               <div class="evaluation-path-next">
                 <p id="evaluation-path-done-lead">All four steps are done.</p>
-                <p id="evaluation-path-proved">You proved it: a release now opens to the decision behind it.</p>
+                <section id="demo-summary" aria-labelledby="demo-summary-title" hidden>
+                  <h4 id="demo-summary-title">Your browser-based demo proof summary</h4>
+                  <div id="demo-summary-lines"></div>
+                  <div id="demo-summary-records" class="evaluation-path-next"></div>
+                  <button id="demo-summary-copy" type="button">Copy demo proof summary</button>
+                  <p id="demo-summary-status" role="status" aria-live="polite" aria-atomic="true"></p>
+                </section>
                 <a class="text-link" id="evaluation-path-pilot" data-buyer-intent="pilot" href="#site-footer-panel" aria-describedby="ask-about-shiplog-description">Discuss a Shiplog pilot</a>
                 <a class="text-link" id="evaluation-path-demonstration" data-buyer-intent="demo" href="#site-footer-panel" aria-describedby="ask-about-shiplog-description">Request a Shiplog demonstration</a>
                 <a class="text-link" id="evaluation-path-brief" href="#shiplog-evaluation-brief">Shiplog evaluation brief</a>

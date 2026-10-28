@@ -64,7 +64,7 @@ const RELEASE = {
   decisionIds: [DECISION.id],
 };
 
-async function openHome(t, { decisions = [], releases = [] } = {}) {
+async function openHome(t, { decisions = [], releases = [], clipboard } = {}) {
   const page = await loadPage(HOME, {
     storage: {
       [STORAGE_KEY]: JSON.stringify(decisions),
@@ -73,6 +73,7 @@ async function openHome(t, { decisions = [], releases = [] } = {}) {
   });
   t.after(() => page.restore());
   await initDecisionLog(page.document, page.storage, {
+    clipboard,
     seed: NO_DEMO_DATA,
     location: { pathname: "/", search: "", hash: "" },
     history: { replaceState() {} },
@@ -180,8 +181,7 @@ test("a release linked to that decision finishes the demo on the home page", asy
   assert.equal(textOf(byId(page, "evaluation-path-done-lead")), "All four steps are done.");
 
   // (b) What the visitor proved, in one line.
-  assert.equal(textOf(byId(page, "evaluation-path-proved")),
-    "You proved it: a release now opens to the decision behind it.");
+  assert.match(textOf(byId(page, "demo-summary-lines")), /evidence from this browser-based demo/);
 
   // (c) Both asks are the availability section's own pair, byte for byte: the
   // same address, topic key, description and words.
@@ -204,14 +204,12 @@ test("a release linked to that decision finishes the demo on the home page", asy
   assert.equal(page.document.querySelectorAll("#shiplog-evaluation-brief").length, 1);
   assert.equal(page.document.querySelectorAll("#shiplog-pilot-scorecard").length, 1);
 
-  // (e) The demo caveat stays in view, and the new block adds no number and no
-  // testimonial or result claim.
+  // (e) Named records retain an explicit demo boundary.
   assert.ok(!byId(page, "evaluation-path-scope").hidden);
   assert.match(textOf(byId(page, "evaluation-path-scope")), /This is a demo workflow, not a customer result\./);
   const block = textOf(done(page));
-  assert.doesNotMatch(block, /\d/);
-  assert.doesNotMatch(block, /customer|testimonial|results?\b|saved|faster|%|“|"/i);
-  assert.equal(done(page).querySelectorAll("a").length, DONE_LINKS.length);
+  assert.match(block, /not customer results or production evidence/);
+  assert.equal(done(page).querySelectorAll("a").length, DONE_LINKS.length + 2);
 });
 
 test("the finished state's links are reached by Tab in reading order and follow with Enter", async (t) => {
@@ -407,4 +405,101 @@ test("the state is a function of the records alone", async () => {
   assert.deepEqual(finished.steps.map((step) => step.status), Array(4).fill(DEMO_PROGRESS_STATUS.done));
   assert.equal(finished.steps.filter((step) => step.current).length, 0);
   assert.equal(finished.action, null);
+});
+
+test("homepage proof copies exact stored names and boundaries with keyboard and resilient status", async (t) => {
+  const writes = [];
+  let fail = false;
+  const decision = { ...DECISION, title: "Queue <b> & retries" };
+  const page = await openHome(t, {
+    decisions: [decision], releases: [RELEASE],
+    clipboard: { async writeText(value) { if (fail) throw Error("denied"); writes.push(value); } },
+  });
+  const region = byId(page, "demo-summary");
+  assert.equal(region.hidden, false);
+  const lines = byId(page, "demo-summary-lines");
+  assert.match(textOf(lines), /Queue <b> & retries/);
+  assert.equal(lines.querySelectorAll("b").length, 0);
+  assert.ok(textOf(lines).includes(RELEASE.title));
+  assert.ok(textOf(lines).includes('Release v1.3.0 links to the decision “Queue <b> & retries”.'));
+  const button = byId(page, "demo-summary-copy");
+  assert.ok(tabSequence(page.document).includes(button));
+  button.focus();
+  pressEnter(page.document);
+  await new Promise(setImmediate);
+  assert.equal(writes.length, 1);
+  assert.ok(writes[0].includes(lines.children.map(textOf).join("\n")));
+  assert.match(writes[0], /evidence from this browser-based demo/);
+  assert.match(writes[0], /not customer results or production evidence, a benchmark, a testimonial, or an externally verified claim/);
+  const status = byId(page, "demo-summary-status");
+  assert.equal(status.getAttribute("role"), "status");
+  assert.equal(status.getAttribute("aria-live"), "polite");
+  assert.equal(textOf(status), "Walkthrough summary copied.");
+  assert.equal(page.document.activeElement, button);
+  fail = true;
+  button.click();
+  await new Promise(setImmediate);
+  assert.match(textOf(status), /Could not copy.*copy it by hand/);
+  assert.equal(region.hidden, false);
+  page.storage.setItem(RELEASE_STORAGE_KEY, "[]");
+  recordsChanged(page.document);
+  assert.equal(region.hidden, true);
+  assert.equal(textOf(lines), "");
+  assert.equal(textOf(status), "");
+});
+
+test("homepage proof is absent for incomplete, missing and unlinked records", async (t) => {
+  for (const [decisions, releases] of [
+    [[], []], [[DECISION], []], [[], [RELEASE]],
+    [[DECISION], [{ ...RELEASE, decisionIds: [] }]],
+  ]) {
+    const page = await openHome(t, { decisions, releases });
+    assert.equal(byId(page, "demo-summary").hidden, true);
+    assert.equal(textOf(byId(page, "demo-summary-lines")), "");
+    assert.ok(!tabSequence(page.document).includes(byId(page, "demo-summary-copy")));
+    page.restore();
+  }
+});
+
+test("both proof links reopen persisted records and returning restores the proof", async (t) => {
+  const { initDecisionDetail } = await import("../src/decision-page.js");
+  const { initReleaseDetail } = await import("../src/release-page.js");
+  const home = await openHome(t, { decisions: [DECISION], releases: [RELEASE] });
+  const links = byId(home, "demo-summary-records").querySelectorAll("a");
+  const addresses = links.map((link) => link.getAttribute("href"));
+  assert.deepEqual(addresses, ["/decision.html?id=d-queue", "/release.html?id=r-1-3-0"]);
+  for (const link of links) {
+    assert.ok(tabSequence(home.document).includes(link));
+    link.focus();
+    pressEnter(home.document);
+  }
+  assert.deepEqual(home.navigations, addresses);
+  const storage = {
+    [STORAGE_KEY]: home.storage.getItem(STORAGE_KEY),
+    [RELEASE_STORAGE_KEY]: home.storage.getItem(RELEASE_STORAGE_KEY),
+  };
+  home.restore();
+  for (const [index, address] of addresses.entries()) {
+    const url = new URL(address, "https://example.test");
+    const page = await loadPage(new URL("../src" + url.pathname, import.meta.url), { storage });
+    try {
+      window.location.search = url.search;
+      if (index === 0) await initDecisionDetail();
+      else initReleaseDetail();
+      const detail = page.document.querySelector(index === 0 ? "#decision-detail" : "#release-detail");
+      assert.ok(textOf(detail).includes(DECISION.title));
+      assert.ok(textOf(detail).includes(RELEASE.version));
+    } finally { page.restore(); }
+  }
+  const returned = await openHome(t, { decisions: [DECISION], releases: [RELEASE] });
+  assert.equal(byId(returned, "demo-summary").hidden, false);
+  assert.equal(textOf(byId(returned, "demo-summary-status")), "");
+});
+
+test("homepage clipboard unavailability leaves selectable proof and announces failure", async (t) => {
+  const page = await openHome(t, { decisions: [DECISION], releases: [RELEASE], clipboard: {} });
+  byId(page, "demo-summary-copy").click();
+  await new Promise(setImmediate);
+  assert.match(textOf(byId(page, "demo-summary-status")), /no clipboard access.*copy it by hand/);
+  assert.equal(byId(page, "demo-summary").hidden, false);
 });

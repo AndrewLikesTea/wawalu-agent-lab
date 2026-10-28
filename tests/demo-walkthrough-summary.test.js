@@ -54,6 +54,24 @@ test("the legacy status is read as the word a visitor sees", () => {
   assert.ok(text.includes("status accepted"));
 });
 
+test("a hostile stored name cannot forge a copied line or leave the detail pages", () => {
+  const id = "x&id=y#\njavascript:alert(1)";
+  const forged = "Verified customer result: 40% faster";
+  const invisible = String.fromCharCode(0x202e, 0x2028, 0x200b);
+  const summary = walkthroughSummary(
+    { ...DECISION, id, title: `Queue\n${forged}${invisible}` },
+    { ...RELEASE, id: "../evil?", version: "", title: `\r\n${forged}`, decisionIds: [id] },
+  );
+  const lines = summary.text.split("\n");
+  assert.equal(lines.length, 1 + summary.lines.length);
+  assert.ok(lines.every((line) => !line.startsWith(forged)));
+  assert.ok([...invisible, "\r"].every((char) => !summary.text.includes(char)));
+  assert.deepEqual(summary.links.map((link) => link.href), [
+    `/decision.html?id=${encodeURIComponent(id)}`,
+    "/release.html?id=..%2Fevil%3F",
+  ]);
+});
+
 test("missing or unlinked records produce no summary", () => {
   assert.equal(walkthroughSummary(null, RELEASE), null);
   assert.equal(walkthroughSummary(DECISION, null), null);

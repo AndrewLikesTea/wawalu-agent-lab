@@ -20,13 +20,15 @@
 //
 // Every value is user input and is written as textContent, never markup.
 
+import { decisionDetailHref, releaseDetailHref } from "./releases.js";
 import { canonicalDecisionStatus } from "./decision-status.js";
 import { onRecordsChanged } from "./shiplog-records.js";
 
 export const WALKTHROUGH_SUMMARY_TITLE = "Shiplog demo walkthrough summary";
 export const WALKTHROUGH_SUMMARY_PROVENANCE =
   "These are browser-local demo records created in this browser. "
-  + "They are not customer results or production evidence.";
+  + "This is evidence from this browser-based demo, not customer results or production evidence, "
+  + "a benchmark, a testimonial, or an externally verified claim.";
 export const WALKTHROUGH_COPY_MESSAGES = Object.freeze({
   copied: "Walkthrough summary copied.",
   failed: "Could not copy: this browser refused clipboard access. Select the summary above and copy it by hand.",
@@ -34,7 +36,12 @@ export const WALKTHROUGH_COPY_MESSAGES = Object.freeze({
   ready: "Demo complete. Your walkthrough summary is ready to copy.",
 });
 
-const text = (value) => (typeof value === "string" ? value.trim() : "");
+// One line per stored value: a name that carries a line break, control or bidi
+// character could otherwise forge its own line (or reorder the caveat) in the
+// text a buyer pastes into email.
+const text = (value) => (typeof value === "string"
+  ? value.replace(/[\s\p{Cc}\p{Cf}]+/gu, " ").trim()
+  : "");
 
 /**
  * The summary of a finished walkthrough, or null when it is not finished.
@@ -47,17 +54,24 @@ export function walkthroughSummary(decision, release) {
   if (!decision?.id || !release?.id) return null;
   const linked = Array.isArray(release.decisionIds) ? release.decisionIds : [];
   if (!linked.includes(decision.id)) return null;
-  const title = text(decision.title) || decision.id;
+  const title = text(decision.title) || text(String(decision.id));
   const owner = text(decision.owner) || "not recorded";
   const status = canonicalDecisionStatus(text(decision.status)) || "not recorded";
-  const releaseId = text(release.version) || release.id;
+  const releaseId = text(release.version) || text(String(release.id));
   const lines = [
     `Decision: “${title}” — owner ${owner}, status ${status}.`,
-    `Release: ${releaseId}.`,
+    `Release: ${releaseId}.${text(release.title) ? ` Title: “${text(release.title)}”.` : ""}`,
     `Release ${releaseId} links to the decision “${title}”.`,
     WALKTHROUGH_SUMMARY_PROVENANCE,
   ];
-  return { lines, text: [WALKTHROUGH_SUMMARY_TITLE, ...lines].join("\n") };
+  return {
+    lines,
+    text: [WALKTHROUGH_SUMMARY_TITLE, ...lines].join("\n"),
+    links: [
+      { href: decisionDetailHref(decision.id), label: `Reopen decision “${title}” in this browser` },
+      { href: releaseDetailHref(release.id), label: `Reopen release ${releaseId} in this browser` },
+    ],
+  };
 }
 
 /**
@@ -74,9 +88,11 @@ export function renderWalkthroughSummary(root, summary, { wasShown = null } = {}
   const doc = root.ownerDocument ?? root;
   const lines = root.querySelector("#demo-summary-lines");
   const status = root.querySelector("#demo-summary-status");
+  const records = root.querySelector("#demo-summary-records");
   region.hidden = !summary;
   if (!summary) {
     lines?.replaceChildren();
+    records?.replaceChildren();
     if (status) status.textContent = "";
     return false;
   }
@@ -85,7 +101,14 @@ export function renderWalkthroughSummary(root, summary, { wasShown = null } = {}
     node.textContent = line;
     return node;
   }));
-  if (status && wasShown === false) status.textContent = WALKTHROUGH_COPY_MESSAGES.ready;
+  records?.replaceChildren(...summary.links.map(({ href, label }) => {
+    const link = doc.createElement("a");
+    link.setAttribute("class", "text-link");
+    link.setAttribute("href", href);
+    link.textContent = label;
+    return link;
+  }));
+  if (status) status.textContent = wasShown === false ? WALKTHROUGH_COPY_MESSAGES.ready : "";
   return true;
 }
 
@@ -120,9 +143,14 @@ export function initWalkthroughSummary(root, { read, clipboard } = {}) {
   root.querySelector("#demo-summary-copy")?.addEventListener("click", async () => {
     const summary = current();
     const status = root.querySelector("#demo-summary-status");
-    if (!summary) return;
+    if (!summary) {
+      shown = renderWalkthroughSummary(root, null);
+      return;
+    }
+    renderWalkthroughSummary(root, summary);
+    if (status) status.textContent = "";
     const message = await copyWalkthroughSummary(summary.text, clipboard ?? globalThis.navigator?.clipboard);
-    if (status) status.textContent = message;
+    if (status && current()?.text === summary.text) status.textContent = message;
   });
   return shown;
 }

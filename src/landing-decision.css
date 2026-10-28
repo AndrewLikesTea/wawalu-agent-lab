@@ -184,3 +184,11 @@
 .evaluation-preview h3 { margin:0; font-size:16px; }
 #hero-evaluation-kit .evaluation-preview p { margin:6px 0 0; font-size:15px; line-height:1.5; }
 @media(max-width:520px) { .evaluation-preview { grid-template-columns:1fr; } }
+
+/* Completed evidence stays readable with long evaluator-entered names. */
+.evaluation-path #demo-summary { min-width:0; margin:12px 0; }
+.evaluation-path #demo-summary h4 { margin:0 0 8px; font-size:16px; }
+.evaluation-path #demo-summary p { margin:0 0 8px; }
+.evaluation-path #demo-summary a,
+.evaluation-path #demo-summary button { max-width:100%; white-space:normal; overflow-wrap:anywhere; }
+.evaluation-path #demo-summary-status { margin-top:8px; }

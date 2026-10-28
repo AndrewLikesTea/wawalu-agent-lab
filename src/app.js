@@ -15,7 +15,8 @@ import {
 } from "./decision-backing.js";
 import { STORED_DECISION_STATUSES, canonicalDecisionStatus } from "./decision-status.js";
 import { dedupeById } from "./demo-data.js";
-import { initDemoProgress } from "./demo-progress.js";
+import { initWalkthroughSummary } from "./demo-walkthrough-summary.js";
+import { demoProgress, initDemoProgress } from "./demo-progress.js";
 import { initEvaluationSummary } from "./evaluation-summary.js";
 import { renderReleaseCoverage } from "./homepage-release-coverage.js";
 import {
@@ -2495,6 +2496,14 @@ export async function initDecisionLog(root = document, storage = localStorage, o
   initDemoProgress(root, storage, {
     decisions: () => loadDecisions(storage),
     releases: () => loadReleases(storage),
+  });
+
+  initWalkthroughSummary(root, {
+    read: () => demoProgress({
+      decisions: loadDecisions(storage),
+      releases: loadReleases(storage),
+    }),
+    clipboard: clipboardRef,
   });
 
   // The live deployment self-check (#1791), which is the releases page's band
