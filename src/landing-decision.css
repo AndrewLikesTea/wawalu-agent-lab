@@ -184,3 +184,9 @@
 .evaluation-preview h3 { margin:0; font-size:16px; }
 #hero-evaluation-kit .evaluation-preview p { margin:6px 0 0; font-size:15px; line-height:1.5; }
 @media(max-width:520px) { .evaluation-preview { grid-template-columns:1fr; } }
+
+.completion-proof { min-width:0; padding:16px; margin:8px 0; border:1px solid currentColor; border-radius:8px; overflow-wrap:anywhere; }
+.completion-proof h3 { margin:0 0 12px; }
+.completion-proof p + p { margin-top:8px; }
+.completion-proof button { margin-top:12px; max-width:100%; min-height:44px; white-space:normal; overflow-wrap:anywhere; }
+.completion-proof button:focus-visible { outline:3px solid currentColor; outline-offset:3px; }

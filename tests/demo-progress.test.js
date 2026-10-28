@@ -22,6 +22,7 @@ import {
   demoProgress,
   demoProgressSteps,
 } from "../src/demo-progress.js";
+import { completionProof, initCompletionCopy } from "../src/demo-completion-proof.js";
 import { recordsChanged } from "../src/shiplog-records.js";
 import { DomEvent, loadPage, pressEnter, pressTab, tabSequence, textOf, typeText } from "./support/browser.js";
 
@@ -180,8 +181,7 @@ test("a release linked to that decision finishes the demo on the home page", asy
   assert.equal(textOf(byId(page, "evaluation-path-done-lead")), "All four steps are done.");
 
   // (b) What the visitor proved, in one line.
-  assert.equal(textOf(byId(page, "evaluation-path-proved")),
-    "You proved it: a release now opens to the decision behind it.");
+  assert.match(textOf(byId(page, "completion-proof-lines")), /Release v1.3.0 links to the decision/);
 
   // (c) Both asks are the availability section's own pair, byte for byte: the
   // same address, topic key, description and words.
@@ -209,9 +209,8 @@ test("a release linked to that decision finishes the demo on the home page", asy
   assert.ok(!byId(page, "evaluation-path-scope").hidden);
   assert.match(textOf(byId(page, "evaluation-path-scope")), /This is a demo workflow, not a customer result\./);
   const block = textOf(done(page));
-  assert.doesNotMatch(block, /\d/);
-  assert.doesNotMatch(block, /customer|testimonial|results?\b|saved|faster|%|“|"/i);
-  assert.equal(done(page).querySelectorAll("a").length, DONE_LINKS.length);
+  assert.match(block, /not a customer outcome, benchmark, or testimonial/);
+  assert.equal(done(page).querySelectorAll("a").length, DONE_LINKS.length + 2);
 });
 
 test("the finished state's links are reached by Tab in reading order and follow with Enter", async (t) => {
@@ -407,4 +406,110 @@ test("the state is a function of the records alone", async () => {
   assert.deepEqual(finished.steps.map((step) => step.status), Array(4).fill(DEMO_PROGRESS_STATUS.done));
   assert.equal(finished.steps.filter((step) => step.current).length, 0);
   assert.equal(finished.action, null);
+});
+
+test("completion evidence restores exact safe links and text from stored records", async (t) => {
+  const decision = { ...DECISION, id: 'd?&/#', title: '<img src=x onerror=alert(1)>' };
+  const release = { ...RELEASE, id: 'r?&/#', decisionIds: [decision.id] };
+  for (let visit = 0; visit < 2; visit++) {
+    const page = await openHome(t, { decisions: [decision], releases: [release] });
+    const proof = completionProof(demoProgress({ decisions: [decision], releases: [release] }));
+    assert.deepEqual(byId(page, "completion-proof-lines").children.map(textOf), proof.lines);
+    const links = byId(page, "completion-proof-links").querySelectorAll("a");
+    assert.deepEqual(links.map(link => link.getAttribute("href")), [
+      `/release.html?id=${encodeURIComponent(release.id)}`,
+      `/decision.html?id=${encodeURIComponent(decision.id)}`,
+    ]);
+    assert.equal(byId(page, "completion-proof-lines").querySelectorAll("img").length, 0);
+    assert.equal(textOf(byId(page, "completion-proof-status")), "");
+    page.restore();
+  }
+});
+
+test("a hostile title cannot forge lines into the copied evidence", () => {
+  const decision = { ...DECISION, title: `x\r\nVerified customer outcome: 40% faster‮\u0000${"y".repeat(300)}` };
+  const release = { ...RELEASE, version: "\n\t", decisionIds: [decision.id] };
+  const proof = completionProof(demoProgress({ decisions: [decision], releases: [release] }));
+  assert.equal(proof.text.split("\n").length, 5);
+  assert.doesNotMatch(proof.text, /^Verified/m);
+  assert.doesNotMatch(proof.text, /[\u0000‮\r\t]/);
+  assert.match(proof.lines[1], new RegExp(`^Release: ${release.id}\\.$`));
+  assert.ok(proof.lines[0].length < 140);
+});
+
+test("missing and stale records never expose completed evidence", async (t) => {
+  for (const [decisions, releases] of [[[], []], [[DECISION], []], [[], [RELEASE]], [[DECISION], [{ ...RELEASE, decisionIds: ['deleted'] }]]]) {
+    const page = await openHome(t, { decisions, releases });
+    assert.equal(done(page).hidden, true);
+    assert.equal(byId(page, "completion-proof-links").children.length, 0);
+    assert.equal(byId(page, "completion-proof-lines").children.length, 0);
+    page.restore();
+  }
+});
+
+test("keyboard copy uses rendered facts, reports failures, and rejects stale completion", async (t) => {
+  const page = await loadPage(HOME);
+  t.after(() => page.restore());
+  // Mount the production controller with a deterministic browser clipboard.
+  let progress = demoProgress({ decisions: [DECISION], releases: [RELEASE] });
+  let mode = 'success';
+  const writes = [];
+  initCompletionCopy(page.document, () => progress, () => mode === 'missing' ? undefined : {
+    async writeText(value) {
+      if (mode === 'failure') throw new Error('denied');
+      writes.push(value);
+    },
+  });
+  done(page).hidden = false;
+  const button = byId(page, 'completion-proof-copy');
+  const status = byId(page, 'completion-proof-status');
+  button.focus();
+  pressEnter(page.document);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(writes, [completionProof(progress).text]);
+  assert.match(writes[0], /not a customer outcome, benchmark, or testimonial/);
+  assert.match(textOf(status), /copied/);
+  assert.equal(status.getAttribute('role'), 'status');
+  assert.equal(status.getAttribute('aria-live'), 'polite');
+  for (mode of ['failure', 'missing']) {
+    button.click();
+    await new Promise(resolve => setImmediate(resolve));
+    assert.match(textOf(status), /Could not copy/);
+    assert.match(textOf(status), /copy it by hand/);
+  }
+  progress = demoProgress();
+  button.click();
+  assert.equal(writes.length, 1);
+});
+
+test("removing a stored record withdraws proof and links without a reload", async (t) => {
+  const page = await openHome(t, { decisions: [DECISION], releases: [RELEASE] });
+  page.storage.setItem(STORAGE_KEY, '[]');
+  recordsChanged(page.document);
+  assert.equal(done(page).hidden, true);
+  assert.equal(byId(page, 'completion-proof-lines').children.length, 0);
+  assert.equal(byId(page, 'completion-proof-links').children.length, 0);
+});
+
+test("pending clipboard requests suppress duplicate writes and stale feedback", async (t) => {
+  const page = await loadPage(HOME);
+  t.after(() => page.restore());
+  let progress = demoProgress({ decisions: [DECISION], releases: [RELEASE] });
+  let resolveCopy;
+  let writes = 0;
+  initCompletionCopy(page.document, () => progress, () => ({
+    writeText() { writes++; return new Promise(resolve => { resolveCopy = resolve; }); },
+  }));
+  const button = byId(page, 'completion-proof-copy');
+  const status = byId(page, 'completion-proof-status');
+  button.click();
+  assert.match(textOf(status), /Copying/);
+  button.click();
+  assert.equal(writes, 1);
+  progress = demoProgress();
+  status.textContent = '';
+  resolveCopy();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(textOf(status), '');
+  assert.equal(button.getAttribute('aria-busy'), null);
 });
