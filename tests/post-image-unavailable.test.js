@@ -489,3 +489,31 @@ test("permalink: a described image with no source draws the placeholder in the i
   assert.equal(first(container, "detail-caption").textContent, "Focus rings landed everywhere.");
   assert.ok(order(container, first(container, "detail-caption")) < order(container, fallback));
 });
+
+
+for (const [surface, render, frameClass, fallbackClass] of [
+  ["Social", (root) => renderPosts(root, [post]), "post-media", "post-media-fallback"],
+  ["People", (root) => renderProfileGrid(root, [post], { author: post.author }), "profile-media", "profile-media-fallback"],
+  ["Post", (root) => renderPostDetail(root, post), "detail-media", "detail-media-fallback"],
+]) {
+  for (const naturalWidth of [0, 1200]) {
+    test(`${surface}: an already settled image (${naturalWidth}) preserves one description`, () => {
+      const original = document.createElement;
+      document.createElement = (tag) => {
+        const node = original.call(document, tag);
+        if (tag.toLowerCase() === "img") Object.assign(node, { complete: true, naturalWidth });
+        return node;
+      };
+      const root = createElement("div");
+      try {
+        render(root);
+      } finally {
+        document.createElement = original;
+      }
+      const failed = naturalWidth === 0;
+      assert.equal(first(root, frameClass).dataset.state, failed ? "error" : "ready");
+      assert.equal(tags(root, "IMG").length, failed ? 0 : 1);
+      assert.equal(first(root, fallbackClass).hidden, !failed);
+    });
+  }
+}

@@ -551,12 +551,13 @@ for (const surface of SURFACES) {
     assert.equal(visible.textContent, IMAGE.alt);
     assert.equal(visible.textContent, img.alt);
 
-    // The permalink exposes its caption in reading order; compact feed tiles
-    // continue to announce the same text through the image alt.
+    // Every surface announces the description once, through the image alt; the
+    // visible caption is its aria-hidden half on all three (#3036).
     const note = byClass(container, surface.note)[0];
     assert.equal(note.tagName, "FIGCAPTION");
     assert.equal(byClass(tags(container, "FIGURE")[0], surface.note).length, 1, "the caption is the figure's");
-    assert.equal(note.getAttribute("aria-hidden"), surface.name === "the shared post page" ? null : "true");
+    assert.equal(note.getAttribute("aria-hidden"), "true");
+    assert.equal(tags(container, "FIGURE")[0].getAttribute("aria-describedby"), null, "the figure would read it a third time");
     assert.equal(img.getAttribute("aria-describedby"), null, "the description would be read twice");
     // The captions role, reused. No surface grew a type of its own for this.
     assert.equal(byClass(container, surface.note)[0].classes.includes("description-note"),
@@ -642,6 +643,8 @@ test("a description containing markup stays text, verbatim, with no elements mad
   // comparable to an alt attribute with ===.
   assert.equal(note.children.length, 2);
   assert.equal(byClass(note, "label")[0].textContent, "Image description: ");
+  // The visible half of an alt beside it, so the helper itself hides it (#3036).
+  assert.equal(note.getAttribute("aria-hidden"), "true");
 });
 
 test("the write path refuses an undescribed or over-described upload, so no new row can lack one", async () => {
