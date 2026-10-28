@@ -848,7 +848,7 @@ export function buildReleaseBrief(release, decisions = release?.decisions ?? [],
   const lines = [
     // Version and title on one line, the way the row heads itself.
     title === "" || title === version ? `Release brief: ${version}` : `Release brief: ${version} — ${title}`,
-    `Release date: ${briefDate(release?.createdAt)}`,
+    `Status date: ${briefDate(release?.createdAt)}`,
     `Status: ${capitalized(releaseStatus(release))}`,
     `Owner: ${releaseOwner(release)}`,
     `Summary: ${summary === "" ? NO_SUMMARY_TEXT : summary}`,
