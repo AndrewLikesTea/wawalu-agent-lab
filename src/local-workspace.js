@@ -41,6 +41,7 @@
 // page renders exactly it.
 
 import { STORAGE_KEY, loadDecisions } from "./app.js";
+import { DEMO_VISIT_KEY } from "./demo-evidence.js";
 import { RELEASE_STORAGE_KEY, loadReleases } from "./releases.js";
 import {
   RETENTION, RETENTION_OUTCOME, WORKSPACE_KEY, dayOf, readWorkspaceRecord, writeWorkspaceRecord,
@@ -459,7 +460,7 @@ function keyIsCleared(storage, key) {
  *   happen.
  */
 export function eraseWorkspace(storage, { now = new Date() } = {}) {
-  const keys = [STORAGE_KEY, RELEASE_STORAGE_KEY];
+  const keys = [STORAGE_KEY, RELEASE_STORAGE_KEY, DEMO_VISIT_KEY];
   let before;
   try {
     before = new Map(keys.map((key) => [key, storage.getItem(key)]));

@@ -7,14 +7,10 @@
 // step one asks for was already done. This turns that list into a progress
 // indicator derived from the records this browser holds.
 //
-// ONE SOURCE OF TRUTH, AND IT IS THE STORE. Nothing here remembers a step. The
-// state is recomputed from the stored decisions and releases every time it is
-// asked for, which is what makes a revisit restore the same picture as the
-// visit that left it: the same read, over the same two keys, produces the same
-// answer. The seeded example records are deliberately NOT counted — they are a
-// read-through layer nobody in this browser recorded (see seed-records.js), and
-// a progress indicator that opened on "step one: done" for a first-time visitor
-// would be describing somebody else's work.
+// Progress comes from the local decision and release stores. The fourth step
+// additionally requires a saved detail visit matching those exact records;
+// stale visits cannot complete the workflow. Seeded examples are a read-through
+// layer and never count as records made by this browser.
 //
 // STATUS IS TEXT, NOT COLOUR AND NOT A MARK. Each item states "Step 2 of 4 ·
 // Not started" in its own words, so the list reads the same to a screen reader,
@@ -40,6 +36,7 @@
 // happens (#2727). Both surfaces read their four sentences from the one table
 // below, so a wording change still lands in a single place.
 
+import { demoVisit, readDemoVisit, demoEvidence, renderDemoEvidence } from "./demo-evidence.js";
 import { recordReleaseHref } from "./decision-entry.js";
 import { DETAIL_LINK_TEXT, loadReleases, releaseDetailHref, releaseDetailLinkLabel } from "./releases.js";
 import { onRecordsChanged } from "./shiplog-records.js";
@@ -156,8 +153,12 @@ const linkedIds = (release) => (Array.isArray(release?.decisionIds) ? release.de
  * back to step two, which reads as losing progress they did not lose.
  */
 export function trackedRecords(decisions = [], releases = []) {
-  const stored = Array.isArray(decisions) ? decisions.filter((entry) => entry?.id) : [];
-  const log = Array.isArray(releases) ? releases.filter((entry) => entry?.id) : [];
+  // Match detail-route precedence: only the first stored record for an id is addressable.
+  const unique = (records) => Array.isArray(records)
+    ? records.filter((entry, index) => entry?.id && records.findIndex((other) => other?.id === entry.id) === index)
+    : [];
+  const stored = unique(decisions);
+  const log = unique(releases);
   for (const decision of stored) {
     const release = log.find((entry) => linkedIds(entry).includes(decision.id));
     if (release) return { decision, release };
@@ -222,19 +223,11 @@ const ACTIONS = Object.freeze({ home: homeAction, releases: releasesAction });
  * nor their wording, only which one arriving has already satisfied and which
  * control the next action names.
  */
-export function demoProgress({ decisions = [], releases = [], surface = "home" } = {}) {
+export function demoProgress({ decisions = [], releases = [], surface = "home", visit = null } = {}) {
   const { decision, release } = trackedRecords(decisions, releases);
-  // Step four has no stored consequence — nothing in this browser records that
-  // a detail page was read — so on Releases it is the current step once the
-  // release exists; that page's walkthrough summary is the read it asks for.
-  // The home page is the exception (#3033): there the linked release is the
-  // finish, and the page answers it with the asks rather than one more step.
-  // Same tracked pair, so there is still nothing remembered outside the store.
-  // With a decision recorded, step one is done and the next step is whichever
-  // of the two that follow arriving here has not left done: the step after the
-  // one this page satisfies, and never earlier than step two.
+  // Completion requires opening the current linked records on the detail page.
   const arrived = ARRIVED_AT_STEP[surface] ?? ARRIVED_AT_STEP.home;
-  const complete = surface === "home" && Boolean(release);
+  const complete = surface === "home" && Boolean(release) && visit !== null && visit === demoVisit(decision, release);
   const currentIndex = complete
     ? DEMO_PROGRESS_STEP_COUNT
     : (release ? 3 : (decision ? Math.max(1, arrived + 1) : 0));
@@ -278,7 +271,7 @@ const signature = (progress) => `${progress.currentIndex}|${progress.action?.hre
  * and the first paint of a page announces nothing, because arriving on a page
  * is not a change to it.
  */
-export function renderDemoProgress(root, progress, { previous = null } = {}) {
+export function renderDemoProgress(root, progress, { previous = null, validateEvidence } = {}) {
   const list = root.querySelector("#evaluation-path-steps");
   if (!list) return null;
   const doc = root.ownerDocument ?? root;
@@ -311,6 +304,7 @@ export function renderDemoProgress(root, progress, { previous = null } = {}) {
   // shipped.
   const done = root.querySelector("#evaluation-path-done");
   const next = root.querySelector("#evaluation-path-next");
+  renderDemoEvidence(root, progress.complete ? demoEvidence(progress.decision, progress.release) : null, validateEvidence);
   if (done) done.hidden = !progress.complete;
   if (done && progress.complete) {
     next?.replaceChildren();
@@ -356,12 +350,21 @@ export function initDemoProgress(root, storage, { decisions, releases, surface =
   const readDecisions = typeof decisions === "function" ? decisions : () => [];
   const readReleases = typeof releases === "function" ? releases : () => loadReleases(storage);
   let previous = null;
+  const readProgress = () => demoProgress({ decisions: readDecisions(), releases: readReleases(), surface, visit: readDemoVisit(storage) });
   const update = () => {
-    const progress = demoProgress({ decisions: readDecisions(), releases: readReleases(), surface });
-    previous = renderDemoProgress(root, progress, { previous });
+    const progress = readProgress();
+    previous = renderDemoProgress(root, progress, { previous, validateEvidence: () => {
+      const latest = readProgress();
+      const valid = latest.complete && demoVisit(latest.decision, latest.release) === demoVisit(progress.decision, progress.release);
+      if (!valid) update();
+      return valid;
+    } });
     return progress;
   };
   const first = update();
   onRecordsChanged(root, update);
+  const view = (root.ownerDocument ?? root).defaultView;
+  view?.addEventListener?.("pageshow", update);
+  view?.addEventListener?.("storage", update);
   return first;
 }

@@ -22,6 +22,8 @@ import {
   demoProgress,
   demoProgressSteps,
 } from "../src/demo-progress.js";
+import { DEMO_VISIT_KEY, demoVisit, demoEvidence } from "../src/demo-evidence.js";
+import { initReleaseDetail } from "../src/release-page.js";
 import { recordsChanged } from "../src/shiplog-records.js";
 import { DomEvent, loadPage, pressEnter, pressTab, tabSequence, textOf, typeText } from "./support/browser.js";
 
@@ -64,9 +66,10 @@ const RELEASE = {
   decisionIds: [DECISION.id],
 };
 
-async function openHome(t, { decisions = [], releases = [] } = {}) {
+async function openHome(t, { decisions = [], releases = [], visit = demoVisit(decisions[0], releases[0]) } = {}) {
   const page = await loadPage(HOME, {
     storage: {
+      [DEMO_VISIT_KEY]: visit,
       [STORAGE_KEY]: JSON.stringify(decisions),
       [RELEASE_STORAGE_KEY]: JSON.stringify(releases),
     },
@@ -167,7 +170,7 @@ const DONE_LINKS = [
   "evaluation-path-scorecard",
 ];
 
-test("a release linked to that decision finishes the demo on the home page", async (t) => {
+test("opening a release linked to that decision finishes the demo on the home page", async (t) => {
   const page = await openHome(t, { decisions: [DECISION], releases: [RELEASE] });
 
   // (a) All four steps say done, none is the one to do, and no link is left in
@@ -179,9 +182,7 @@ test("a release linked to that decision finishes the demo on the home page", asy
   assert.ok(!done(page).hidden, "the finished state is still hidden");
   assert.equal(textOf(byId(page, "evaluation-path-done-lead")), "All four steps are done.");
 
-  // (b) What the visitor proved, in one line.
-  assert.equal(textOf(byId(page, "evaluation-path-proved")),
-    "You proved it: a release now opens to the decision behind it.");
+  assert.match(textOf(byId(page, "evaluation-path-evidence")), /Recorded decision “Adopt a durable job queue” is linked to recorded release “v1.3.0 — Throughput and latency”/);
 
   // (c) Both asks are the availability section's own pair, byte for byte: the
   // same address, topic key, description and words.
@@ -209,9 +210,8 @@ test("a release linked to that decision finishes the demo on the home page", asy
   assert.ok(!byId(page, "evaluation-path-scope").hidden);
   assert.match(textOf(byId(page, "evaluation-path-scope")), /This is a demo workflow, not a customer result\./);
   const block = textOf(done(page));
-  assert.doesNotMatch(block, /\d/);
-  assert.doesNotMatch(block, /customer|testimonial|results?\b|saved|faster|%|“|"/i);
-  assert.equal(done(page).querySelectorAll("a").length, DONE_LINKS.length);
+  assert.match(block, /not a customer outcome, benchmark, or testimonial/);
+  assert.equal(done(page).querySelectorAll("a").length, DONE_LINKS.length + 2);
 });
 
 test("the finished state's links are reached by Tab in reading order and follow with Enter", async (t) => {
@@ -250,6 +250,7 @@ test("finishing the demo without a reload announces it politely", async (t) => {
   const page = await openHome(t, { decisions: [DECISION] });
   assert.ok(done(page).hidden);
   page.storage.setItem(RELEASE_STORAGE_KEY, JSON.stringify([RELEASE]));
+  page.storage.setItem(DEMO_VISIT_KEY, demoVisit(DECISION, RELEASE));
   recordsChanged(page.document);
 
   assert.ok(!done(page).hidden, "the finished state did not appear");
@@ -387,24 +388,143 @@ test("the seeded example records are not counted as this browser's progress", as
   assert.equal(actionCount(page), 0, "a seeded example was counted as a recorded decision");
 });
 
-test("the state is a function of the records alone", async () => {
+test("completion is derived from current records and their saved detail visit", async () => {
   // The derivation, without a document: the same two lists always give the same
   // step, which is what makes a revisit restore what the last visit left.
   assert.equal(demoProgress({}).currentIndex, 0);
   assert.equal(demoProgress({ decisions: [DECISION] }).currentIndex, 1);
-  assert.equal(demoProgress({ decisions: [DECISION], releases: [RELEASE] }).complete, true);
+  assert.equal(demoProgress({ decisions: [DECISION], releases: [RELEASE], visit: demoVisit(DECISION, RELEASE) }).complete, true);
 
   // A newer decision recorded after the demo was finished does not walk the
   // reader back: the tracked decision is the newest one that has a release.
   const later = { ...DECISION, id: "d-cache", title: "Cache the read path" };
-  const finished = demoProgress({ decisions: [later, DECISION], releases: [RELEASE] });
+  const finished = demoProgress({ decisions: [later, DECISION], releases: [RELEASE], visit: demoVisit(DECISION, RELEASE) });
   assert.equal(finished.complete, true);
   assert.equal(finished.release.id, RELEASE.id);
   assert.equal(finished.decision.id, DECISION.id);
 
-  // On the home page the linked pair is the finish (#3033): every step is done
+  // On the home page the opened linked pair is the finish: every step is done
   // and none is current. Releases keeps step four current (tested above).
   assert.deepEqual(finished.steps.map((step) => step.status), Array(4).fill(DEMO_PROGRESS_STATUS.done));
   assert.equal(finished.steps.filter((step) => step.current).length, 0);
   assert.equal(finished.action, null);
+});
+
+test("evidence requires the exact opened pair, never an unvisited, stale or malformed state", async (t) => {
+  for (const visit of [null, "true", "{bad", "{}", demoVisit(DECISION, { ...RELEASE, title: "Old release" }),
+    demoVisit({ ...DECISION, title: "Old decision" }, RELEASE)]) {
+    const page = await openHome(t, { decisions: [DECISION], releases: [RELEASE], visit });
+    assert.ok(done(page).hidden);
+    assert.equal(byId(page, "evaluation-path-evidence").querySelectorAll("button").length, 0);
+    assert.deepEqual(currentSteps(page), [STEPS[3]]);
+    page.restore();
+  }
+});
+
+test("opening the actual local release persists completion; examples do not", async (t) => {
+  const page = await loadPage(new URL("../src/release.html", import.meta.url), {
+    storage: { [STORAGE_KEY]: JSON.stringify([DECISION]), [RELEASE_STORAGE_KEY]: JSON.stringify([RELEASE]) },
+    location: { search: `?id=${RELEASE.id}` },
+  });
+  t.after(() => page.restore());
+  initReleaseDetail();
+  const visit = page.storage.getItem(DEMO_VISIT_KEY);
+  assert.equal(visit, demoVisit(DECISION, RELEASE));
+  page.restore();
+  const home = await openHome(t, { decisions: [DECISION], releases: [RELEASE], visit });
+  assert.ok(!done(home).hidden);
+  const links = byId(home, "evaluation-path-evidence").querySelectorAll("a");
+  for (const [index, href] of [`/release.html?id=${RELEASE.id}`, `/decision.html?id=${DECISION.id}`].entries()) {
+    assert.equal(links[index].getAttribute("href"), href);
+    links[index].focus();
+    pressEnter(home.document);
+    assert.equal(home.navigations.at(-1), href);
+  }
+});
+
+test("copy uses the rendered model, announces success, and preserves focus", async (t) => {
+  const original = Object.getOwnPropertyDescriptor(globalThis, "navigator");
+  t.after(() => original ? Object.defineProperty(globalThis, "navigator", original) : delete globalThis.navigator);
+  let copied;
+  Object.defineProperty(globalThis, "navigator", { configurable: true, value: { clipboard: {
+    async writeText(text) { copied = text; },
+  } } });
+  const page = await openHome(t, { decisions: [DECISION], releases: [RELEASE] });
+  const box = byId(page, "evaluation-path-evidence");
+  const button = box.querySelector("button");
+  button.focus();
+  pressEnter(page.document);
+  await Promise.resolve();
+  assert.equal(copied, demoEvidence(DECISION, RELEASE).text);
+  assert.match(copied, /not a customer outcome, benchmark, or testimonial/);
+  assert.match(copied, /Recorded decision “Adopt a durable job queue” is linked to recorded release/);
+  assert.match(copied, /stay in the evaluator's browser/);
+  assert.doesNotMatch(copied, /\.html|https?:/, "the copy shares links its reader cannot open");
+  assert.match(textOf(box.querySelector('[role="status"]')), /copied/);
+  assert.ok(page.document.activeElement === button);
+});
+
+test("clipboard rejection or absence offers manual text with live feedback and focus", async (t) => {
+  const original = Object.getOwnPropertyDescriptor(globalThis, "navigator");
+  t.after(() => original ? Object.defineProperty(globalThis, "navigator", original) : delete globalThis.navigator);
+  for (const clipboard of [undefined, { async writeText() { throw new Error("Denied"); } }]) {
+    Object.defineProperty(globalThis, "navigator", { configurable: true, value: { clipboard } });
+    const page = await openHome(t, { decisions: [DECISION], releases: [RELEASE] });
+    const box = byId(page, "evaluation-path-evidence");
+    box.querySelector("button").click();
+    await Promise.resolve();
+    const status = box.querySelector('[role="status"]');
+    assert.equal(status.getAttribute("aria-live"), "polite");
+    assert.match(textOf(status), /Could not copy automatically/);
+    const field = box.querySelector("textarea");
+    assert.ok(!field.hidden);
+    assert.equal(field.value, demoEvidence(DECISION, RELEASE).text);
+    assert.ok(page.document.activeElement === field);
+    page.storage.setItem(RELEASE_STORAGE_KEY, "[]");
+    recordsChanged(page.document);
+    assert.ok(done(page).hidden);
+    assert.ok(page.document.activeElement === byId(page, "evaluation-path-title"));
+    page.restore();
+  }
+});
+
+test("copy rechecks storage and removes evidence if the link changed silently", async (t) => {
+  const page = await openHome(t, { decisions: [DECISION], releases: [RELEASE] });
+  const button = byId(page, "evaluation-path-evidence").querySelector("button");
+  page.storage.setItem(RELEASE_STORAGE_KEY, JSON.stringify([{ ...RELEASE, decisionIds: [] }]));
+  button.focus();
+  button.click();
+  assert.ok(done(page).hidden);
+  assert.ok(page.document.activeElement === byId(page, "evaluation-path-title"));
+});
+
+test("erasing browser records also erases the saved detail visit", async (t) => {
+  const { eraseWorkspace } = await import("../src/local-workspace.js");
+  const page = await openHome(t, { decisions: [DECISION], releases: [RELEASE] });
+  assert.equal(eraseWorkspace(page.storage).ok, true);
+  assert.equal(page.storage.getItem(DEMO_VISIT_KEY), null);
+});
+
+test("missing records, mismatched links and duplicate ids cannot reuse a saved visit", async (t) => {
+  for (const records of [
+    { decisions: [], releases: [RELEASE] },
+    { decisions: [DECISION], releases: [] },
+    { decisions: [DECISION], releases: [{ ...RELEASE, decisionIds: ["other"] }] },
+    { decisions: [DECISION], releases: [{ ...RELEASE, decisionIds: [] }, RELEASE] },
+  ]) {
+    const page = await openHome(t, { ...records, visit: demoVisit(DECISION, RELEASE) });
+    assert.ok(done(page).hidden);
+    assert.equal(byId(page, "evaluation-path-evidence").querySelectorAll("button").length, 0);
+    page.restore();
+  }
+});
+
+test("an example-only detail route never records completion", async (t) => {
+  const page = await loadPage(new URL("../src/release.html", import.meta.url), {
+    storage: { [STORAGE_KEY]: JSON.stringify([DECISION]), [RELEASE_STORAGE_KEY]: JSON.stringify([RELEASE]) },
+    location: { search: "?id=demo-r-1-3-0&example=1" },
+  });
+  t.after(() => page.restore());
+  initReleaseDetail();
+  assert.equal(page.storage.getItem(DEMO_VISIT_KEY), null);
 });

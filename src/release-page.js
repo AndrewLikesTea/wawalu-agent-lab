@@ -7,7 +7,9 @@
 // the release in the same turn the page boots — the same content in-site
 // navigation produces, with no request in between to stall on.
 
-import { browserReleaseStorage, renderReleaseDetail, renderReleaseDetailError, resolveReleaseDetail } from "./releases.js";
+import { loadDecisions } from "./app.js";
+import { rememberDemoVisit } from "./demo-evidence.js";
+import { browserReleaseStorage, loadReleases, renderReleaseDetail, renderReleaseDetailError, resolveReleaseDetail } from "./releases.js";
 import { loadReleaseData } from "./releases-data.js";
 import { pageTitle, recordTitle } from "./page-title.js";
 
@@ -48,6 +50,12 @@ export function initReleaseDetail() {
   if (exampleOnly) renderExampleNavigation(container);
   container.setAttribute("aria-busy", "false");
 
+  if (resolved && !exampleOnly) {
+    const storage = browserReleaseStorage();
+    const release = loadReleases(storage).find((record) => record.id === id);
+    const decision = loadDecisions(storage).find((record) => release?.decisionIds.includes(record.id));
+    rememberDemoVisit(storage, decision, release);
+  }
   if (resolved) {
     document.title = recordTitle(resolved.version, { surface: "Releases", fallback: "Release" });
   } else {

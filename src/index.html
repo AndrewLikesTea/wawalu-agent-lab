@@ -120,7 +120,7 @@
                spare, and the coach entry lower down is pinned to its place in
                the tab order by prompt-coach-destination.test.js. -->
           <section class="evaluation-path" aria-labelledby="evaluation-path-title">
-            <h3 id="evaluation-path-title">Try the whole demo in four steps</h3>
+            <h3 id="evaluation-path-title" tabindex="-1">Try the whole demo in four steps</h3>
             <ol id="evaluation-path-steps">
               <li aria-current="step"><span class="evaluation-path-status">Step 1 of 4 · Do this now</span> <span class="evaluation-path-step">Record a decision with the decision form on this page.</span></li>
               <li><span class="evaluation-path-status">Step 2 of 4 · Not started</span> <span class="evaluation-path-step">Continue to Releases with that decision ready to link.</span></li>
@@ -131,7 +131,7 @@
               <p id="evaluation-path-next-lead">Nothing is recorded in this browser yet. Step one is the form below.</p>
             </div>
             <!-- THE FINISHED DEMO (#3033). Shown by src/demo-progress.js once this
-                 browser holds a decision and a release that links it, and hidden
+                 browser has opened its recorded release and linked decision, and hidden
                  until then, so the first screen gains no tab stop. Shipped rather
                  than drawn: homepage-buyer-intent.js wires every buyer-intent link
                  it finds when it boots, so these two preselect the topic exactly as
@@ -139,8 +139,8 @@
                  no class because a display rule would override its hidden state. -->
             <div id="evaluation-path-done" hidden>
               <div class="evaluation-path-next">
-                <p id="evaluation-path-done-lead">All four steps are done.</p>
-                <p id="evaluation-path-proved">You proved it: a release now opens to the decision behind it.</p>
+                <h4 id="evaluation-path-done-lead">All four steps are done.</h4>
+                <div id="evaluation-path-evidence" class="evaluation-path-evidence"></div>
                 <a class="text-link" id="evaluation-path-pilot" data-buyer-intent="pilot" href="#site-footer-panel" aria-describedby="ask-about-shiplog-description">Discuss a Shiplog pilot</a>
                 <a class="text-link" id="evaluation-path-demonstration" data-buyer-intent="demo" href="#site-footer-panel" aria-describedby="ask-about-shiplog-description">Request a Shiplog demonstration</a>
                 <a class="text-link" id="evaluation-path-brief" href="#shiplog-evaluation-brief">Shiplog evaluation brief</a>

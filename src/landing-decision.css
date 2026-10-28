@@ -184,3 +184,8 @@
 .evaluation-preview h3 { margin:0; font-size:16px; }
 #hero-evaluation-kit .evaluation-preview p { margin:6px 0 0; font-size:15px; line-height:1.5; }
 @media(max-width:520px) { .evaluation-preview { grid-template-columns:1fr; } }
+
+.evaluation-path-evidence { min-width:0; overflow-wrap:anywhere; }
+.evaluation-path-evidence a { display:block; white-space:normal; margin-block:.75rem; }
+.evaluation-path-evidence button { max-width:100%; white-space:normal; margin-block:.75rem; }
+.evaluation-path-evidence textarea { box-sizing:border-box; width:100%; min-height:14rem; }
