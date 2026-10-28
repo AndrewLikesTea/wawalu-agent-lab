@@ -40,6 +40,7 @@
 // happens (#2727). Both surfaces read their four sentences from the one table
 // below, so a wording change still lands in a single place.
 
+import { completionProof, renderCompletionProof, initCompletionCopy } from "./demo-completion-proof.js";
 import { recordReleaseHref } from "./decision-entry.js";
 import { DETAIL_LINK_TEXT, loadReleases, releaseDetailHref, releaseDetailLinkLabel } from "./releases.js";
 import { onRecordsChanged } from "./shiplog-records.js";
@@ -312,6 +313,7 @@ export function renderDemoProgress(root, progress, { previous = null } = {}) {
   const done = root.querySelector("#evaluation-path-done");
   const next = root.querySelector("#evaluation-path-next");
   if (done) done.hidden = !progress.complete;
+  renderCompletionProof(root, completionProof(progress));
   if (done && progress.complete) {
     next?.replaceChildren();
   } else if (next) {
@@ -362,6 +364,10 @@ export function initDemoProgress(root, storage, { decisions, releases, surface =
     return progress;
   };
   const first = update();
+  initCompletionCopy(root, update);
+  const view = root.defaultView ?? root.ownerDocument?.defaultView;
+  view?.addEventListener?.("storage", update);
+  view?.addEventListener?.("pageshow", update);
   onRecordsChanged(root, update);
   return first;
 }
