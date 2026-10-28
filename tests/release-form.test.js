@@ -147,8 +147,8 @@ test("createRelease refuses an incomplete, oversized, or dangling record", () =>
     { message },
   );
   const { required, length, invalidDate, unknownDecision } = RELEASE_FORM_ERRORS;
-  assert.equal(required, "A release needs a version, an owner, a status, a release date, and a summary.");
-  assert.equal(invalidDate, "A release date must be a real calendar day written as YYYY-MM-DD.");
+  assert.equal(required, "A release needs a version, an owner, a status, a status date, and a summary.");
+  assert.equal(invalidDate, "A status date must be a real calendar day written as YYYY-MM-DD.");
   assert.equal(unknownDecision, "A decision you linked is no longer in this log. Review the linked decisions and record the release again.");
 
   rejects({ ...VALID, version: "   " }, required);
@@ -357,7 +357,7 @@ test("the recorder markup groups the picker and never builds HTML from stored te
   // control, so the platform supplies the picker and the format hint; the
   // summary is required in the markup as well as in createRelease().
   assert.match(page, /id="release-released-on" name="releasedOn" type="date" required/);
-  assert.match(page, /<label for="release-released-on">Release date <span class="label-optional label-required">\(required\)<\/span><\/label>/);
+  assert.match(page, /<label for="release-released-on">Status date <span class="label-optional label-required">\(required\)<\/span><\/label>/);
   assert.match(page, /<label for="release-description">Summary <span class="label-optional label-required">\(required\)<\/span><\/label>/);
   assert.match(page, /id="release-description" name="description"[^>]*\srequired/);
   // `required` is absent because linking decisions is optional.

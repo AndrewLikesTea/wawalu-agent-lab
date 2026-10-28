@@ -55,7 +55,7 @@ export const DECISION_PICKER_RETRYING_BODY = "Reading this browser’s decision 
 export const DECISION_PICKER_RETRY_LABEL = "Retry loading decisions";
 
 export const RELEASE_FORM_ERRORS = {
-  required: "A release needs a version, an owner, a status, a release date, and a summary.",
+  required: "A release needs a version, an owner, a status, a status date, and a summary.",
   // What a submit the browser itself refused leaves behind. The native bubble
   // names the one field it stopped on and then disappears; this stays on the
   // page, so a recorder who dismissed it — or never saw it — is not left with a
@@ -64,7 +64,7 @@ export const RELEASE_FORM_ERRORS = {
   // day, a value past its maximum length) rather than guessing which one fired.
   incomplete: "This release was not recorded. Complete every required field in the format its hint describes, then record the release again.",
   length: "A release field exceeds its maximum length.",
-  invalidDate: "A release date must be a real calendar day written as YYYY-MM-DD.",
+  invalidDate: "A status date must be a real calendar day written as YYYY-MM-DD.",
   unknownDecision: "A decision you linked is no longer in this log. Review the linked decisions and record the release again.",
 };
 

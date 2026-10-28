@@ -70,7 +70,7 @@ const briefFor = (release, options) => buildReleaseBrief(release, DECISIONS, opt
 test("a brief carries the release's own fields, each on its own line", () => {
   const brief = briefFor(RECORDED);
   assert.match(brief, /^Release brief: v1\.2\.0 — Read path$/m, "the version and the title head the brief");
-  assert.match(brief, /^Release date: 2026-03-01$/m, "a calendar day, not a locale-formatted one");
+  assert.match(brief, /^Status date: 2026-03-01$/m, "a calendar day, not a locale-formatted one");
   assert.match(brief, /^Status: Completed$/m);
   assert.match(brief, /^Owner: Ari$/m);
   assert.match(brief, /^Summary: Caching went out behind the flag\.$/m);
@@ -108,7 +108,7 @@ test("a release with nothing linked still produces a whole, honest brief", () =>
 test("missing fields are stated rather than left blank or invented", () => {
   const bare = briefFor({ id: "r-bare", version: "v0.0.1", createdAt: "not a date", decisionIds: [] });
   assert.match(bare, /^Release brief: v0\.0\.1$/m, "a release with no title of its own is named once, not twice");
-  assert.match(bare, /^Release date: Unknown$/m);
+  assert.match(bare, /^Status date: Unknown$/m);
   assert.match(bare, /^Owner: Unknown$/m);
   assert.match(bare, new RegExp(`^Summary: ${NO_SUMMARY_TEXT}$`, "m"));
   // A record with no status is the log's default, not an empty word.
