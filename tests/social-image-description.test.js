@@ -440,6 +440,7 @@ test("the feed gives a stored post with no description a real alt and a visible 
   assert.notEqual(img.alt.trim(), "");
   assert.equal(byClass(container, "description-note").length, 1);
   assert.equal(byClass(container, "description-note")[0].textContent, MISSING_DESCRIPTION_NOTE);
+  assert.equal(byClass(container, "description-note")[0].getAttribute("aria-hidden"), "true");
   // The note is beside the caption, not folded into the card's accessible name.
   assert.equal(byClass(container, "post-caption")[0].textContent, "Ring landed everywhere.");
 });
@@ -454,6 +455,7 @@ test("a People profile gives the same post the same alt and the same note", () =
   assert.equal(img.alt, "Image posted by Mina. No description provided.");
   assert.equal(byClass(container, "description-note").length, 1);
   assert.equal(byClass(container, "description-note")[0].textContent, MISSING_DESCRIPTION_NOTE);
+  assert.equal(byClass(container, "description-note")[0].getAttribute("aria-hidden"), "true");
   assert.equal(byClass(container, "profile-tile-caption")[0].textContent, "Ring landed everywhere.");
 });
 
@@ -551,12 +553,13 @@ for (const surface of SURFACES) {
     assert.equal(visible.textContent, IMAGE.alt);
     assert.equal(visible.textContent, img.alt);
 
-    // The permalink exposes its caption in reading order; compact feed tiles
-    // continue to announce the same text through the image alt.
+    // Every surface announces the text once, through the image alt, and hides
+    // the visible caption that repeats it (#3036).
     const note = byClass(container, surface.note)[0];
     assert.equal(note.tagName, "FIGCAPTION");
     assert.equal(byClass(tags(container, "FIGURE")[0], surface.note).length, 1, "the caption is the figure's");
-    assert.equal(note.getAttribute("aria-hidden"), surface.name === "the shared post page" ? null : "true");
+    assert.equal(note.getAttribute("aria-hidden"), "true");
+    assert.equal(tags(container, "FIGURE")[0].getAttribute("aria-describedby"), null);
     assert.equal(img.getAttribute("aria-describedby"), null, "the description would be read twice");
     // The captions role, reused. No surface grew a type of its own for this.
     assert.equal(byClass(container, surface.note)[0].classes.includes("description-note"),

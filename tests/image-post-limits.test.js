@@ -8,8 +8,8 @@
 // (6:1) images. 60 is the longest name a post can carry: the normalizers drop
 // longer ones, so an 80-character fixture would only assert against zero cards.
 //
-// Every image retains its description as alt. Compact tiles hide the duplicate
-// caption; the standalone post exposes and associates its visible caption.
+// Every image retains its description as alt, and on every surface the visible
+// caption is aria-hidden so the description is announced exactly once (#3036).
 //
 // Layout is CSS-asserted only. The harness models no layout and nothing on these
 // pages reads matchMedia, so a 390px shim would only assert itself; what is
@@ -104,6 +104,14 @@ function documentOrder(root) {
   return order;
 }
 
+// Out of the accessibility tree by aria-hidden or `hidden`, on itself or above.
+function hiddenFromAssistiveTech(node) {
+  for (let at = node; at; at = at.parent) {
+    if (at.getAttribute?.("aria-hidden") === "true" || at.hidden) return true;
+  }
+  return false;
+}
+
 for (const surface of SURFACES) {
   for (const [index, shape] of SHAPES.entries()) {
     test(`${surface.name}: a ${shape.name} image post at every limit reads in one order, whole`, () => {
@@ -133,18 +141,19 @@ for (const surface of SURFACES) {
       assert.equal(img.width, shape.width);
       assert.equal(img.height, shape.height);
 
-      // Direct image navigation retains alt; the permalink also exposes its caption.
+      // One announcement on every route: the alt carries the description and the
+      // visible caption is hidden from assistive tech, referenced by nothing.
       const caption = byClass(container, description)[0];
       assert.equal(caption.tagName, "FIGCAPTION");
-      assert.equal(caption.getAttribute("aria-hidden"), surface.name === "the post page" ? null : "true");
+      assert.equal(caption.getAttribute("aria-hidden"), "true");
       assert.equal(img.alt, DESCRIPTION);
+      const exposed = order.filter((node) => (img === node ? node.alt : node.textContent) === DESCRIPTION
+        && node.children.length === 0 && !hiddenFromAssistiveTech(node));
+      assert.equal(exposed.length, 1, `${surface.name}: the description is exposed ${exposed.length} times`);
       for (const node of order) {
         const ids = (node.getAttribute?.("aria-describedby") ?? "").split(/\s+/);
-        assert.equal(ids.includes(caption.id ?? "\u0000"),
-          surface.name === "the post page" && node.tagName === "FIGURE",
-          "only the standalone figure explicitly references its caption");
+        assert.equal(ids.includes(caption.id ?? "\u0000"), false, "nothing re-reads the hidden caption");
       }
-      assert.equal(img.getAttribute("aria-describedby"), null);
 
       // Every action is a native control with words on it, reachable by Tab.
       for (const className of surface.actions) {
@@ -154,6 +163,19 @@ for (const surface of SURFACES) {
         assert.notEqual(control.getAttribute("tabindex"), "-1");
         assert.ok(control.textContent.trim().length > 0, `.${className} has no text label`);
       }
+
+      // A failed load keeps the unit whole: the image goes, the failure block
+      // carries the description in its place — still exactly once — and the
+      // post's words, caption and actions stay where they were.
+      img.dispatch("error");
+      const after = documentOrder(container);
+      assert.equal(after.includes(img), false);
+      const spoken = after.filter((node) => node.textContent === DESCRIPTION && node.children.length === 0
+        && !hiddenFromAssistiveTech(node));
+      assert.equal(spoken.length, 1, `${surface.name}: a failed image exposes the description ${spoken.length} times`);
+      assert.equal(byClass(container, "detail-state-chip")[0].textContent, "Image unavailable");
+      assert.ok(after.indexOf(byClass(container, text)[0]) < after.indexOf(spoken[0]));
+      assert.ok(after.indexOf(spoken[0]) < after.indexOf(byClass(container, action)[0]));
     });
   }
 }

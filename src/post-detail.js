@@ -20,7 +20,7 @@
 // as by the browser, and only a relative specifier resolves in both.
 import { peopleImagePostsLabel } from "./social-links.js";
 import { captionFor, countLabel, profileHref } from "./profile.js";
-import { IMAGE_DESCRIPTION_LABEL, renderImageDescriptionText, renderImageUnavailable } from "./image-description.js";
+import { IMAGE_DESCRIPTION_LABEL, imageDescription, renderDescriptionNote, renderImageDescriptionText, renderImageUnavailable } from "./image-description.js";
 import { labTitle } from "./page-title.js";
 import { postPermalink, renderPostCopyControl } from "./post-share.js";
 import { EXAMPLE_POST_LABEL, isExamplePost, normalizeImage } from "./social.js";
@@ -186,21 +186,13 @@ function feedAction() {
   link.href = POST_EXITS.social.href;
   return link;
 }
-// The image's accessible name, in one place, with one precedence:
-//
-//   1. what the poster wrote about the image, when they wrote anything;
-//   2. otherwise the visible caption, which is the most useful true sentence
-//      about the image this page has;
-//   3. otherwise nothing — an empty alt, which marks the image decorative and
-//      leaves it out of the accessibility tree rather than announcing "image"
-//      or reading a filename aloud.
-//
-// Never a placeholder. A screen reader that says "image" has told the reader the
-// one thing they already knew.
-export function postImageAlt(image, caption) {
-  const supplied = typeof image?.alt === "string" ? image.alt.trim() : "";
-  if (supplied) return supplied;
-  return String(caption ?? "").trim();
+// The image's accessible name is the feed's and a People tile's (#3036): what
+// the poster wrote, or the shared read-path fallback naming who posted it and
+// that no description was provided. It used to fall back to the visible
+// caption, which the reader had heard one line earlier — the post's words read
+// twice — and to alt="" with no caption, filing a posted image as decoration.
+export function postImageAlt(image, author) {
+  return imageDescription({ author, image }).alt;
 }
 
 // The visible half of the description, and the only label it gets.
@@ -257,13 +249,18 @@ function renderImageDescription(description) {
     textClassName: "detail-image-description-text",
   });
   caption.id = "post-image-description";
+  // Announced once, through the image's alt, as on the feed and a People tile
+  // (#3036). Exposing this too — and pointing the figure's aria-describedby at
+  // it — read the same sentence up to three times in one pass.
+  caption.setAttribute("aria-hidden", "true");
   return caption;
 }
 
-// `description` is resolved by the caller — one value, used twice, so the alt
-// attribute and the visible caption cannot drift apart. Passing the caption in
-// and resolving it here would have meant resolving it twice.
-function renderMedia(image, description) {
+// `alt` is resolved by the caller — one value, used twice, so the alt attribute
+// and the visible caption cannot drift apart. `stored` says whether the poster
+// wrote it, which decides what the failure block may claim stands in.
+function renderMedia(image, alt, stored) {
+  const description = stored ? alt : "";
   const frame = el("div", "detail-media");
 
   // On the detail view the image is the point, so its failure note keeps the
@@ -312,7 +309,7 @@ function renderMedia(image, description) {
   const img = document.createElement("img");
   img.className = "detail-image";
   img.src = image.src;
-  img.alt = description;
+  img.alt = alt;
   img.decoding = "async";
   if (image.width && image.height) {
     img.width = image.width;
@@ -619,28 +616,16 @@ export function renderPostDetail(container, post, options = {}) {
     const figure = el("figure", "detail-figure");
     // Resolved once, here, and handed to both the image and the caption under
     // it. That is the whole of the alt-parity guarantee: there is one value, so
-    // there is nothing for a second value to drift from. An empty result means
-    // the post has neither a stored description nor a caption to fall back on —
-    // a decorative image, which gets alt="" and no caption promising text that
-    // does not exist.
-    const description = postImageAlt(image, caption);
+    // there is nothing for a second value to drift from.
+    const { alt: description, missing } = imageDescription({ image, author });
     // Whether there is a description to *label*, which is a narrower question
-    // than what to put in alt. postImageAlt falls back to the visible caption
-    // when a legacy post stored none, and that fallback is right for alt — the
-    // caption is the truest sentence the page has about the image — but it is
-    // not a description the poster wrote about the image, and printing it under
-    // "Image description" would both claim that it is and say the same sentence
-    // twice under one figure. So the labelled caption appears when, and only
-    // when, the poster actually wrote one; where it appears it is `description`
-    // itself, so it is still the identical string the alt attribute holds.
-    const stored = typeof image.alt === "string" && image.alt.trim() !== "";
-    figure.append(renderMedia(image, description));
-    // Keep the caption available in reading order and explicitly associate it
-    // with the figure. Alt still describes the image when navigated directly.
-    if (stored) {
-      figure.append(renderImageDescription(description));
-      figure.setAttribute("aria-describedby", "post-image-description");
-    }
+    // than what to put in alt. A legacy row's alt is the shared synthesized
+    // sentence, which is not something the poster wrote, so it takes the same
+    // visible "No description provided" note the feed and a People tile print
+    // instead of a caption claiming otherwise.
+    const stored = !missing;
+    figure.append(renderMedia(image, description, stored));
+    figure.append(stored ? renderImageDescription(description) : renderDescriptionNote());
     article.append(figure);
   }
 

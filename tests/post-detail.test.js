@@ -123,33 +123,31 @@ test("the post reads in one order: name, time, words, image, then its descriptio
 
 /* --------------------- the image's accessible name ------------------------ */
 
-// Three branches, one precedence, asserted at the function and through a render.
+// The feed's and a People tile's precedence (#3036), asserted at the function
+// and through a render.
 test("the image is named by the poster's alt text when there is any", () => {
-  assert.equal(postImageAlt({ alt: "A card wrapped in a blue focus ring" }, "The middle card, ringed."), "A card wrapped in a blue focus ring");
+  assert.equal(postImageAlt({ alt: "A card wrapped in a blue focus ring" }, "Mina Okafor"), "A card wrapped in a blue focus ring");
   const container = createElement("div");
   renderPostDetail(container, post);
   assert.equal(tags(container, "IMG")[0].alt, "A card wrapped in a blue focus ring");
 });
 
-test("an image without source alt uses the visible caption as its description", () => {
-  assert.equal(postImageAlt({ alt: "   " }, "The middle card, ringed."), "The middle card, ringed.");
-  const container = createElement("div");
-  renderPostDetail(container, { ...post, image: { ...post.image, alt: "" } });
-  assert.equal(tags(container, "IMG")[0].alt, "The middle card, ringed.");
-});
-
-test("an image with neither alt nor caption is marked decorative, not labelled 'image'", () => {
-  assert.equal(postImageAlt({ alt: "" }, ""), "");
-  const container = createElement("div");
-  renderPostDetail(container, { ...post, body: "", caption: null, image: { ...post.image, alt: "" } });
-
-  const img = tags(container, "IMG")[0];
-  assert.equal(img.alt, "", "alt must be exactly empty, so the image leaves the accessibility tree");
-  // Not a placeholder, and never the filename: both are worse than silence.
-  assert.doesNotMatch(String(img.alt), /image|photo|picture|focus-ring|svg/i);
-  // Nor does an empty figcaption appear, announcing a caption that is not there.
-  assert.equal(tags(container, "FIGCAPTION").length, 0);
-  assert.equal(first(container, "detail-post").getAttribute("aria-labelledby"), null);
+test("an undescribed image gets the shared fallback, never the caption read a second time", () => {
+  assert.equal(postImageAlt({ alt: "   " }, "Mina Okafor"), "Image posted by Mina Okafor. No description provided.");
+  assert.equal(postImageAlt({ alt: "" }, ""), "Posted image. No description provided.");
+  for (const shape of [{}, { body: "", caption: null }]) {
+    const container = createElement("div");
+    renderPostDetail(container, { ...post, ...shape, image: { ...post.image, alt: "" } });
+    const img = tags(container, "IMG")[0];
+    assert.equal(img.alt, "Image posted by Mina Okafor. No description provided.");
+    assert.doesNotMatch(img.alt, /middle card|focus-ring|svg/i, "neither the caption nor the filename");
+    // The visible half of the same fallback, and no caption claiming a
+    // description the poster never wrote.
+    assert.equal(tags(container, "FIGCAPTION").length, 0);
+    assert.equal(byClass(container, "description-note").length, 1);
+    assert.equal(first(container, "description-note").textContent, "No description provided");
+    assert.equal(first(container, "description-note").getAttribute("aria-hidden"), "true");
+  }
 });
 
 test("a dead image with no description says so rather than reading an empty one", () => {
@@ -1046,14 +1044,16 @@ test("the copied link drops the provenance the arriving link carried", async () 
 });
 
 
-test("the image description is an accessible caption associated with its figure", () => {
+test("the image description is announced once, through alt, as on the feed and People", () => {
   const container = createElement("div");
   renderPostDetail(container, post);
   const figure = tags(container, "FIGURE")[0];
   const caption = tags(figure, "FIGCAPTION")[0];
-  assert.equal(caption.getAttribute("aria-hidden"), null);
-  assert.equal(figure.getAttribute("aria-describedby"), caption.id);
+  assert.equal(caption.getAttribute("aria-hidden"), "true");
+  assert.equal(figure.getAttribute("aria-describedby"), null);
+  assert.equal(tags(figure, "IMG")[0].getAttribute("aria-describedby"), null);
   assert.equal(first(caption, "detail-image-description-text").textContent, post.image.alt);
+  assert.equal(tags(figure, "IMG")[0].alt, post.image.alt);
 });
 
 test("an already failed image is removed before returning the rendered post", () => {

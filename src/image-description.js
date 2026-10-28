@@ -38,6 +38,8 @@ export function renderDescriptionNote() {
   const note = document.createElement("p");
   note.className = "description-note";
   note.textContent = MISSING_DESCRIPTION_NOTE;
+  // The image alt (or failure fallback) already announces this same fact.
+  note.setAttribute("aria-hidden", "true");
   return note;
 }
 
