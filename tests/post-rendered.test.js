@@ -82,8 +82,11 @@ test("standalone post: rendered states, keyboard recovery and media at phone and
       await page.locator('.detail-media[data-state="error"]').waitFor();
       assert.equal(await page.locator(".detail-image").count(), 0);
       const caption = page.locator(".detail-image-description");
-      assert.equal(await caption.getAttribute("aria-hidden"), null);
-      assert.equal(await page.locator(".detail-figure").getAttribute("aria-describedby"), await caption.getAttribute("id"));
+      // The image failed, so the fallback states the description once and the
+      // visible caption stays out of the accessibility tree (#3036).
+      assert.equal(await caption.getAttribute("aria-hidden"), "true");
+      assert.equal(await page.locator(".detail-figure").getAttribute("aria-describedby"), null);
+      assert.equal((await page.locator(".detail-figure").ariaSnapshot()).split(post.image.alt).length, 2);
       const order = await page.locator(".detail-post").evaluate((el) => [...el.children].map((n) => n.className));
       assert.ok(order.indexOf("detail-caption") < order.indexOf("detail-figure"));
       assert.ok(await page.locator(".detail-figure").evaluate((el) => Boolean(

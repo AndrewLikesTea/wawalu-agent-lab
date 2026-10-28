@@ -635,9 +635,9 @@ function renderTileMedia(image, description) {
   img.addEventListener("load", () => settle("ready"), { once: true });
   img.addEventListener("error", () => settle("error"), { once: true });
   // A cached image can already be decoded before those listeners attach.
-  if (img.complete) settle(img.naturalWidth > 0 ? "ready" : "error");
-
+  // Attach first so a cached failure can remove the image permanently.
   frame.append(img, fallback);
+  if (img.complete) settle(img.naturalWidth > 0 ? "ready" : "error");
   return frame;
 }
 
@@ -663,10 +663,10 @@ function renderTile(post, index, onReport = null) {
   // fallback, which belongs in alt and in the note below, not under a label
   // claiming the poster wrote it.
   //
-  // Hidden from assistive tech, because this exact string is already the alt of
-  // the image directly above it and the tile's accessible name is its caption.
-  // Two readings of one sentence inside one link is how a tile stops being
-  // skimmable by ear. The alt stays as it is; this is its visible half.
+  // Hidden from assistive tech by the shared helper, because this exact string
+  // is already the alt of the image directly above it. Two readings of one
+  // sentence inside one link is how a tile stops being skimmable by ear. The
+  // alt stays as it is; this is its visible half.
   if (post.image && !description.missing) {
     const descriptionText = renderImageDescriptionText(description.alt, {
       tagName: "figcaption",
@@ -674,7 +674,6 @@ function renderTile(post, index, onReport = null) {
       labelClassName: "profile-tile-description-label",
       textClassName: "profile-tile-description-text",
     });
-    descriptionText.setAttribute("aria-hidden", "true");
     figure.append(descriptionText);
   }
 

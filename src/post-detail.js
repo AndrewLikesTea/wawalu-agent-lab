@@ -614,8 +614,8 @@ export function renderPostDetail(container, post, options = {}) {
   // when they differ — otherwise the detail view would hide text the feed shows.
   if (image && post.caption && post.body && post.body !== post.caption) article.append(el("p", "detail-body", post.body));
   if (image) {
-    // figure/figcaption, so the description is the image's caption to a screen
-    // reader and not merely the paragraph that happens to sit under it.
+    // figure/figcaption, so the image and the description drawn under it are
+    // one unit — the same structure the feed and a People tile use.
     const figure = el("figure", "detail-figure");
     // Resolved once, here, and handed to both the image and the caption under
     // it. That is the whole of the alt-parity guarantee: there is one value, so
@@ -635,12 +635,12 @@ export function renderPostDetail(container, post, options = {}) {
     // itself, so it is still the identical string the alt attribute holds.
     const stored = typeof image.alt === "string" && image.alt.trim() !== "";
     figure.append(renderMedia(image, description));
-    // Keep the caption available in reading order and explicitly associate it
-    // with the figure. Alt still describes the image when navigated directly.
-    if (stored) {
-      figure.append(renderImageDescription(description));
-      figure.setAttribute("aria-describedby", "post-image-description");
-    }
+    // The visible, labelled half of the alt, aria-hidden by the shared helper
+    // the way the feed and a People tile draw it (#3036): the alt — or the
+    // unavailable block, once the image has failed — is the one place assistive
+    // tech meets the description. No aria-describedby on the figure, which
+    // added a third reading of the same sentence.
+    if (stored) figure.append(renderImageDescription(description));
     article.append(figure);
   }
 

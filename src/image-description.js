@@ -69,11 +69,21 @@ export function renderDescriptionNote() {
 // shapes and each already owns its type and spacing. The helper adds no class of
 // its own and therefore no stylesheet rule: src/styles.css has no size headroom
 // to spend on a fourth spelling of the captions role.
+//
+// ONE EXPOSURE TO ASSISTIVE TECH, ON EVERY SURFACE (#3036). Every caller draws
+// this beside an image whose alt is the same string, and when that image fails
+// the unavailable block below takes its place with the same string as text. So
+// the alt (or, once the image is gone, the fallback) is the one place a screen
+// reader meets the description, and this visible half is aria-hidden here
+// rather than at each call site — the permalink used to keep it exposed and
+// point the figure's aria-describedby at it, which read one sentence three
+// times: as the image's name, as the figure's caption and as its description.
 export const IMAGE_DESCRIPTION_LABEL = "Image description";
 
 export function renderImageDescriptionText(description, { tagName = "p", className, labelClassName, textClassName } = {}) {
   const note = document.createElement(tagName);
   if (className) note.className = className;
+  note.setAttribute("aria-hidden", "true");
   const label = document.createElement("span");
   if (labelClassName) label.className = labelClassName;
   label.textContent = `${IMAGE_DESCRIPTION_LABEL}: `;

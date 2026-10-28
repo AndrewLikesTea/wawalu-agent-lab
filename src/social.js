@@ -703,16 +703,16 @@ function renderMedia(image, description) {
   img.addEventListener("load", () => settle("ready"), { once: true });
   img.addEventListener("error", () => settle("error"), { once: true });
   // A cached image can already be decoded before the listeners above attach.
-  if (img.complete) settle(img.naturalWidth > 0 ? "ready" : "error");
-
+  // Attach first so a cached failure can remove the image permanently.
   frame.append(img, fallback);
+  if (img.complete) settle(img.naturalWidth > 0 ? "ready" : "error");
   return frame;
 }
 
 // The image and the description the poster wrote, as figure and figcaption.
 // The description is announced once, through alt: the visible figcaption is the
-// identical string, so it is aria-hidden rather than tied to the image with
-// aria-describedby, which read the sentence twice. Only where the poster wrote
+// identical string, so the shared helper draws it aria-hidden rather than tied
+// to the image with aria-describedby, which read the sentence twice. Only where the poster wrote
 // one — imageDescription() synthesizes an alt for a legacy row, and that row
 // keeps the missing-description note instead of a caption claiming otherwise.
 function renderPostFigure(image, description, index) {
@@ -729,7 +729,6 @@ function renderPostFigure(image, description, index) {
     textClassName: "post-image-description-text",
   });
   caption.id = `post-${index}-image-description`;
-  caption.setAttribute("aria-hidden", "true");
   figure.append(caption);
   return figure;
 }

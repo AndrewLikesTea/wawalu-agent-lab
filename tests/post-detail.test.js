@@ -1046,13 +1046,14 @@ test("the copied link drops the provenance the arriving link carried", async () 
 });
 
 
-test("the image description is an accessible caption associated with its figure", () => {
+test("the image description is announced once, by alt, and its visible caption is hidden from assistive tech", () => {
   const container = createElement("div");
   renderPostDetail(container, post);
   const figure = tags(container, "FIGURE")[0];
   const caption = tags(figure, "FIGCAPTION")[0];
-  assert.equal(caption.getAttribute("aria-hidden"), null);
-  assert.equal(figure.getAttribute("aria-describedby"), caption.id);
+  assert.equal(caption.getAttribute("aria-hidden"), "true");
+  assert.equal(figure.getAttribute("aria-describedby"), null);
+  assert.equal(tags(figure, "IMG")[0].alt, post.image.alt);
   assert.equal(first(caption, "detail-image-description-text").textContent, post.image.alt);
 });
 

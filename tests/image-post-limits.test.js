@@ -8,8 +8,9 @@
 // (6:1) images. 60 is the longest name a post can carry: the normalizers drop
 // longer ones, so an 80-character fixture would only assert against zero cards.
 //
-// Every image retains its description as alt. Compact tiles hide the duplicate
-// caption; the standalone post exposes and associates its visible caption.
+// Every image retains its description as alt, and on all three surfaces the
+// visible caption is its aria-hidden half (#3036): the description reaches
+// assistive tech exactly once, loaded or failed.
 //
 // Layout is CSS-asserted only. The harness models no layout and nothing on these
 // pages reads matchMedia, so a 390px shim would only assert itself; what is
@@ -104,6 +105,30 @@ function documentOrder(root) {
   return order;
 }
 
+// How many times assistive tech meets `text`: an img alt, an element's own text
+// outside any aria-hidden or hidden subtree, and an aria-describedby or
+// aria-labelledby reference (references read hidden content too).
+function exposures(root, text) {
+  const ids = new Map();
+  const index = (node) => { for (const child of node.children ?? []) { if (child.id) ids.set(child.id, child); index(child); } };
+  index(root);
+  let count = 0;
+  const walk = (node) => {
+    if (!node.getAttribute) return;
+    for (const attribute of ["aria-describedby", "aria-labelledby"]) {
+      for (const id of (node.getAttribute(attribute) ?? "").split(/\s+/)) {
+        if (ids.get(id)?.textContent.includes(text)) count += 1;
+      }
+    }
+    if (node.getAttribute("aria-hidden") === "true" || node.hidden) return;
+    if (node.tagName === "IMG" && node.alt === text) count += 1;
+    if (node.ownText?.includes(text)) count += 1;
+    for (const child of node.children ?? []) walk(child);
+  };
+  walk(root);
+  return count;
+}
+
 for (const surface of SURFACES) {
   for (const [index, shape] of SHAPES.entries()) {
     test(`${surface.name}: a ${shape.name} image post at every limit reads in one order, whole`, () => {
@@ -133,18 +158,22 @@ for (const surface of SURFACES) {
       assert.equal(img.width, shape.width);
       assert.equal(img.height, shape.height);
 
-      // Direct image navigation retains alt; the permalink also exposes its caption.
+      // One exposure on every surface: the alt names the image, and the visible
+      // caption is its aria-hidden half that nothing references (#3036).
       const caption = byClass(container, description)[0];
       assert.equal(caption.tagName, "FIGCAPTION");
-      assert.equal(caption.getAttribute("aria-hidden"), surface.name === "the post page" ? null : "true");
+      assert.equal(caption.getAttribute("aria-hidden"), "true");
       assert.equal(img.alt, DESCRIPTION);
       for (const node of order) {
         const ids = (node.getAttribute?.("aria-describedby") ?? "").split(/\s+/);
-        assert.equal(ids.includes(caption.id ?? "\u0000"),
-          surface.name === "the post page" && node.tagName === "FIGURE",
-          "only the standalone figure explicitly references its caption");
+        assert.equal(ids.includes(caption.id ?? "\u0000"), false, "nothing re-reads the hidden caption");
       }
-      assert.equal(img.getAttribute("aria-describedby"), null);
+      assert.equal(exposures(container, DESCRIPTION), 1, `${surface.name}: loaded`);
+
+      // A dead image swaps alt for the fallback's text, still exactly once.
+      img.dispatch("error");
+      assert.equal(byClass(container, image).length, 0);
+      assert.equal(exposures(container, DESCRIPTION), 1, `${surface.name}: failed`);
 
       // Every action is a native control with words on it, reachable by Tab.
       for (const className of surface.actions) {
