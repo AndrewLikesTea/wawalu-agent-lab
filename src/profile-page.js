@@ -43,10 +43,11 @@ async function fetchSeedPosts() {
 }
 
 // The tab carries the stable destination name, the same word the heading and
-// the nav use, so it agrees with the global navigation for every display name.
-// It ends in the lab's name: People is a lab showcase, not part of Shiplog.
+// the nav use, so it agrees with the global navigation for every display name,
+// then what the page holds (#3058), in the eyebrow's words. It ends in the lab's
+// name: People is a lab showcase, not part of Shiplog.
 function updateTitle() {
-  document.title = labTitle("People");
+  document.title = labTitle("People", "public image posts from Social");
 }
 
 async function init() {
