@@ -633,6 +633,18 @@ export function provenanceSplitLine(visible = []) {
 export const REPOSITORY_VIEW_NOTE = "These are Shiplog's own decisions, recorded in Shiplog by the team that "
   + "operates it. Each one cites the public pull request it came from.";
 
+// The dogfooding count in the hero's Repository evidence card (#3054). The
+// number is countRecordProvenance's `repository` over the whole loaded log —
+// the figure the record count line names "from this repository" — and the
+// sentence claims nothing about customers, usage or outcomes. Empty at zero,
+// so the card never shows a "0".
+export function repositoryOwnSentence(count) {
+  if (!(count > 0)) return "";
+  return count === 1
+    ? "1 of the decisions in this log is Shiplog's own, linked to the pull request it came from."
+    : `${count} of the decisions in this log are Shiplog's own, each linked to the pull request it came from.`;
+}
+
 // Which records a counted figure counted. #2539: every figure on the home page
 // derived from a record count names its own records, so a reader who never
 // reaches the caption above the list still knows the number includes invented
@@ -1620,6 +1632,10 @@ export async function initDecisionLog(root = document, storage = localStorage, o
   // the same render as the rows, beside the headline rather than inside it: the
   // headline is a count and this is a claim about provenance.
   const sourceNote = root.querySelector("#history-source-note");
+  // The hero's dogfooding count and its one-press route into the same filter.
+  const ownDecisions = root.querySelector("#repository-own-decisions");
+  const ownCount = root.querySelector("#repository-own-count");
+  const showOwn = root.querySelector("#show-repository-decisions");
   const fromFilter = root.querySelector("#filter-from");
   const toFilter = root.querySelector("#filter-to");
   const filterSummary = root.querySelector("#history-filter-summary");
@@ -2104,6 +2120,10 @@ export async function initDecisionLog(root = document, storage = localStorage, o
       .map(({ id }) => id)
       .filter((id) => !recordedIds.has(id)));
     records = toHistoryRecords(decisions, releases, { exampleIds });
+    // An unread log composes to nothing, so the count is zero and stays hidden.
+    const own = repositoryOwnSentence(countRecordProvenance(records).repository);
+    if (ownCount) ownCount.textContent = own;
+    if (ownDecisions) ownDecisions.hidden = !own;
     // The review finding is composed here and not in render(), on purpose: it
     // reads the whole log, so a filter or a keystroke can never change it. Only
     // the data changing can, and this is the one place the data changes.
@@ -2264,6 +2284,14 @@ export async function initDecisionLog(root = document, storage = localStorage, o
     view.repositoryOnly = !view.repositoryOnly;
     syncRepositoryOnlyControl();
     commit();
+  });
+  // The hero's route to exactly the counted records: every other filter goes,
+  // so the list holds the number the sentence states, and the toggle above
+  // reads as pressed. Focus lands on the result summary, scrolling it in.
+  showOwn?.addEventListener("click", () => {
+    adoptFilters({ ...DEFAULT_HISTORY_FILTERS, repositoryOnly: true });
+    commit();
+    filterSummary?.focus?.();
   });
 
   // One reset path, shared by the toolbar control and the empty state's single

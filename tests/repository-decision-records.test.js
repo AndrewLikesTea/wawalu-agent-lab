@@ -21,6 +21,7 @@ import {
   provenanceSplitLine,
   recordProvenance,
   REPOSITORY_VIEW_NOTE,
+  repositoryOwnSentence,
   selectHistory,
   STORAGE_KEY,
   toHistoryRecords,
@@ -490,4 +491,85 @@ test("the view is reached and operated with the keyboard alone", async (t) => {
   assert.equal(visibleRows(page).length, REPOSITORY_COUNT);
   assert.equal(exampleRows(page).length, 0);
   assert.equal(textOf(sourceNote(page)), REPOSITORY_VIEW_NOTE);
+});
+
+// --- the hero's dogfooding count and its route (#3054) ----------------------
+//
+// The Repository evidence card in the hero says how many of the log's
+// decisions are Shiplog's own and opens exactly those. Its number is the
+// record count line's "from this repository" figure, read off the page.
+
+const own = (page) => page.document.querySelector("#repository-own-decisions");
+const ownCount = (page) => textOf(page.document.querySelector("#repository-own-count"));
+const ownStops = (document) => tabSequence(document).filter((node) => node.id === "show-repository-decisions").length;
+const CAVEAT = "This is repository evidence, not a customer outcome or testimonial, and not a claim about what runs today.";
+
+test("the card's count is the record count line's repository figure, and claims no outcome", async (t) => {
+  const page = await openHome(t);
+  const figure = Number(/· (\d+) from this repository/.exec(splitText(page))?.[1]);
+  assert.equal(figure, REPOSITORY_COUNT);
+  assert.equal(own(page).hidden, false);
+  assert.equal(ownCount(page),
+    `${figure} of the decisions in this log are Shiplog's own, each linked to the pull request it came from.`);
+  assert.doesNotMatch(ownCount(page), /customer|usage|outcome|teams use/i);
+  // The caveat beside it is unchanged, word for word.
+  assert.ok(textOf(page.document.querySelector("#repository-last-verified")).includes(CAVEAT));
+  assert.equal(repositoryOwnSentence(1),
+    "1 of the decisions in this log is Shiplog's own, linked to the pull request it came from.");
+  assert.equal(repositoryOwnSentence(0), "");
+});
+
+test("the card's native button opens only Shiplog's own decisions and focuses the result summary", async (t) => {
+  const page = await openHome(t);
+  const button = page.document.querySelector("#show-repository-decisions");
+  assert.equal(button.tagName, "BUTTON");
+  assert.equal(button.getAttribute("type"), "button");
+  assert.ok(tabSequence(page.document).includes(button));
+  // Another filter already set is dropped: the route opens the counted set.
+  const currentOnly = page.document.querySelector("#filter-current-only");
+  currentOnly.click();
+  assert.equal(currentOnly.getAttribute("aria-pressed"), "true");
+
+  button.focus();
+  pressSpace(page.document);
+  assert.equal(toggle(page).getAttribute("aria-pressed"), "true");
+  assert.equal(currentOnly.getAttribute("aria-pressed"), "false");
+  assert.equal(visibleRows(page).length, REPOSITORY_COUNT);
+  assert.equal(repositoryRows(page).length, REPOSITORY_COUNT);
+  for (const row of visibleRows(page)) {
+    const links = row.querySelectorAll(".record-source-link");
+    assert.equal(links.length, 1, `${row.getAttribute("id")} lost its pull request link`);
+    assert.match(links[0].getAttribute("href"), /^https:\/\/github\.com\/[^/]+\/[^/]+\/pull\/\d+$/);
+  }
+  const summary = page.document.querySelector("#history-filter-summary");
+  assert.ok(page.document.activeElement === summary, "focus did not move to the result summary");
+  assert.equal(summary.getAttribute("tabindex"), "-1");
+  assert.equal(textOf(sourceNote(page)), REPOSITORY_VIEW_NOTE);
+  // Pressing it again keeps the view rather than toggling it off.
+  button.click();
+  assert.equal(toggle(page).getAttribute("aria-pressed"), "true");
+  assert.equal(visibleRows(page).length, REPOSITORY_COUNT);
+});
+
+test("before data, with no repository records, or on an unreadable log, the card has no count and no button", async (t) => {
+  const markup = parseHtml(await readFile(HOME_PAGE, "utf8"));
+  assert.equal(markup.querySelector("#repository-own-decisions").hidden, true);
+  assert.equal(textOf(markup.querySelector("#repository-own-count")), "");
+  assert.equal(ownStops(markup), 0);
+
+  const page = await loadPage(HOME_PAGE);
+  t.after(() => page.restore());
+  await initDecisionLog(page.document, page.storage,
+    { seed: { decisions: SEED_DECISIONS.filter((record) => !record.repository), releases: SEED_RELEASES } });
+  assert.equal(own(page).hidden, true);
+  assert.equal(ownCount(page), "");
+  assert.doesNotMatch(textOf(page.document.querySelector("#repository-last-verified")), /\b0 of\b/);
+  assert.equal(ownStops(page.document), 0);
+
+  const failed = await loadPage(HOME_PAGE);
+  t.after(() => failed.restore());
+  await initDecisionLog(failed.document, { getItem() { throw new Error("blocked"); }, setItem() {}, removeItem() {} });
+  assert.equal(own(failed).hidden, true);
+  assert.equal(ownCount(failed), "");
+  assert.equal(ownStops(failed.document), 0);
 });
