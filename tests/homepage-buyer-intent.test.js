@@ -20,7 +20,7 @@ import assert from "node:assert/strict";
 
 import { loadPage, pressKey, pressEnter, pressTab, tabSequence, textOf } from "./support/browser.js";
 import { importPageModule } from "./support/page-module.js";
-import { FOLLOW_UP_INTENTS } from "../src/lead-capture.js";
+import { FOLLOW_UP_INTENTS, FOLLOW_UP_REPLY } from "../src/lead-capture.js";
 import {
   FOLLOW_UP_INTENT_PURPOSES, FOLLOW_UP_MESSAGE_PURPOSES, FOLLOW_UP_TOPICS,
 } from "../src/leads.js";
@@ -321,3 +321,29 @@ for (const keyboard of [false, true]) {
     assert.equal(document.navigations.length, 0, "native navigation cannot overwrite focus");
   });
 }
+
+
+test("sales CTAs show the team's email reply commitment before any demo or form interaction", async (t) => {
+  const { document } = await openHomepage(t);
+  const expected = FOLLOW_UP_REPLY.replace("A person", "A person from the Wawalu team");
+  assert.equal(byId(document, "evaluation-path-done").hidden, true);
+
+  for (const [ctaId, replyId] of [
+    ["hero-demonstration", "hero-demonstration-reply"],
+    ["ask-about-shiplog", "homepage-sales-reply"],
+    ["discuss-pilot", "homepage-sales-reply"],
+  ]) {
+    const cta = byId(document, ctaId);
+    const reply = byId(document, replyId);
+    assert.equal(textOf(reply), expected);
+    assert.ok(cta.getAttribute("aria-describedby").split(/\s+/).includes(replyId));
+    const context = ctaId === "hero-demonstration" ? cta.parentNode.parentNode : cta.parentNode;
+    assert.equal(reply.parentNode, context, "reply copy must stay beside its CTA");
+    assert.equal(reply.closest("form"), null);
+    for (let node = reply; node; node = node.parentNode) {
+      assert.ok(!node.hidden, `${replyId} must be visible on arrival`);
+      assert.notEqual(node.getAttribute("aria-hidden"), "true");
+      assert.notEqual(node.tagName, "DETAILS", "reply must not require opening a disclosure");
+    }
+  }
+});

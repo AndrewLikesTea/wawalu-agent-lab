@@ -265,7 +265,8 @@ test("all six pages carry their follow-up description once at the label", async 
     assert.ok(route, `${file}: the page no longer carries the route this line describes`);
     assert.ok(described[0].parentNode === route.parentNode,
       `${file}: the description is not in the row the label sits in`);
-    assert.equal(route.getAttribute("aria-describedby"), ASK_ABOUT_SHIPLOG_DESCRIPTION_ID,
+    assert.equal(route.getAttribute("aria-describedby"), file === "index.html"
+      ? `${ASK_ABOUT_SHIPLOG_DESCRIPTION_ID} homepage-sales-reply` : ASK_ABOUT_SHIPLOG_DESCRIPTION_ID,
       `${file}: a screen-reader user hears the label without the line explaining it`);
     assert.equal(document.getElementById("site-footer")
       .querySelectorAll(`#${ASK_ABOUT_SHIPLOG_DESCRIPTION_ID}`).length, 0,
@@ -346,7 +347,7 @@ test("the home page says what each of the two offers is, at the ask", async (t) 
   // asking for, then how to ask for it.
   const row = painted[0].parentNode;
   const order = row.querySelectorAll("p").map((node) => node.getAttribute("id"));
-  assert.deepEqual(order, [OFFERS_ID, ASK_ABOUT_SHIPLOG_DESCRIPTION_ID],
+  assert.deepEqual(order, ["homepage-sales-reply", OFFERS_ID, ASK_ABOUT_SHIPLOG_DESCRIPTION_ID],
     "the row must explain the two offers before it explains how to send the request");
   assert.ok(row.getAttribute("class").includes("hero-actions"),
     "the line must sit in the row the ask is made in");

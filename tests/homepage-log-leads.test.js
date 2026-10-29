@@ -310,11 +310,12 @@ test("the hero links the evaluation brief and blank pilot scorecard right after 
   assert.equal(link.tagName, "A");
   assert.equal(textOf(link), "Evaluation brief and blank pilot scorecard");
 
-  // Directly after the demo-actions row, and the next tab stop after the
+  // After the demo-actions row and reply note, and the next tab stop after the
   // demonstration request.
   const blocks = hero.childElements;
   const actions = blocks.findIndex((node) => node.getAttribute("class") === "hero-actions");
-  assert.equal(blocks[actions + 1].getAttribute("id"), "hero-evaluation-kit");
+  assert.equal(blocks[actions + 1].getAttribute("id"), "hero-demonstration-reply");
+  assert.equal(blocks[actions + 2].getAttribute("id"), "hero-evaluation-kit");
   const sequence = tabSequence(document);
   assert.equal(sequence.indexOf(link), sequence.indexOf(document.getElementById("hero-demonstration")) + 1);
 

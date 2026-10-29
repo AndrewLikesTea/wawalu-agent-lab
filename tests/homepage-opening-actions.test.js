@@ -34,7 +34,7 @@ for (const enhanced of [true, false]) {
         // is the errand these controls now run: a keyboard or screen-reader
         // user hears it before committing, and it is the only place the move
         // and the topic are announced in advance.
-        const described = document.getElementById(link.getAttribute("aria-describedby"));
+        const described = document.getElementById(link.getAttribute("aria-describedby").split(/\s+/)[0]);
         assert.match(textOf(described), /^Both actions move you to the follow-up form/);
         assert.doesNotMatch(textOf(described), /^Use the follow-up form/);
         // And it says what is shown, not what is sent: the topic never leaves
