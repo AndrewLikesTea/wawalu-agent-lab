@@ -670,25 +670,19 @@ export function renderPostDetail(container, post, options = {}) {
   container.append(el("p", "hint detail-post-description", POST_LOADED_DESCRIPTION));
 }
 
-// The page heading names the post the way a reader would: by who wrote it. The
-// post record carries no title of its own, so the poster's display name is the
-// only durable name it has. The heading and tab identify it as a Social post.
-// Until a usable display name is available, both use the generic page name.
+// Name the post by its displayed name without implying verified authorship.
+// Until a usable display name is available, both heading and tab stay generic.
 export function postDisplayName(post) {
   return typeof post?.author === "string" ? post.author.trim() : "";
 }
 
 export function postPageHeading(post) {
   const displayName = postDisplayName(post);
-  return displayName ? `${displayName}'s Social post` : "Social post";
+  return displayName ? `Post published as ${displayName}` : "Social post";
 }
 
-// The heading, then the lab. The heading already says "Social post", so a
-// "Social" surface segment only repeated it. src/post.html ships titled
-// "Social post · Wawalu Lab", which is what a reader sees until this runs.
-//
-// Until a post loads, every state keeps the shipped fallback title. Once it
-// loads, the same display-name value rendered in the byline names the tab.
+// The tab repeats the heading and retains Wawalu Lab context.
+// Callers pass no post until loading succeeds, keeping the shipped fallback.
 export function postDetailTitle(post) {
   return labTitle(postPageHeading(post));
 }
