@@ -92,6 +92,8 @@
           <h3 id="repository-last-verified-title">Repository evidence · Last verified recorded build</h3>
           <p class="release-followup-lead">The decision <a href="/decision.html?id=shiplog-pr-2547">Mark every record row with whose record it is</a> (pull request #2547) is in build <strong>28b2398ff49c</strong>, built <time datetime="2026-09-25T09:08:40.330Z">25 September 2026, 09:08 UTC</time>. This is repository evidence, not a customer outcome or testimonial, and not a claim about what runs today.</p>
           <p class="release-followup-lead"><a class="text-link" href="https://github.com/AndrewLikesTea/wawalu-agent-lab/blob/a1dc0a2dd45b24f8c114dfabed2a31f095f75557/src/build-stamp.js">Open the build stamp for 28b2398ff49c on GitHub</a></p>
+          <!-- Painted by app.js from the loaded log (#3054); hidden with no number until then, and at zero. -->
+          <p class="release-followup-lead" id="repository-own-decisions" hidden><span id="repository-own-count"></span> <button class="secondary-button" id="show-repository-decisions" type="button">Show Shiplog's own decisions</button></p>
         </div>
       </section>
 
@@ -476,7 +478,7 @@
                here is what a visitor whose script has not run sees, and matches
                the static #decision-count above. -->
           <div class="filter-summary-panel">
-            <p class="filter-summary" id="history-filter-summary" data-filtered="false">13 records · 10 example records · 3 from this repository · none you added</p>
+            <p class="filter-summary" id="history-filter-summary" data-filtered="false" tabindex="-1">13 records · 10 example records · 3 from this repository · none you added</p>
             <!-- WHAT THE SHIPLOG'S-OWN-DECISIONS VIEW IS SHOWING (#2710).
                  Empty until that toggle is pressed and emptied again when it is
                  released, written by app.js on the same render as the rows from

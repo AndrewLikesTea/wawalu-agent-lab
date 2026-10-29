@@ -247,7 +247,9 @@ test("the painted front door leads with the promise, then names the log", async 
   const example = hero.querySelector(".hero-actions").querySelectorAll("a")[1];
   assert.match(textOf(example), /complete example release/);
   assert.deepEqual(heroStops, [demo, example, document.getElementById("hero-demonstration"),
-    document.getElementById("hero-evaluation-link"), ...document.getElementById("repository-last-verified").querySelectorAll("a")]);
+    document.getElementById("hero-evaluation-link"), ...document.getElementById("repository-last-verified").querySelectorAll("a"),
+    // #3054: the card's route to Shiplog's own decisions, last in the card, once the log has loaded.
+    document.getElementById("show-repository-decisions")]);
   const demoAt = sequence.indexOf(demo);
   assert.ok(!ancestorIds(sequence[demoAt - 1]).includes("main-content"), "a stop was added above the demo link");
   assert.ok(ancestorIds(sequence[sequence.indexOf(heroStops.at(-1)) + 1]).includes("record-history"), "the recorder follows the evidence links");
