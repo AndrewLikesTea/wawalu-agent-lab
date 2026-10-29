@@ -497,8 +497,13 @@
                    Named by the textarea's own aria-describedby, ahead of the
                    counter, the way Display name names its own hint. -->
               <label for="post-body">Your post <span class="label-optional label-required">(required)</span></label>
+              <!-- What to write, read before the field rather than after it: a
+                   first-time publisher met a blank box with a character limit and
+                   no idea what a post here is for (#3057). Plain text, no tab
+                   stop, and first in the textarea's aria-describedby. -->
+              <span class="hint" id="post-body-guide">Share something you shipped: what changed, why, and what happened next.</span>
               <textarea id="post-body" name="body" rows="4" maxlength="280" required
-                aria-describedby="post-body-hint post-counter-label post-counter"></textarea>
+                aria-describedby="post-body-guide post-body-hint post-counter-label post-counter"></textarea>
               <!-- Ships empty, and stands immediately after the field it is
                    about, so a reader who is refused meets the reason where they
                    are standing rather than in a banner at the foot of the form.

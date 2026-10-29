@@ -140,7 +140,7 @@ test("the over-length message clears when the post comes back under the limit", 
   assert.equal(error.hidden, true);
   assert.equal(textOf(error), "");
   assert.equal(input.getAttribute("aria-invalid"), null, "a valid field is left marked invalid");
-  assert.equal(input.getAttribute("aria-describedby"), "post-body-hint post-counter-label post-counter");
+  assert.equal(input.getAttribute("aria-describedby"), "post-body-guide post-body-hint post-counter-label post-counter");
 
   // The successful path is untouched: a post with an image still publishes and
   // still reaches the feed.
