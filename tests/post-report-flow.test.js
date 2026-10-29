@@ -226,7 +226,7 @@ test("Social: reporting a post is a headed list of steps, then what happens afte
   assert.match(textOf(id("post-report-outcome")), /The post stays up unless the team decides after review to remove it\.$/);
   const shiplog = id("post-report-not-shiplog");
   assert.equal(textOf(shiplog),
-    "Questions about Shiplog itself go to the Shiplog follow-up form at the foot of this page instead; that request is not attached to any post.");
+    "Questions about Shiplog itself go to the Shiplog follow-up request at the foot of this page instead; that request is not attached to any post.");
   const links = shiplog.querySelectorAll("a");
   assert.equal(links.length, 1);
   assert.equal(links[0].getAttribute("href"), "#site-footer-panel");

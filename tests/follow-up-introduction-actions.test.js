@@ -38,7 +38,7 @@ for (const [name, purpose, heroSelector, containerClass] of pages) {
       const route = document.querySelector("#ask-about-shiplog");
       assert.equal(document.querySelectorAll("#ask-about-shiplog").length, 1);
       assert.ok(document.querySelector(heroSelector)?.querySelector("#ask-about-shiplog") === route, "the action left the region that carries it");
-      assert.equal(textOf(route), "Ask about Shiplog");
+      assert.equal(textOf(route), "Send a Shiplog follow-up request");
       assert.equal(route.tagName, "A");
       assert.equal(route.getAttribute("href"), "#site-footer-panel");
       assert.ok(route.classList.contains("text-link"));

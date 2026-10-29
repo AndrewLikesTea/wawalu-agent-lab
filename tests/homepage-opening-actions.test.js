@@ -36,7 +36,7 @@ for (const enhanced of [true, false]) {
         // user hears it before committing, and it is the only place the move
         // and the topic are announced in advance.
         const described = document.getElementById(link.getAttribute("aria-describedby"));
-        assert.match(textOf(described), /^Both actions move you to the follow-up form/);
+        assert.match(textOf(described), /^Both actions move you to the Shiplog follow-up request/);
         assert.doesNotMatch(textOf(described), /^Use the follow-up form/);
         // And it says what is shown, not what is sent: the topic never leaves
         // this page, so a description promising otherwise would be a claim the

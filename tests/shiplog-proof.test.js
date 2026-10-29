@@ -238,7 +238,7 @@ test("tab order reaches the log's controls before the recorder's fields, and add
   // before the example records below it.
   const ask = sequence.filter((node) => node.id === "ask-about-shiplog");
   assert.equal(ask.length, 1, `the ask is reachable ${ask.length} times`);
-  assert.equal(textOf(ask[0]), "Ask about Shiplog");
+  assert.equal(textOf(ask[0]), "Send a Shiplog follow-up request");
   assert.equal(ask[0].getAttribute("href"), "#site-footer-panel");
   assert.ok(sequence.indexOf(ask[0]) > sequence.indexOf(heroStops[0]),
     "the ask is tabbed to before the page's own action");

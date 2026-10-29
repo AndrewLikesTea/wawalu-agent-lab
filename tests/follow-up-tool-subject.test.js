@@ -87,7 +87,7 @@ for (const [file, purpose, tool] of TOOL_PAGES) {
     const group = byId(document, "site-footer-subject");
     assert.ok(group, `${file}: no subject choice`);
     assert.equal(group.tagName, "FIELDSET");
-    assert.equal(textOf(group.querySelector("legend")), "Ask about");
+    assert.equal(textOf(group.querySelector("legend")), "What is your question about?");
     const radios = [...group.querySelectorAll('input[name="subject"]')];
     assert.equal(radios.length, 2);
     assert.deepEqual(radios.map((radio) => radio.getAttribute("type")), ["radio", "radio"]);

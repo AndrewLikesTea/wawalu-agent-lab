@@ -120,7 +120,7 @@ test("the Shiplog asks are read after the filter, the image posts and the publis
     const toolEnd = text.indexOf("Publish a post on Social");
     for (const tool of ["Filter image posts by display name", heading, "Publish a post on Social"])
       assert.ok(text.indexOf(tool) >= 0, `${tool} is not on the page`);
-    for (const ask of ["Ask about Shiplog", "Request a Shiplog demonstration", "Discuss a Shiplog pilot"]) {
+    for (const ask of ["Send a Shiplog follow-up request","Request a Shiplog demonstration", "Discuss a Shiplog pilot"]) {
       const at = text.indexOf(ask);
       assert.ok(at > text.indexOf("Filter image posts by display name"), `${ask} is read before the filter`);
       assert.ok(at > text.indexOf(heading), `${ask} is read before the Image posts heading`);

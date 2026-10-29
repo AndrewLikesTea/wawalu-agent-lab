@@ -348,7 +348,7 @@ function messageFieldLines() {
 
 const subjectFieldLines = (tool) => [
   '        <fieldset class="decision-picker-field" id="site-footer-subject">',
-  "          <legend>Ask about</legend>",
+  "          <legend>What is your question about?</legend>",
   ...[["shiplog", "", "Shiplog"], ["tool", tool, tool]].map(([id, value, label]) => `          <div class="filter-option"><input id="site-footer-subject-${id}" name="subject" type="radio" value="${value}"${value ? "" : " checked"} /><label for="site-footer-subject-${id}">${label}</label></div>`),
   "        </fieldset>",
 ];
@@ -358,8 +358,7 @@ function contactFormLines(followUpType, followUpTopic, askMessage = false, offer
     `    <p class="site-footer-invitation">${invitation}</p>`,
     '    <div class="site-footer-panel" id="site-footer-panel">',
     `      <form id="site-footer-form" class="site-footer-form"${followUpType ? ` data-follow-up-type="${followUpType}"` : ""}${followUpTopic ? ` data-follow-up-topic="${followUpTopic}"` : ""} novalidate>`,
-    // Why to ask, then what this request is about, then the fields: a visitor
-    // reads the offer before the topic, and both before an address.
+    // Offer, then topic, then fields: the order a visitor decides in.
     ...(offer ? [`        <p class="site-footer-note" id="site-footer-offer">${OFFER}</p>`] : []),
     ...(followUpTopic ? [
       `        <p class="site-footer-note" id="site-footer-topic-note">This request is sent about the ${followUpTopic}.</p>`,
