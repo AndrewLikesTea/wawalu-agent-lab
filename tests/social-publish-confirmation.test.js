@@ -31,7 +31,7 @@ import {
   publishedPostLabel,
 } from "../src/social.js";
 import { postDetailHref } from "../src/social-links.js";
-import { DomEvent, loadPage, pressEnter, pressTab, tabSequence, textOf } from "./support/browser.js";
+import { DomEvent, loadPage, pressEnter, pressKey, pressTab, tabSequence, textOf } from "./support/browser.js";
 
 const NOW = Date.parse("2026-08-05T12:00:00.000Z");
 const SAVED_ID = "3f2a1c58-8f6e-4a1b-9c2d-77c4f0a1b2e3";
@@ -51,7 +51,7 @@ const EXISTING = {
 // The request is controllable in two ways the outcome tests need: `fail` can be
 // cleared between presses (a retry that lands), and `hold` parks the request
 // mid-flight so the in-flight state can be read while it is actually true.
-async function composer(t, { hasImage = false, fail = null, hold = false } = {}) {
+async function composer(t, { hasImage = false, fail = null, hold = false, cleanupFailure = false } = {}) {
   const page = await loadPage(new URL("../src/social.html", import.meta.url), {});
   t.after(() => page.restore());
   const document = page.document;
@@ -71,7 +71,7 @@ async function composer(t, { hasImage = false, fail = null, hold = false } = {})
     state: "ready",
     storage: page.storage,
     getMedia: () => (media ? { ...media, alt: document.querySelector("#post-image-alt").value.trim() } : null),
-    clearMedia: () => { media = null; },
+    clearMedia: () => { if (cleanupFailure) throw new Error("Preview cleanup failed"); media = null; },
     create: async (post, image) => {
       requests.push({ post, image });
       if (holding) await new Promise((release) => { resume = release; });
@@ -443,3 +443,62 @@ test("a long caption is shortened in the confirmation rather than repeated whole
   assert.ok(label.length < long.length, "the caption is shortened");
   assert.match(label, /…” as Remy\.$/);
 });
+
+
+test("a confirmed write remains successful if local cleanup fails, with no resend", async (t) => {
+  const harness = await composer(t, { hasImage: true, cleanupFailure: true });
+  harness.fill({ body: "Already saved", author: "Mina", description: "A blue card" });
+  harness.document.querySelector("#post-submit").focus();
+  await harness.publish();
+  const region = notice(harness.document);
+  assert.equal(harness.document.querySelector("#post-form").dataset.publishState, "success");
+  assert.match(textOf(region), /Your post was saved/);
+  assert.equal(region.querySelector(".feed-status-action"), null);
+  assert.equal(harness.document.activeElement.id, "social-notice");
+  assert.equal(noticeLinks(harness.document).length, 2);
+  await harness.publish();
+  assert.equal(harness.requests.length, 1);
+});
+
+test("a stale retry cannot submit a new draft after its attempt succeeds", async (t) => {
+  const harness = await composer(t, { fail: "Try again" });
+  harness.fill({ body: "First post", author: "Mina" });
+  await harness.publish();
+  const retry = notice(harness.document).querySelector(".feed-status-action");
+  harness.setFailure(null);
+  retry.click();
+  await harness.settle();
+  harness.fill({ body: "An unsent new draft" });
+  harness.document.querySelector("#post-body").dispatchEvent(new DomEvent("input", { bubbles: true }));
+  retry.click();
+  await harness.settle();
+  assert.equal(harness.requests.length, 2);
+  assert.equal(harness.document.querySelector("#post-body").value, "An unsent new draft");
+  assert.equal(notice(harness.document).querySelector(".publish-shape-success").getAttribute("aria-hidden"), "true");
+});
+
+
+for (const fail of [null, "The service is unavailable. Please try again."]) {
+  for (const close of ["Close", "Escape"]) {
+    test(`${fail ? "failure" : "success"} outcome closes with ${close} and restores opener focus`, async (t) => {
+      const harness = await composer(t, { fail, hasImage: true });
+      const { document } = harness;
+      harness.fill({ body: "Outcome keyboard check", author: "Mina", description: "A square" });
+      document.querySelector("#post-submit").focus();
+      await harness.publish();
+      assert.equal(document.activeElement.id, "social-notice");
+      const shape = notice(document).querySelector(fail ? ".publish-shape-error" : ".publish-shape-success");
+      assert.equal(shape.getAttribute("aria-hidden"), "true");
+      const actions = notice(document).querySelectorAll(fail ? "button" : "a");
+      for (const action of actions) assert.ok(tabSequence(document).includes(action));
+      actions[0].focus();
+      if (close === "Escape") pressKey(document, "Escape");
+      else {
+        document.querySelector("#post-compose-cancel").focus();
+        await pressEnter(document);
+      }
+      assert.equal(document.querySelector("#post-compose-panel").hidden, true);
+      assert.equal(document.activeElement.id, "post-compose-open");
+    });
+  }
+}

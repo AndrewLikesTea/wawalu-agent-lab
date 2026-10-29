@@ -48,3 +48,14 @@
   outline:3px solid var(--focus-ring);
   outline-offset:3px;
 }
+
+/* Shapes supplement the words in every outcome, including forced colors.
+   Match the product's mono status scale and filled dynamic-state washes. */
+#social-notice .publish-status { font:750 10px/1.6 ui-monospace,monospace; letter-spacing:.06em; }
+#social-notice .detail-state-chip { gap:8px; text-transform:none; }
+.publish-shape { display:inline-block; width:10px; height:10px; margin-inline-end:8px; border:2px solid currentColor; vertical-align:baseline; }
+.publish-shape-pending { border-radius:50%; }
+.publish-shape-error { transform:rotate(45deg); }
+.publish-shape-success { width:12px; height:7px; border-top:0; border-right:0; transform:rotate(-45deg); }
+#social-notice a { overflow-wrap:anywhere; }
+#social-notice a, #social-notice button { scroll-margin-block:24px; }

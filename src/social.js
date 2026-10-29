@@ -1400,6 +1400,7 @@ export function mountSocialFeed(root, options = {}) {
   form?.addEventListener("input", () => { draftRevision += 1; });
   // One state owns the request guard and the rendered composer contract.
   let publishState = "idle";
+  let publishedRevision = null;
   const setPublishState = (state) => {
     publishState = state;
     if (form) form.dataset.publishState = state;
@@ -1725,7 +1726,18 @@ export function mountSocialFeed(root, options = {}) {
 
   // A live state, drawn the way the design system draws live states: a filled
   // wash whose label carries the word, never a wash on its own.
-  const stateChip = (word, variant) => el("span", `detail-state-chip ${variant}`, word);
+  const outcomeShape = (kind) => {
+    const shape = el("span", `publish-shape publish-shape-${kind}`);
+    shape.setAttribute("aria-hidden", "true");
+    return shape;
+  };
+  const stateChip = (word, variant) => {
+    const chip = el("span", `detail-state-chip ${variant}`, word);
+    if (variant !== "detail-state-chip-missing") {
+      chip.append(outcomeShape(variant === "detail-state-chip-error" ? "error" : "pending"));
+    }
+    return chip;
+  };
 
   // What a reader gets back for pressing Publish. Everything in it is derived
   // from the post the API actually returned — the permalink is built from that
@@ -1752,7 +1764,7 @@ export function mountSocialFeed(root, options = {}) {
     // the receipt would not link to is a link by another name.
     const permalinkUrl = postPermalink(saved?.id, pageLocation?.origin);
 
-    notice.replaceChildren(document.createTextNode(`${publishedPostLabel(saved)} `));
+    notice.replaceChildren(outcomeShape("success"), el("span", "publish-status", publishedPostLabel(saved)), document.createTextNode(" "));
     if (permalinkUrl) {
       const permalink = document.createElement("a");
       // Relative, and carrying the display name the post was published under:
@@ -1842,6 +1854,7 @@ export function mountSocialFeed(root, options = {}) {
       const retryButton = el("button", "feed-status-action", PUBLISH_RETRY_LABEL);
       retryButton.type = "button";
       retryButton.addEventListener("click", () => {
+        if (publishState !== "failure" || retryButton.parentNode !== notice) return;
         // Pending replaces this button. Keep focus on a persistent control so
         // completion can return it to the receipt without losing it to body.
         submit?.focus();
@@ -1916,7 +1929,7 @@ export function mountSocialFeed(root, options = {}) {
       // One press, one post. A submit that arrives while one is already in
       // flight is dropped here rather than queued: the composer still holds the
       // same draft, so queuing it would publish the same post twice.
-      if (publishState === "pending") return;
+      if (publishState === "pending" || publishedRevision === draftRevision) return;
 
       let media = null;
       let mediaProblem = "";
@@ -1982,10 +1995,13 @@ export function mountSocialFeed(root, options = {}) {
       // focus only for a reader still open on the element they pressed from.
       const doc = root.ownerDocument ?? root;
       const snapshot = { revision: draftRevision, hasImage: Boolean(media), focused: doc.activeElement };
+      let accepted = null;
       try {
         showPending();
         setSubmitting(true);
         const saved = options.create ? await options.create(post, media) : post;
+        accepted = saved;
+        publishedRevision = snapshot.revision;
         const focus = composer.isOpen && doc.activeElement === snapshot.focused;
         // The byline is what the profile view treats as "you" (src/
         // social-identity.js). Remembered only after a post actually lands, so a
@@ -2014,8 +2030,15 @@ export function mountSocialFeed(root, options = {}) {
         // exception that escapes into the console. No field is touched, so the
         // draft — the one sent, or the one it was edited into — can be sent again.
         const focus = composer.isOpen && doc.activeElement === snapshot.focused;
-        showFailure(error?.message || "This post could not be saved. Check the live connection.", { retry: true, focus });
-        if (!composer.isOpen && announcer) announcer.textContent = "Your post was not published. Select Write a post to try again.";
+        if (accepted) {
+          // A local rendering/cleanup error cannot undo a confirmed write.
+          // Keep its receipt and never offer to resend that published revision.
+          showConfirmation(accepted, { hasImage: snapshot.hasImage, focus });
+          notice?.append(document.createTextNode(" Your post was saved, but this page could not finish updating. Open the post to view it."));
+        } else {
+          showFailure(error?.message || "This post could not be saved. Check the live connection.", { retry: true, focus });
+        }
+        if (!composer.isOpen && announcer) announcer.textContent = accepted ? "Post published." : "Your post was not published. Select Write a post to try again.";
       } finally {
         setSubmitting(false);
       }
