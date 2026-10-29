@@ -46,7 +46,7 @@ const HOME_LABEL = "Request a Shiplog demonstration";
 // other five pages already use — instead of instructing a reader to go and use
 // the form themselves. It names what is shown, never what is sent: the topic
 // stays on this page, and the sentence beside the field says so too.
-const HOME_DESCRIPTION = "Both actions move you to the follow-up form at the foot of this page and name your chosen topic above its field. The form sends your work email address and nothing else.";
+const HOME_DESCRIPTION = "Both actions move you to the Shiplog follow-up request at the foot of this page and name your chosen topic above its field. It sends your work email address and nothing else.";
 
 const PANEL_ID = ASK_ABOUT_SHIPLOG_HREF.slice(1);
 
@@ -391,7 +391,7 @@ test("the line costs no control, and the ask still says how the request is sent"
   // What comes back is not promised here — #2689 left that sentence at the
   // form, and the page-wide count above pins it to one copy.
   const row = textOf(line.parentNode);
-  assert.match(row, /follow-up form at the foot of this page/);
+  assert.match(row, /Shiplog follow-up request at the foot of this page/);
   assert.ok(!row.includes(FOLLOW_UP_REPLY),
     `the row promises a reply the form below already promises: ${FOLLOW_UP_REPLY}`);
 

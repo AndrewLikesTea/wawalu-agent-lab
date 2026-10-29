@@ -349,8 +349,8 @@ test("the composer is read after the feed and before the contact route, and adds
   const route = text.indexOf("How reporting works");
   const answer = text.indexOf("Reporting a post");
   assert.ok(route >= 0 && answer > route, "the reporting route or its answer is missing");
-  assert.doesNotMatch(text.slice(route, answer), /Shiplog demonstration|Shiplog pilot|Ask about Shiplog/);
-  for (const ask of ["Ask about Shiplog", "Request a Shiplog demonstration", "Discuss a Shiplog pilot"])
+  assert.doesNotMatch(text.slice(route, answer), /Shiplog demonstration|Shiplog pilot|Shiplog follow-up request/);
+  for (const ask of ["Send a Shiplog follow-up request","Request a Shiplog demonstration", "Discuss a Shiplog pilot"])
     assert.ok(text.indexOf(ask) > answer, `${ask} is read before the reporting explanation`);
 
   // "After the feed region" means after the cards, not merely after the element

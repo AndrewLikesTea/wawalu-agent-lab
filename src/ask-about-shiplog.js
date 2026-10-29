@@ -41,8 +41,11 @@ export const ASK_ABOUT_SHIPLOG_ID = "ask-about-shiplog";
  * The label, in one place. It names the errand and not the gesture, and it is
  * deliberately not the submit button's words: renaming a submit enrols its form
  * in the byte-exact follow-up privacy and topic contracts.
+ *
+ * #3055: it names the form by the one name the site gives it, so it no longer
+ * reads as a near-twin of the footer's "About Shiplog" heading.
  */
-export const ASK_ABOUT_SHIPLOG_LABEL = "Ask about Shiplog";
+export const ASK_ABOUT_SHIPLOG_LABEL = "Send a Shiplog follow-up request";
 
 /** The follow-up form's container, which is what the route lands on. */
 export const ASK_ABOUT_SHIPLOG_HREF = "#site-footer-panel";
@@ -68,7 +71,7 @@ export const ASK_ABOUT_SHIPLOG_DESCRIPTION_ID = "ask-about-shiplog-description";
  * both is that there is no self-serve signup and no published price and that
  * both are answered on request.
  */
-export const ASK_ABOUT_SHIPLOG_DESCRIPTION = "Ask about Shiplog, and a person on the Wawalu team"
+export const ASK_ABOUT_SHIPLOG_DESCRIPTION = "Send a Shiplog follow-up request, and a person on the Wawalu team"
   + " that operates it replies by email, usually within two working days.";
 
 /**
