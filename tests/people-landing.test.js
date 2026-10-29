@@ -274,6 +274,23 @@ test("a first-time visitor lands on a display name that has image posts", async 
   }
 });
 
+// #3058. The tab and the heading alone say what People holds, before a reader
+// gets to the tagline. Read after real tiles land, because the script rewrites
+// the title and the authored markup would pass on turn zero.
+test("the tab and the heading both say People holds public image posts from Social", async () => {
+  const page = await people();
+  try {
+    const { document } = page;
+    await waitFor(() => document.querySelectorAll(".profile-tile").length > 0, "real tiles replace the skeleton");
+    assert.equal(document.title, "People · public image posts from Social · Wawalu Lab");
+    assert.equal(textOf(document.querySelector("#page-title")), "People: public image posts from Social");
+    // The nav's word still leads, and the clause is inside the heading.
+    assert.equal(document.querySelector("#page-title").children.filter((node) => node.getAttribute?.("class") === "profile-title-detail").length, 1);
+  } finally {
+    page.restore();
+  }
+});
+
 // The waiting copy is People's own — the image posts under the selected display
 // name — and it is copy for a wait, so it must not outlive one. It used to be
 // Social's old whole-feed loading message, which announced the whole feed on the

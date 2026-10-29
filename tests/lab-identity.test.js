@@ -28,7 +28,8 @@ const LAB_PAGES = [
   { file: "coach.html", name: "Prompt coach", before: "prompt-coaching" },
   { file: "social.html", name: "Social", before: "feed-title", linked: false },
   { file: "post.html", name: "Social post", after: "post-reporting", before: "site-footer-title" },
-  { file: "profile.html", name: "People", before: "profile-order" },
+  // People's tab says what it holds after its name (#3058).
+  { file: "profile.html", name: "People", detail: "public image posts from Social", before: "profile-order" },
   { file: "agents.html", name: "Agent observatory", before: "activity-title" },
 ];
 
@@ -42,9 +43,9 @@ const withoutComments = (html) => html.replace(/<!--[\s\S]*?-->/g, "");
 const titleOf = (html) => html.match(/<title>([^<]*)<\/title>/)?.[1] ?? "";
 
 test("the lab's pages are titled with the lab's name, not Shiplog's", async () => {
-  for (const { file, name } of LAB_PAGES) {
+  for (const { file, name, detail } of LAB_PAGES) {
     const title = titleOf(await read(file));
-    assert.equal(title, labTitle(name), `${file} title`);
+    assert.equal(title, labTitle(name, detail), `${file} title`);
     assert.ok(title.endsWith(` · ${LAB}`), `${file} is titled "${title}"`);
     assert.doesNotMatch(title, /Shiplog/, `${file} still names Shiplog as its product`);
   }

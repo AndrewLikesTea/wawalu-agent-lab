@@ -1,3 +1,6 @@
+/* The clause in People's h1 that names its content (#3058): part of the
+   heading, set smaller so the nav's word still leads. It wraps; nothing hides it. */
+.profile-title-detail { font-size:.5em; letter-spacing:-.02em; }
 /* Empty recovery stays readable with long display names on narrow screens. */
 #feed-state .empty-state, #profile-feed-status .empty-state { min-width:0; overflow-wrap:anywhere; }
 #profile-feed-status .empty-actions .empty-action { max-width:100%; box-sizing:border-box; line-height:1.4; }

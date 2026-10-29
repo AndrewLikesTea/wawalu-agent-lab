@@ -24,7 +24,7 @@ const PAGES = [
   { file: "workspace.html", current: "/", title: "Local workspace · Shiplog" },
   { file: "social.html", current: "/social.html", title: "Social · Wawalu Lab" },
   { file: "post.html", current: "/social.html", title: "Social post · Wawalu Lab" },
-  { file: "profile.html", current: "/profile.html", title: "People · Wawalu Lab" },
+  { file: "profile.html", current: "/profile.html", title: "People · public image posts from Social · Wawalu Lab" },
   { file: "releases.html", current: "/releases.html", title: "Releases · Shiplog" },
   { file: "release.html", current: "/releases.html", title: "Release · Shiplog" },
   { file: "evolution.html", current: "/evolution.html", title: "AI FinOps · Shiplog" },
@@ -326,8 +326,9 @@ test("the profile page defines the selected name as a display name", async () =>
   // A reader who clicked "People" arrives at a heading that says People, so the
   // link and the page agree on one name for this surface. The selected person is
   // a filter on it, not its name, so the name renders in the profile header that
-  // opens the results — still present, still the pre-hydration default.
-  assert.match(html, /<h1 id="page-title">People<\/h1>/);
+  // opens the results — still present, still the pre-hydration default. After
+  // the nav's word, the heading says what the page holds (#3058).
+  assert.match(html, /<h1 id="page-title">People<span class="profile-title-detail">: public image posts from Social<\/span><\/h1>/);
   // Nothing has been published by anyone in the pre-hydration frame, so the line
   // that states what the grid is showing ships with no sentence in it and the
   // heading beside it names the content type rather than a display name the seed
@@ -347,7 +348,7 @@ test("Social and People preserve guidance explaining the other surface", async (
     // People's description carries the link to Social inside itself, so the
     // capture takes markup: the sentence that names the other surface is the
     // sentence that opens it.
-    { file: "profile.html", heading: "People", other: "Social", lede: /<h1 id="page-title">People<\/h1>\s*<p class="profile-lede" id="page-tagline">[^<]*<\/p>[\s\S]*?<p class="profile-lede hint">([\s\S]*?)<\/p>/ },
+    { file: "profile.html", heading: "People", other: "Social", lede: /<h1 id="page-title">People<span class="profile-title-detail">[^<]*<\/span><\/h1>\s*<p class="profile-lede" id="page-tagline">[^<]*<\/p>[\s\S]*?<p class="profile-lede hint">([\s\S]*?)<\/p>/ },
   ];
 
   const descriptions = [];
@@ -419,7 +420,8 @@ test("Social and People lead with the same one-line, verb-first tagline the rest
   for (const [file, tagline] of taglines) {
     const html = (await readFile(pageUrl(file), "utf8")).replace(/<!--[\s\S]*?-->/g, "");
     // Directly under the heading, above the paragraph that used to carry it.
-    const match = html.match(/<h1 id="page-title">[^<]*<\/h1>\s*<p([^>]*)>([^<]*)<\/p>/);
+    // People's heading carries its content clause in a span (#3058).
+    const match = html.match(/<h1 id="page-title">(?:[^<]|<span[^>]*>[^<]*<\/span>)*<\/h1>\s*<p([^>]*)>([^<]*)<\/p>/);
     assert.ok(match, `${file}: the heading must be followed by a one-line tagline`);
     assert.match(match[1], /id="page-tagline"/, `${file}: the tagline must be the element under the heading`);
     assert.equal(match[2], tagline);
