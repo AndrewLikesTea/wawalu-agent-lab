@@ -12,6 +12,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { loadPage, textOf, tabSequence, pressKey, pressTab } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 import { bootSocial } from "./support/social-paint-arrival.js";
@@ -669,6 +670,38 @@ test("selecting with the pointer moves the heading, list, and URL together", asy
     assert.equal(document.querySelector("#profile-paint-route").href, "/paint/?from=profile&author=Bea");
   } finally {
     page.restore();
+  }
+});
+
+// #3058: a tab or heading that said only "People" read as a directory of
+// accounts. Both now say what the page holds, and keep saying it once the page
+// has hydrated: profile-page.js rewrites the tab title on boot.
+test("the tab and the heading say People shows public image posts from Social", async () => {
+  const TITLE = "People · public image posts from Social · Wawalu Lab";
+  const HEADING = "People: public image posts from Social";
+  const html = await readFile(PAGE_URL, "utf8");
+  assert.ok(html.includes(`<title>${TITLE}</title>`), "the shipped markup carries the new title");
+
+  const page = await people();
+  try {
+    const { document } = page;
+    assert.equal(document.title, TITLE);
+    const headings = document.querySelectorAll("h1");
+    assert.equal(headings.length, 1);
+    assert.equal(textOf(headings[0]), HEADING);
+    // The heading names the content, not an action: People is not where you publish.
+    assert.doesNotMatch(HEADING, /publish/i);
+  } finally {
+    page.restore();
+  }
+
+  // No width hides or cuts the heading: every rule that can reach it, inside a
+  // media query or not, only sizes and wraps it.
+  const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
+  for (const [, selector, body] of css.matchAll(/([^{}]*)\{([^}]*)\}/g)) {
+    if (!/(^|[\s,>])h1\b|#page-title|\.hero-profile/.test(selector)) continue;
+    assert.doesNotMatch(body, /display:\s*none|visibility:\s*hidden|text-overflow|line-clamp|white-space:\s*nowrap|overflow:\s*hidden/,
+      `"${selector.trim()}" hides or truncates the People heading`);
   }
 });
 
