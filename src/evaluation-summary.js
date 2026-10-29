@@ -84,7 +84,7 @@ export const EVALUATION_SUMMARY_EXAMPLE_CAVEAT =
 // state entirely — a reader with a full log and a refused read must not be told
 // they have nothing.
 export const EVALUATION_SUMMARY_UNREAD =
-  "The decision and release log could not be read in this browser, so there is nothing to summarise. "
+  "The decision and release log could not be read in this browser, so there is nothing to summarize. "
   + "Use Retry above the log, then copy this summary.";
 
 // Both logs are counted in the same shape, so a reader comparing the two lines

@@ -452,6 +452,20 @@ test("no developer note leaks into the copy a visitor reads", async () => {
   }
 });
 
+test("the pages a visitor reads spell in American English", async () => {
+  // One spelling convention across the product (issue 3051). The text a reader
+  // meets, plus the attributes a screen reader or tooltip reads aloud.
+  const BRITISH = /labelled|summarised|organisation|behaviour|analyse|colour|favour/gi;
+  for (const page of ["index", "releases", "social", "profile", "post", "coach"]) {
+    const html = await readFile(new URL(`../src/${page}.html`, import.meta.url), "utf8");
+    const attributes = [...html.matchAll(/\b(?:aria-label|title|alt|placeholder)="([^"]*)"/g)]
+      .map((match) => match[1]);
+    const title = html.match(/<title>([^<]*)<\/title>/)?.[1] ?? "";
+    const text = [parseHtml(html).body.textContent, title, ...attributes].join("\n");
+    assert.deepEqual(text.match(BRITISH) ?? [], [], `${page}.html paints a British spelling`);
+  }
+});
+
 // An ampersand, letters, a semicolon: the shape of an HTML entity reference
 // that reached a reader as characters instead of being read as punctuation.
 const ENTITY_IN_TEXT = /&[A-Za-z][A-Za-z0-9]*;/g;

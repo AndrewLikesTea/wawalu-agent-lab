@@ -50,7 +50,7 @@ export const LITERACY_SLOT_LABEL = "AI literacy · graded prompt sample";
 /** The invented-data marker, in the sibling slots' own idiom. */
 export const LITERACY_SAMPLE_NOTE =
   "Synthetic prompts from an invented company, scored by a published rubric — "
-  + "not customer behaviour and not realized savings.";
+  + "not customer behavior and not realized savings.";
 
 /** What the slot says when the corpus could not be scored at all. */
 export const LITERACY_UNAVAILABLE = Object.freeze({

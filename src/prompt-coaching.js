@@ -128,8 +128,8 @@ export const COACHING_RECOVERY = Object.freeze({
     control: "prompt-coaching-input",
   }),
   [COACHING_REASON.noUserTurn]: Object.freeze({
-    title: "Every turn in that paste is labelled as the model's.",
-    guidance: "This workflow grades what you wrote. Include at least one turn labelled “User:”, or paste the prompt on its own with no labels at all.",
+    title: "Every turn in that paste is labeled as the model's.",
+    guidance: "This workflow grades what you wrote. Include at least one turn labeled “User:”, or paste the prompt on its own with no labels at all.",
     control: "prompt-coaching-input",
   }),
   [COACHING_REASON.noTurns]: Object.freeze({
@@ -310,8 +310,8 @@ export const IMPROVEMENT_COPY = Object.freeze({
   }),
   "intent-structured-layout": Object.freeze({
     add: Object.freeze({
-      title: "Break the request into labelled parts.",
-      guidance: "Two labelled lines or a short numbered list. Layout is the one intent signal that survives translation, so it lifts a request written in any language.",
+      title: "Break the request into labeled parts.",
+      guidance: "Two labeled lines or a short numbered list. Layout is the one intent signal that survives translation, so it lifts a request written in any language.",
     }),
   }),
   "intent-pasted-context": Object.freeze({

@@ -521,7 +521,7 @@ test("both destinations ship as constants, and only the People link's target nar
 // take it away. What is left here is Social's bytes for the provenance, word for
 // word, and People's, including the sentence about the invented posts' names
 // (#2895).
-const STANDING_SENTENCE = "Posts labelled “Example post” are invented to show how Social works; they use no customer or production data. Their display names are invented.";
+const STANDING_SENTENCE = "Posts labeled “Example post” are invented to show how Social works; they use no customer or production data. Their display names are invented.";
 
 // Every state the panel can be in, named the way a reader would name it.
 const PANEL_STATES = [

@@ -657,7 +657,7 @@ test("Social's homepage directory explains publishing, while a permalink explain
   // The permalink's standing copy is post-specific and does not repeat the
   // generic feed description beside it.
   const permalink = parseHtml(await read("post.html")).querySelector("#main-content");
-  assert.ok(textOf(permalink).includes("Posts labelled “Example post” are invented to show how Social works; they use no customer or production data."));
+  assert.ok(textOf(permalink).includes("Posts labeled “Example post” are invented to show how Social works; they use no customer or production data."));
   assert.equal(textOf(permalink).includes(PURPOSE), false,
     "the post permalink repeats the generic Social description beside the post-specific explanation");
 

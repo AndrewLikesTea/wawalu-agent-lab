@@ -16,7 +16,7 @@ import { classLabel } from "./finops-classifier-agreement.js";
 
 /** On screen when the corpus did not load. Names the gap; invents no figure. */
 export const AGREEMENT_UNAVAILABLE =
-  "The labelled sample did not load, so there is no agreement figure to show. "
+  "The labeled sample did not load, so there is no agreement figure to show. "
   + "Nothing on this page is estimated in its place.";
 
 /**
@@ -31,7 +31,7 @@ export function agreementCopy(report) {
   return Object.freeze({
     headline: `The query classifier agrees with human labels on ${agreed} of ${sampleSize} sampled queries.`,
     caveat: weakest
-      ? `Weakest class: ${classLabel(weakest.class)} — agrees on ${weakest.agreed} of ${weakest.support} queries a reviewer labelled that way.`
+      ? `Weakest class: ${classLabel(weakest.class)} — agrees on ${weakest.agreed} of ${weakest.support} queries a reviewer labeled that way.`
       : "",
     basis: `Agreement with published human labels on a synthetic sample of ${sampleSize} invented queries — not accuracy on customer traffic, and not a measurement of any customer's export.`,
     tieBreak: weakest ? `Weakest class chosen by: ${weakest.tieBreak}` : "",

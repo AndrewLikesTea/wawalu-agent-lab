@@ -360,7 +360,7 @@ test("a visitor with no files meets five resolved slots and one ranked action", 
     assert.match(literacyDetail, /^\$[\d,]+ of \$[\d,]+ in-scope invented spend was scored/);
     assert.match(literacyDetail, /(high|moderate|provisional|insufficient) coverage/);
     assert.match(literacyDetail, /\d+ of \d+ synthetic prompts classified/);
-    assert.match(literacyDetail, /not customer behaviour and not realized savings/);
+    assert.match(literacyDetail, /not customer behavior and not realized savings/);
 
     assert.equal(byId(document, FIRST_RUN_IDS.action).dataset.available, "true");
     assert.match(textOf(byId(document, FIRST_RUN_IDS.role)), /Accountable role: /);
