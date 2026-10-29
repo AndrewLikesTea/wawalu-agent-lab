@@ -309,7 +309,7 @@ test("social page is wired, labeled, and linked from the other pages", async () 
   // says so in the same parenthetical the other three fields use, and its hint —
   // the refusal an empty post actually meets — is named by the textarea itself.
   assert.match(page, /<label for="post-body">Your post <span class="label-optional label-required">\(required\)<\/span><\/label>/);
-  assert.match(page, /aria-describedby="post-body-hint post-counter-label post-counter"/);
+  assert.match(page, /aria-describedby="post-body-guide post-body-hint post-counter-label post-counter"/);
   // The budget, and nothing about what the browser will do to an empty field:
   // the hint used to narrate a refusal before the reader had typed anything. The
   // number is the textarea's own maxlength. It opened "Required." as well, which
@@ -2597,6 +2597,55 @@ test("the composer says once, in its own name and beside Close, that the draft i
   assert.match(textOf(note), /Closing this tab or leaving the page discards it\.$/);
   assert.doesNotMatch(textOf(note), /after (?:you )?clos|reopen|come back|next visit/i,
     "the sentence claims the draft survives the tab");
+});
+
+// #3057: a first-time publisher met a blank box and a character limit, and
+// nothing said what a Social post is for. One plain sentence under the label
+// says it, and the textarea names it first.
+const POST_BODY_GUIDE = "Share something you shipped: what changed, why, and what happened next.";
+
+test("the composer tells a publisher what to write, at the post field", async (t) => {
+  const { document, id } = await socialDisclosure(t);
+  id("post-compose-open").click();
+  const guide = id("post-body-guide");
+
+  assert.equal(document.querySelectorAll("#post-body-guide").length, 1);
+  assert.equal(textOf(guide), POST_BODY_GUIDE);
+  assert.equal(guide.getAttribute("class"), "hint", "the guide drew a new style instead of the shipped hint");
+  for (let cursor = guide; ; cursor = cursor.parentNode) {
+    assert.ok(cursor, "the guide is not inside the composer");
+    if (cursor.getAttribute?.("id") === "post-compose-panel") break;
+  }
+  // Read on narrow and wide screens alike: nothing folds or hides it, and no
+  // media query in either stylesheet touches the hint style.
+  assert.equal(foldedAway(guide), false, "the guide renders only inside something collapsed");
+  for (const sheet of ["styles.css", "social-composer.css"]) {
+    const css = await readFile(new URL(`../src/${sheet}`, import.meta.url), "utf8");
+    for (const rule of css.match(/@media[^{]*\{(?:[^{}]*\{[^{}]*\})*[^{}]*\}/g) ?? []) {
+      assert.doesNotMatch(rule, /\.hint\b|post-body-guide/, `${sheet} restyles the hint at a breakpoint: ${rule}`);
+    }
+  }
+  // Text only: Social's composer tab order is pinned stop by stop.
+  assert.equal(guide.querySelectorAll("a,button,input").length, 0);
+  assert.equal(guide.getAttribute("tabindex"), null);
+
+  // Named by the field, ahead of the limit and counter it sits above.
+  assert.deepEqual(id("post-body").getAttribute("aria-describedby").split(" "),
+    ["post-body-guide", "post-body-hint", "post-counter-label", "post-counter"]);
+  const siblings = id("post-body").parentNode.childElements;
+  assert.equal(siblings.indexOf(guide) + 1, siblings.indexOf(id("post-body")),
+    "the guide no longer sits directly above the post field");
+
+  // The limit, the required marker and the submit are exactly as they were.
+  assert.equal(id("post-body").getAttribute("maxlength"), "280");
+  assert.equal(textOf(document.querySelector('label[for="post-body"]')), "Your post (required)");
+  assert.equal(textOf(id("post-body-hint")), "Up to 280 characters.");
+  assert.equal(textOf(id("post-counter")), "280");
+  assert.equal(textOf(id("post-submit")), "Publish post");
+
+  // Posts are public and permanent, so the guide must not suggest otherwise.
+  assert.doesNotMatch(textOf(guide), /private|only you|in this browser|edit|published as|sign(?:ed)? in|verified/i);
+  assert.equal(textOf(document.body).split(POST_BODY_GUIDE).length - 1, 1);
 });
 
 
