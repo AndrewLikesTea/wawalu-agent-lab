@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { loadPage, pressEnter, tabSequence, textOf } from "./support/browser.js";
 import { initSiteFooter } from "../src/site-footer.js";
+import { FOLLOW_UP_REPLY } from "../src/lead-capture.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 
 for (const enhanced of [true, false]) {
@@ -66,6 +67,31 @@ test("opening links retain their native destination without scripts", async (t) 
   for (const id of ["ask-about-shiplog", "discuss-pilot"]) page.document.getElementById(id).click();
   assert.deepEqual(page.document.navigations, ["#site-footer-panel", "#site-footer-panel"]);
   assert.equal(page.document.getElementById("site-footer-form").hidden, false);
+});
+
+test("the opening actions say who replies and when, on load and as prose", async (t) => {
+  // #3046: before the demo runs and before the form opens, a prospect reads
+  // who answers these two asks and roughly when, in the form's own window.
+  const page = await loadPage(new URL("../src/index.html", import.meta.url));
+  t.after(() => page.restore());
+  const { document } = page;
+  const reply = document.getElementById("homepage-sales-reply");
+  const row = document.getElementById("ask-about-shiplog").parentNode;
+  assert.ok(reply.closest("#shiplog-entry"));
+  const siblings = reply.parentNode.childElements;
+  assert.ok(siblings[siblings.indexOf(reply) - 1] === row, "the line does not sit straight below the actions");
+  assert.equal(reply.hidden, false);
+  const promise = FOLLOW_UP_REPLY.slice(FOLLOW_UP_REPLY.indexOf("replies by email"));
+  assert.equal(textOf(reply), `A person on the Wawalu team that operates Shiplog ${promise}`);
+  assert.notEqual(textOf(reply), FOLLOW_UP_REPLY, "the form's sentence must stay its own");
+  assert.equal(reply.getAttribute("tabindex"), null);
+  assert.equal(reply.querySelectorAll("a").length + reply.querySelectorAll("button").length, 0);
+  assert.equal(tabSequence(document).filter((node) => node === reply).length, 0);
+  for (const id of ["ask-about-shiplog", "discuss-pilot"]) {
+    const describedBy = document.getElementById(id).getAttribute("aria-describedby");
+    assert.equal(describedBy, "ask-about-shiplog-description", `${id} must name one description`);
+    assert.equal(document.querySelectorAll(`#${describedBy}`).length, 1);
+  }
 });
 
 test("destination spacing, responsive rows, reduced motion and visible focus use existing CSS", async () => {
