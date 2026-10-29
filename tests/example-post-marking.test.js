@@ -304,7 +304,7 @@ test("the normalizers carry source through, so a published post reaches the rend
 // label fails this test instead of quietly leaving three caveats pointing at a
 // marker no post carries. The quotation marks are the site's typographic ones,
 // as in every other quoted control name in these pages' prose.
-const QUOTED_LABEL = `labelled “${EXAMPLE_POST_LABEL}”`;
+const QUOTED_LABEL = `labeled “${EXAMPLE_POST_LABEL}”`;
 
 test("every caveat that points at the label quotes the label the posts are drawn with", async (t) => {
   const caveats = {

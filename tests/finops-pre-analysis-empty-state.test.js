@@ -139,7 +139,7 @@ test("the shipped first screen draws all five bundled metric tiles", async () =>
   assert.match(literacy, /(high|moderate|provisional|insufficient) coverage/);
   assert.match(literacy, /\d+ of \d+ synthetic prompts classified/);
   assert.match(literacy, /Synthetic prompts from an invented company/);
-  assert.match(literacy, /not customer behaviour and not realized savings/);
+  assert.match(literacy, /not customer behavior and not realized savings/);
 });
 
 test("the org's standing is asked once, and no heading is a bare placeholder", async () => {

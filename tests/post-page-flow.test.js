@@ -182,7 +182,7 @@ test("the permalink says whose display names are invented and who chose the rest
   const shipped = [];
   for (const file of ["social.html", "profile.html", "post.html"]) {
     const html = (await readFile(new URL(`../src/${file}`, import.meta.url), "utf8")).replace(/<!--[\s\S]*?-->/g, "");
-    const invented = html.match(/labelled “Example post” [^<]*?(Their display names are invented\.)/)?.[1];
+    const invented = html.match(/labeled “Example post” [^<]*?(Their display names are invented\.)/)?.[1];
     assert.equal(invented, INVENTED, `${file} no longer says the Example posts' names are invented`);
     const clause = html.match(/On any other post,[^<]*anyone can publish under any name\./)?.[0];
     assert.ok(clause, `${file} no longer tells a reader who chose any other name`);
@@ -874,7 +874,7 @@ test("the loading state is one announced line in the post's region, and takes no
     // The frame around it still says what the page is, so the region is never
     // an unexplained blank.
     assert.match(textOf(page.document.querySelector(".hero-post")),
-      /Posts labelled “Example post” are invented to show how Social works; they use no customer or production data\./);
+      /Posts labeled “Example post” are invented to show how Social works; they use no customer or production data\./);
     assertExits(page, null, "loading");
     assert.equal(textOf(page.document.querySelector("#post-people")), "", "loading must not expose an empty or placeholder display name");
     assert.equal(page.document.querySelector("#post-people").hidden, true);

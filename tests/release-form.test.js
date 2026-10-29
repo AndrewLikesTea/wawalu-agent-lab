@@ -340,7 +340,7 @@ test("the recorder markup groups the picker and never builds HTML from stored te
   assert.match(page, /id="release-decisions"/);
   assert.match(page, /<legend>Linked decisions <span class="label-optional">\(optional\)<\/span><\/legend>/);
   assert.match(page, /Link decisions to this release, or leave all unchecked\./);
-  assert.match(page, /The first decision you link is summarised in its own section on the release page, above the other linked decisions\./);
+  assert.match(page, /The first decision you link is summarized in its own section on the release page, above the other linked decisions\./);
   // One name for the relationship, page-wide: the recorder, the filters and the
   // list all say "linked decision", and no reader meets a second word for it.
   assert.doesNotMatch(page, /governing/i, "the Releases page reintroduces a second name for a linked decision");
