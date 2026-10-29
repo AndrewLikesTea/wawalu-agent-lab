@@ -89,7 +89,7 @@ test("the post reads in one order: name, time, words, image, then its descriptio
   // The poster's name heads the page as its h1 (src/post-page.js writes it into
   // the hero above this panel) and opens the article as a link to that person's
   // People view — the page's one forward step out of a shared link.
-  assert.equal(postPageHeading(post), "Mina Okafor's Social post");
+  assert.equal(postPageHeading(post), "Post published as Mina Okafor");
 
   const time = tags(article, "TIME")[0];
   assert.equal(time.textContent.length > 0, true, "the timestamp needs human-readable text");
@@ -373,14 +373,14 @@ test("no slot of the placeholder survives into a state that resolved", () => {
 });
 
 // A permalink is the one page a visitor can land on with no context, so its h1
-// says what the page holds — a post — and who wrote it. The bare display name
-// used to read as that person's profile, which is a different page here.
+// says what the page holds — a post — and the unverified name it was published
+// under ("published as", not "by"). A bare name would read as a profile page.
 // Without a usable display name, the page keeps its generic Social post label.
 test("the loaded page is headed by the display name on the post", () => {
-  assert.equal(postPageHeading(post), "Mina Okafor's Social post");
+  assert.equal(postPageHeading(post), "Post published as Mina Okafor");
   assert.equal(postPageHeading(null), "Social post");
   assert.equal(postPageHeading({ ...post, author: "" }), "Social post");
-  assert.equal(postPageHeading({ ...post, author: "  Mina Okafor  " }), "Mina Okafor's Social post");
+  assert.equal(postPageHeading({ ...post, author: "  Mina Okafor  " }), "Post published as Mina Okafor");
 });
 
 test("missing or non-text display names use the generic fallback", () => {
@@ -397,13 +397,13 @@ test("the permalink heading matches the phrase in the document title", () => {
     "the tab title opens with the same phrase the h1 shows");
 });
 
-test("the document title names the post and the product, saying Social once", () => {
-  assert.equal(postDetailTitle(post), "Mina Okafor's Social post · Wawalu Lab");
+test("the document title names the post and retains Wawalu Lab context", () => {
+  assert.equal(postDetailTitle(post), "Post published as Mina Okafor · Wawalu Lab");
   assert.equal(postDetailTitle(null), "Social post · Wawalu Lab");
   assert.equal(postDetailTitle(null, "not-found"), "Social post · Wawalu Lab");
   assert.equal(postDetailTitle(null, "error"), "Social post · Wawalu Lab");
   // A state name never overrides a post that actually loaded.
-  assert.equal(postDetailTitle(post, "error"), "Mina Okafor's Social post · Wawalu Lab");
+  assert.equal(postDetailTitle(post, "error"), "Post published as Mina Okafor · Wawalu Lab");
 });
 
 test("the post page's two routes out sit after the site frame, and name where they go", async () => {
