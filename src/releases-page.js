@@ -33,6 +33,7 @@ import { initDeploymentStatus } from "./deployment-status-view.js";
 import { RELEASE_FORM_ERRORS, createRelease, mountDecisionPicker, recordedSummaryText } from "./release-form.js";
 import { copyRecordUrl } from "./share-link.js";
 import { decisionToLink } from "./decision-entry.js";
+import { initReleaseViewSummary } from "./release-view-summary.js";
 import { initReleaseExport } from "./release-export.js";
 import { initReleaseReasoningProof } from "./release-reasoning-proof.js";
 import { initReleaseCoverageGaps } from "./release-coverage-gaps.js";
@@ -395,6 +396,11 @@ export function initReleasesPage(root = document, storage = localStorage, option
   // visitor downloads is the list they are looking at by construction and not
   // by two implementations agreeing.
   let shown = [];
+  const summaryCopy = initReleaseViewSummary(root, {
+    shown: () => shown,
+    provenance: () => [exampleReleaseIds, data.exampleDecisionIds],
+    clipboard: options.clipboard ?? globalThis.navigator?.clipboard,
+  });
   // The reasoning figure above the log (#2579). Mounted before the first render
   // so its copy control is live from the same moment its sentence is, and fed
   // from `releases` — the complete loaded log — on every render below rather than
@@ -437,6 +443,7 @@ export function initReleasesPage(root = document, storage = localStorage, option
     if (unread || logState === "loading") {
       // Nothing is shown, so nothing is counted, exported or followed up.
       shown = [];
+      summaryCopy.update();
       container.replaceChildren();
       container.setAttribute("aria-busy", String(logState === "loading"));
       announce(logState === "loading" ? "loading" : "error");
@@ -463,6 +470,7 @@ export function initReleasesPage(root = document, storage = localStorage, option
       : releases;
     logState = listed.length === 0 ? "empty" : "ready";
     shown = view.render({ releases: listed, decisions, exampleIds: exampleReleaseIds }, filters);
+    summaryCopy.update();
     // One count, from the same computation that rendered the rows, and one
     // follow-up derived from exactly those rows — so the callout can never
     // point at a release the active filter has hidden.
@@ -501,6 +509,7 @@ export function initReleasesPage(root = document, storage = localStorage, option
     }
     unread = false;
     logState = next.releases.length ? "ready" : "empty";
+    data = next;
     releases = next.releases;
     decisionsRead = decisionLogReadable();
     decisions = next.decisions;
@@ -585,6 +594,7 @@ export function initReleasesPage(root = document, storage = localStorage, option
     }
     decisionsRead = true;
     const next = loadReleaseData(storage, seed);
+    data.exampleDecisionIds = next.exampleDecisionIds;
     decisions = next.decisions;
     linkableDecisions = decisions;
     fillDecisionOptions(decisions);

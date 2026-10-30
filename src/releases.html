@@ -237,6 +237,18 @@
           <span class="hint" id="release-export-scope">The JSON download includes only the releases currently shown by the active search and filters. Each exported release includes its linked decisions.</span>
           <span class="share-status" id="release-export-status" role="status" aria-live="polite" aria-atomic="true"></span>
         </div>
+        <div class="release-view-summary">
+          <button class="share-button" id="release-summary-copy" type="button" disabled aria-describedby="release-summary-scope release-summary-availability">Copy visible releases summary</button>
+          <p class="hint" id="release-summary-scope">Buyer-ready plain text for email or planning documents, reflecting the current filtered view in displayed order. Example records and records added in this browser are labeled separately, including linked decisions.</p>
+          <p class="hint" id="release-summary-availability">Copy becomes available when releases are visible.</p>
+          <p id="release-summary-status" role="status" aria-live="polite" aria-atomic="true"></p>
+          <div id="release-summary-fallback" hidden>
+            <label for="release-summary-text">Generated release summary</label>
+            <p id="release-summary-instructions">Select the text, then press Ctrl+C or Command+C, or use your device’s Copy command.</p>
+            <textarea id="release-summary-text" rows="12" readonly aria-describedby="release-summary-instructions"></textarea>
+            <button class="share-button" id="release-summary-select" type="button">Select summary text</button>
+          </div>
+        </div>
         <!-- One action per key, and only the keys the list answers. Space
              expands the row in place — the same verb the paragraph above the
              list uses — while Enter leaves for the release's own page, so a
