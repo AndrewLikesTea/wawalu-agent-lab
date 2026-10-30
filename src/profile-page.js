@@ -29,7 +29,10 @@ const REFRESH_INTERVAL = 30_000;
 async function fetchLivePosts() {
   const response = await fetch("/api/social-posts?limit=100", { cache: "no-store", headers: { accept: "application/json" } });
   if (!response.ok) throw new Error(`Posts API returned ${response.status}`);
-  return normalizeProfileApiPosts(await response.json());
+  const payload = await response.json();
+  // A body without a posts list is a broken answer, not an empty feed (#3066).
+  if (!Array.isArray(payload?.posts)) throw new Error("Posts API returned no posts list");
+  return normalizeProfileApiPosts(payload);
 }
 
 async function fetchSeedPosts() {
@@ -122,10 +125,16 @@ async function init() {
   window.addEventListener("popstate", () => restoreSelection(window.location.search));
 
   let live = [];
+  // Refreshes overlap (Retry, the timer, a returning tab); only the newest may
+  // draw, so a slow older answer never overwrites a newer one (#3066).
+  let latest = 0;
 
   async function refresh() {
+    const attempt = ++latest;
     try {
-      live = await fetchLivePosts();
+      const answer = await fetchLivePosts();
+      if (attempt !== latest) return;
+      live = answer;
       // Live posts shadow same-id seeds; the seed stays visible underneath so an
       // empty database does not read as an empty profile.
       const merged = mergePostsById(live, seeds);
@@ -151,6 +160,7 @@ async function init() {
       profile.seed(merged, author);
       profile.setStatus(profileConnectionLine("live"));
     } catch {
+      if (attempt !== latest) return;
       // One sentence whether this is the first failed load or a connection that
       // dropped later: either way nothing new arrives on its own, and reloading
       // is the answer, so the page says it once.

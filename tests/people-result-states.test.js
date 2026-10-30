@@ -21,14 +21,18 @@ const seedPost = (id, author, withImage = true) => ({
 });
 const FEED = { posts: [seedPost("p-11", "Ari", false), seedPost("p-12", "Zed"), seedPost("p-13", "Bea"), seedPost("p-14", "Zed")] };
 
-async function people(t, { search = "", seed = FEED, live = { posts: [] } } = {}) {
+async function people(t, { search = "", seed = FEED, live = { posts: [] }, liveFetch = null } = {}) {
   const routes = { [SEED_ROUTE]: seed };
   if (live) routes[LIVE_ROUTE] = live;
   const page = await loadPage(PAGE_URL, { location: { search }, routes });
   const savedInterval = globalThis.setInterval;
   globalThis.setInterval = () => 0;
   globalThis.window.history = { pushState() {} };
-  t.after(() => { globalThis.setInterval = savedInterval; page.restore(); });
+  // liveFetch answers the posts API by hand: a non-OK status, a malformed body,
+  // or a response held open so two refreshes can settle out of order.
+  const routed = globalThis.fetch;
+  if (liveFetch) globalThis.fetch = (url, init) => (url === LIVE_ROUTE ? liveFetch() : routed(url, init));
+  t.after(() => { globalThis.fetch = routed; globalThis.setInterval = savedInterval; page.restore(); });
   await importPageModule("/profile-page.js");
   const { document } = page;
   await waitFor(() => document.documentElement.dataset.shiplogProfile === "ready", "the first load settles");
@@ -146,6 +150,76 @@ test("Retry does not pull focus back when the reader moved on during the wait", 
   elsewhere.focus();
   await waitFor(() => /could not be loaded/.test(announcer(document)), "the attempt fails");
   assert.equal(document.activeElement, elsewhere);
+});
+
+// #3066: a broken answer is a failure, not an empty feed. The harness only ever
+// rejects (an unrouted request), so the non-OK and malformed shapes are answered
+// by hand; each must draw the failure and leave the hero and the picker alone.
+const BROKEN = {
+  "a non-OK status": () => ({ ok: false, status: 503, json: async () => ({ error: "unavailable" }) }),
+  "a body with no posts list": () => ({ ok: true, json: async () => ({ posts: "none" }) }),
+  "a body that is not JSON": () => ({ ok: true, json: async () => { throw new SyntaxError("Unexpected token <"); } }),
+};
+for (const [shape, answer] of Object.entries(BROKEN)) {
+  test(`${shape} draws the failure inside the region and keeps the hero and picker`, async (t) => {
+    const { document } = await people(t, { seed: { posts: [] }, liveFetch: async () => answer() });
+    const status = document.querySelector("#profile-feed-status");
+    assert.match(textOf(status), /Image posts could not be loaded\./);
+    assert.equal(status.querySelector(".profile-retry").type, "button");
+    assert.equal(announcer(document), "Image posts could not be loaded. Select Retry loading image posts.");
+    assert.equal(panel(document)?.classList.contains("empty-state-none") ?? false, false, "a broken answer read as no image posts");
+    assert.equal(textOf(document.querySelector("#page-title")), "People: public image posts from Social");
+    assert.equal(document.querySelectorAll("#page-tagline").length, 1);
+    assert.equal(document.querySelectorAll("#profile-name-picker").length, 1);
+  });
+}
+
+test("a slower, older refresh cannot overwrite a newer one", async (t) => {
+  const answers = [];
+  const { document } = await people(t, {
+    search: "?author=Zed",
+    liveFetch: () => (answers.length ? new Promise((resolve) => answers.push(resolve)) : (answers.push(null), Promise.resolve({ ok: true, json: async () => ({ posts: [] }) }))),
+  });
+  assert.equal(tiles(document).length, 2);
+  // Two refreshes in flight (a returning tab twice); the newer answers first.
+  document.dispatchEvent({ type: "visibilitychange" });
+  document.dispatchEvent({ type: "visibilitychange" });
+  assert.equal(answers.length, 3, "both refreshes did not reach the posts API");
+  answers[2]({ ok: true, json: async () => ({ posts: [{
+    id: "live-zed", author: "Zed", content: "Newer.", timestamp: "2026-07-20T12:00:00.000Z", source: "shiplog-web",
+    image_url: "/media/Zed.svg", image_alt: "A drawing signed Zed", image_width: 1200, image_height: 900,
+  }] }) });
+  await waitFor(() => tiles(document).length === 3, "the newer refresh draws its post");
+  answers[1]({ ok: true, json: async () => ({ posts: [] }) });
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(tiles(document).length, 3, "the older answer overwrote the newer one");
+  assert.equal(announcer(document), "Showing 3 image posts by Zed, newest first.");
+});
+
+// No state injects or drops a page-level heading: the h1 and h2s are the same
+// elements, in the same order, whether the region is loading, populated, empty,
+// filtered to nothing or failed.
+test("the h1 and h2 outline is identical in every state", async (t) => {
+  const outline = (document) => ["h1", "h2"].map((tag) => document.querySelectorAll(tag).map((h) => h.getAttribute("id")).join(","));
+  const served = await loadPage(PAGE_URL, { routes: {} });
+  const loading = outline(served.document);
+  served.restore();
+  assert.deepEqual(loading, ["page-title", "grid-title,site-footer-title"]);
+  // The script mounts the report panel's (hidden) heading once, whatever the
+  // feed answers; it is the only heading hydration adds.
+  const expected = ["page-title", "grid-title,post-report-title,site-footer-title"];
+  const states = {
+    populated: {},
+    empty: { seed: { posts: [seedPost("p-11", "Ari", false)] } },
+    "filtered empty": { search: "?author=Nova" },
+    failed: { seed: { posts: [] }, live: null },
+  };
+  for (const [name, options] of Object.entries(states)) {
+    await t.test(name, async (st) => {
+      const { document } = await people(st, options);
+      assert.deepEqual(outline(document), expected, `the ${name} state changed the heading outline`);
+    });
+  }
 });
 
 // The harness models no layout, so the narrow-width guarantee is pinned in the
