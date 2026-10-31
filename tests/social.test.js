@@ -1911,7 +1911,7 @@ const foldedAway = (node) => {
 // promised twice that the draft is kept. One noun, one sentence, both exits.
 // #2976: "this tab" left a reader drawing in Paint unsure which tab, and did
 // not say the draft ends with the tab.
-const COMPOSER_KEPT_HINT = "Escape or Close hides the composer. Your draft stays in this Social tab, "
+const COMPOSER_KEPT_HINT = "Press the Escape key or select the Close button to hide the composer. Your draft stays in this Social tab, "
   + "even with the composer closed or while you draw in Paint in another tab. "
   + "Closing this tab or leaving the page discards it.";
 

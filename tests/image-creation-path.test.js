@@ -830,7 +830,7 @@ test("nothing in the image section says Paint delivers the file", () => {
   // and still covers both the other tab and the closed composer (#2278). The
   // image section no longer repeats it.
   assert.equal(textOf(documents.Social.getElementById("post-keyboard-hint")),
-    "Escape or Close hides the composer. Your draft stays in this Social tab, even with the composer closed or while you draw in Paint in another tab. Closing this tab or leaving the page discards it.");
+    "Press the Escape key or select the Close button to hide the composer. Your draft stays in this Social tab, even with the composer closed or while you draw in Paint in another tab. Closing this tab or leaving the page discards it.");
   assert.doesNotMatch(section, /draft|kept here|other tab/i,
     `the image section makes the draft promise a second time: ${section}`);
 });
