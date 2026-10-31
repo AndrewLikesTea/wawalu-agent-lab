@@ -138,7 +138,7 @@ test("Social feed keeps its general invitation and fixed topic", async () => {
     assert.equal(document.getElementById("site-footer-form").dataset.followUpTopic, topic);
     assert.equal(textOf(document.getElementById("site-footer-topic-note")), `This request is sent about the ${topic}.`);
     const heading = textOf(document.querySelector(".site-footer-invitation"));
-    assert.equal(heading, `${INVITATION} The topics below are about Shiplog — whether it is available for your team, a demonstration, a pilot, and security and data handling — not about an individual post. To ask the Wawalu team to review a post, select Report post on that post.`);
+    assert.equal(heading, `${INVITATION} This form also takes questions about Social, a separate lab tool. The topics below are about Shiplog only — whether it is available for your team, a demonstration, a pilot, and security and data handling. Neither subject covers an individual post. To ask the Wawalu team to review a post, select Report post on that post.`);
     assert.ok(heading.includes(`select ${REPORT_POST_LABEL} on that post`),
       `Social names the reporting control something other than "${REPORT_POST_LABEL}"`);
     assert.doesNotMatch(heading, /Copy link to this post|this post itself/,
