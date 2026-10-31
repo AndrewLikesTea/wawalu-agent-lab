@@ -121,8 +121,10 @@ const describedBy = (document) => byId(document, "site-footer-email").getAttribu
 // The heading line on the two pages that list posts, built from the one every
 // page carries so the pages cannot drift apart at the front (#2557). The added
 // sentence says what Report post is for in the words of Social's reporting
-// guidance: a review request, not a question channel (#2937).
-const FEED_INVITATION = `${INVITATION} The topics below are about Shiplog — whether it is available for your team, a demonstration, a pilot, and security and data handling — not about an individual post. To ask the Wawalu team to review a post, select Report post on that post.`;
+// guidance: a review request, not a question channel (#2937). #3074: the form
+// also takes a question about the page's tool, so the line names the tool the
+// subject choice offers instead of calling the form Shiplog-only.
+const FEED_INVITATION = (tool) => `${INVITATION} This form also takes questions about ${tool}, a separate lab tool. The topics below are about Shiplog only — whether it is available for your team, a demonstration, a pilot, and security and data handling. Neither subject covers an individual post. To ask the Wawalu team to review a post, select Report post on that post.`;
 
 const FOOTER_VARIANT = new Map([
   // #2995: the home page's form stays email-only, so it alone asks no name or organization.
@@ -178,12 +180,12 @@ const FOOTER_VARIANT = new Map([
   // and rendered into its markup, not kept in the shared footer module.
   ["social.html", {
     followUpType: "follow_up_social", followUpTopic: FOLLOW_UP_TOPICS.follow_up_social,
-    invitation: FEED_INVITATION,
+    invitation: FEED_INVITATION("Social"),
     collapsedDemos: true, askMessage: true, offer: true, assets: true, tool: FOLLOW_UP_TOOL_TOPICS.follow_up_social,
   }],
   ["profile.html", {
     followUpType: "follow_up_people", followUpTopic: FOLLOW_UP_TOPICS.follow_up_people,
-    invitation: FEED_INVITATION,
+    invitation: FEED_INVITATION("People"),
     collapsedDemos: true, askMessage: true, offer: true, assets: true, tool: FOLLOW_UP_TOOL_TOPICS.follow_up_people,
   }],
   // #2470: the observatory carried every other flag the task pages do but this

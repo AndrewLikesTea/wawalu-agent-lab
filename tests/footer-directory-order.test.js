@@ -54,7 +54,7 @@ const OPEN_PAGES = ["index.html", "evolution.html", "agent-trace.html"];
 
 // The pages whose heading line says more than INVITATION, and exactly what each
 // of them says. Every other page is held to INVITATION alone.
-const FEED_INVITATION = `${INVITATION} The topics below are about Shiplog — whether it is available for your team, a demonstration, a pilot, and security and data handling — not about an individual post. To ask the Wawalu team to review a post, select Report post on that post.`;
+const FEED_INVITATION = (tool) => `${INVITATION} This form also takes questions about ${tool}, a separate lab tool. The topics below are about Shiplog only — whether it is available for your team, a demonstration, a pilot, and security and data handling. Neither subject covers an individual post. To ask the Wawalu team to review a post, select Report post on that post.`;
 const EXPECTED_INVITATION = {
   // The shipped markup, which is the waiting page: the two sentences that tell
   // a reader to select Report post or Copy link to this post are added to this
@@ -62,9 +62,27 @@ const EXPECTED_INVITATION = {
   // neither button is drawn before one does (#2603). The loaded wording is held
   // in tests/post-follow-up-copy.test.js, which drives the page through both.
   "post.html": `${INVITATION} The topics below are about Shiplog — whether it is available for your team, a demonstration, a pilot, and security and data handling — not about this post. Nothing about the post is attached to the request automatically.`,
-  "social.html": FEED_INVITATION,
-  "profile.html": FEED_INVITATION,
+  "social.html": FEED_INVITATION("Social"),
+  "profile.html": FEED_INVITATION("People"),
 };
+
+// #3074: the heading line used to call the form Shiplog-only while the subject
+// choice under it offered the page's lab tool. Both now name the same two
+// subjects, and the tool is still called separate from Shiplog.
+test("on Social and People the heading line names the subjects the form offers", async () => {
+  for (const [file, tool] of [["social.html", "Social"], ["profile.html", "People"]]) {
+    const document = await parse(file);
+    const labels = [...document.querySelectorAll("label")]
+      .filter((label) => (label.getAttribute("for") ?? "").startsWith("site-footer-subject-"))
+      .map((label) => textOf(label));
+    assert.deepEqual(labels, ["Shiplog", `${tool} (a separate lab tool)`], `${file}: the subject choices changed`);
+    const invitation = textOf(document.querySelector(".site-footer-invitation"));
+    assert.ok(invitation.startsWith("Questions about Shiplog?"), `${file}: the heading line no longer names Shiplog`);
+    assert.ok(invitation.includes(`questions about ${tool}, a separate lab tool.`),
+      `${file}: the heading line does not name the lab tool the choices offer`);
+    assert.doesNotMatch(invitation, /topics below are about Shiplog —/, `${file}: the heading line calls the whole form Shiplog-only`);
+  }
+});
 
 const read = (file) => readFile(new URL(file, SRC), "utf8");
 const parse = async (file) => parseHtml(await read(file));
