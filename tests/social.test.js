@@ -160,12 +160,11 @@ test("the feed list is described by its summary sentence, not by keyboard instru
   mountSocialFeed(page.document, { posts, state: "ready" });
   const cards = page.document.querySelectorAll(".post-card");
   assert.deepEqual(cards.map((card) => card.tabIndex), [undefined, undefined, undefined, undefined, undefined]);
-  // None of these five posts carries an image, and People shows nothing else, so
-  // the display names are prose here rather than links into an empty view.
+  // Text-only posts also link their display names to People.
   assert.equal(page.document.querySelectorAll(".post-author").length, 0);
   const names = page.document.querySelectorAll(".post-name");
   assert.equal(names.length, 5);
-  assert.deepEqual(names.map((name) => name.tagName), ["SPAN", "SPAN", "SPAN", "SPAN", "SPAN"]);
+  assert.deepEqual(names.map((name) => name.tagName), ["A", "A", "A", "A", "A"]);
   assert.deepEqual(names.map((name) => textOf(name)).sort(), ["A0", "A1", "A2", "A3", "A4"]);
 });
 
@@ -1648,7 +1647,7 @@ test("every control in the feed is named for its own post", async (t) => {
   mountSocialFeed(page.document, { posts: sample, state: "ready" });
   const feed = page.document.querySelector("#post-feed");
 
-  const controls = [...feed.querySelectorAll("a"), ...feed.querySelectorAll("button")];
+  const controls = [...feed.querySelectorAll(".release-detail-link"), ...feed.querySelectorAll("button")];
   assert.equal(controls.length, 6, "three cards, each offering Open post and Report post");
   const names = controls.map(controlName);
   assert.equal(new Set(names).size, names.length, `two controls in the feed share one name: ${names.join(" / ")}`);
@@ -1688,7 +1687,7 @@ test("the loading feed offers no control that claims to open or report a post", 
 
   // Placeholders wear .post-card too, so this asks what the controls are named
   // rather than how many cards there are.
-  const controls = [...feed.querySelectorAll("a"), ...feed.querySelectorAll("button")];
+  const controls = [...feed.querySelectorAll(".release-detail-link"), ...feed.querySelectorAll("button")];
   const claimed = controls.map(controlName).filter((name) => /^(Open|Report) post/.test(name));
   assert.deepEqual(claimed, [], "a placeholder named a post the page has not fetched");
   assert.equal(feed.querySelectorAll(".post-card-skeleton").length > 0, true, "the placeholders are the point");

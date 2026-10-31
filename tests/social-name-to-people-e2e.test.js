@@ -216,11 +216,15 @@ test("a settled Social post carries its display name as a link to People, in the
   const cards = document.querySelectorAll(".post-card");
   assert.equal(cards.length, FEED.length, "the settled feed is not the feed this test served");
 
-  // Every image card, not a lucky first one: the two image posts lay their
-  // insides out differently from the text posts, and each image card has to
-  // carry the control. The text posts carry the same name as prose — People
-  // holds image posts only, so a link from one of them would arrive at nothing
-  // (#2149); tests/social-image-post-people-link.test.js pins that half.
+  // Every byline links to People, including text-only posts.
+  for (const card of cards) {
+    const post = FEED.find((entry) => entry.id === card.dataset.postId);
+    const byline = card.querySelector(".detail-author-link");
+    assert.equal(byline.tagName, "A");
+    assert.equal(textOf(byline), post.author);
+    assert.equal(byline.href, profileHref(post.author));
+    assert.ok(tabSequence(document).includes(byline));
+  }
   const withImage = FEED.filter((entry) => entry.image);
   const links = document.querySelectorAll(".post-people");
   assert.equal(links.length, withImage.length);
@@ -247,16 +251,14 @@ test("a settled Social post carries its display name as a link to People, in the
   assert.equal(link.href, "/profile.html?author=Iris%20Vale");
   assert.equal(textOf(link), `See image posts by ${IRIS} on People`);
   assert.equal(link.getAttribute("aria-label"), null, "an aria-label stands in for words the eye cannot read");
-  assert.equal(name.tagName, "SPAN");
+  assert.equal(name.tagName, "A");
+  assert.equal(name.href, profileHref(IRIS));
   assert.equal(textOf(name), IRIS, "the display name holds more than the name");
 
-  // Tabbable, and the first of the card's two stops: the People link, then the
-  // card's one route into the post itself. The caption, the image description
-  // and the name stay ordinary prose, so nothing else was inserted into the
-  // reading order to carry either control.
+  // The byline is first, followed by the contextual People and post links.
   const stops = tabSequence(document).filter((element) => within(element, card));
   // Report post (#2343) is the card's last stop, after its route into the post.
-  assert.deepEqual(stops.map((element) => element.className), ["post-people", "release-detail-link", "text-button post-report-button"],
+  assert.deepEqual(stops.map((element) => element.className), ["post-author detail-author-link", "post-people", "release-detail-link", "text-button post-report-button"],
     "the post grew a tab stop of its own, or lost one it had");
   assert.equal(link.getAttribute("tabindex"), null, "the stop is markup order, not a tabindex trick");
 
@@ -270,9 +272,9 @@ test("a settled Social post carries its display name as a link to People, in the
   assert.ok(at(description) < at(link), "the People action must follow the post content");
   assert.ok(at(caption) < at(description), "the image description was reordered ahead of the caption");
 
-  // The card's second stop, on the real page rather than in a render stub: one
+  // The post destination, on the real page rather than in a render stub: one
   // named anchor per card, last in the card, opening that card's own post.
-  const open = stops[1];
+  const open = stops[2];
   assert.equal(open.tagName, "A");
   // Two words printed, then the post it opens for the ear alone (#2708): the
   // hidden half is read by textOf here because the harness models no layout.
@@ -293,8 +295,8 @@ test("a settled Social post carries its display name as a link to People, in the
   assert.match(css, /button:focus-visible,a:focus-visible \{[^}]*outline:3px solid var\(--focus-ring\)/);
   assert.equal(/outline\s*:\s*(none|0)/.test(css.match(/\.post-people[^{]*\{[^}]*\}/g)?.join("") ?? ""), false,
     "no rule may take the focus outline off the People link");
-  // A name that is not a link is not drawn as one.
-  assert.doesNotMatch(css, /\.post-author[^{]*\{[^}]*text-decoration:underline/);
+  // Bylines reuse the standalone post link treatment.
+  assert.match(css, /\.detail-author-link[^{}]*\{[^}]*text-decoration:underline/);
 });
 
 /* ---------------------------- 2. the cold open ----------------------------- */

@@ -56,8 +56,8 @@ function updateTitle() {
 async function init() {
   if (!document.querySelector("#profile-grid")) return;
 
-  const param = requestedProfileAuthor(window.location.search);
   const seeds = await fetchSeedPosts();
+  const param = requestedProfileAuthor(window.location.search);
   const stored = readStoredAuthor(globalThis.localStorage);
   // A URL filter wins even without images. A remembered publishing name is
   // a landing suggestion; after loading it must agree with the cleared URL.
@@ -119,7 +119,7 @@ async function init() {
     });
     chosen = true;
     resolveRememberedLanding = !requested;
-    profile.setAuthor(author);
+    profile.setAuthor(author, { preselected: !hasExplicitAuthor({ param: requested, stored: remembered }) });
     updateTitle();
   }
   window.addEventListener("popstate", () => restoreSelection(window.location.search));

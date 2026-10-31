@@ -1,25 +1,6 @@
-// The edge #2149 asks for: an image post in the Social feed, followed to that
-// display name's image posts on People, in one activation — and no such link
-// anywhere it would arrive at nothing.
-//
-// WHAT WAS MISSING. The walk itself already existed (#1649): the byline is an
-// anchor at /profile.html?author=…, and People reads that parameter at boot. But
-// every card carried it, image or not, and People holds image posts and nothing
-// else — so a text-only post offered a one-click route to a view that could only
-// answer "this name has no image posts yet". The link now belongs to the posts
-// that put something at the other end of it, and it says so: "See Ari's image
-// posts on People" names the display name and the destination, not just the
-// name. tests/social-name-to-people-e2e.test.js walks the same seam for the
-// forwarded-URL half; this file is about which cards mint the link at all.
-//
-// THE SHAPE (#2312). The link is no longer the byline name wearing an
-// aria-label: it is its own anchor, `.post-people`, beside a `.post-author` span
-// that holds the name and nothing else, so every test that reads a card's name
-// still reads one name.
-//
-// THE INVARIANT, not three examples: every href the settled feed renders is
-// followed here and asserted to land on a non-empty People view. A card that
-// starts minting links for names with no pictures reds this file by name.
+// Social bylines link every display name to People (#3068). Image cards also
+// retain the contextual "See image posts" action after their content. These
+// tests cover both routes, exact-name filtering, empty profiles and history.
 //
 // HARNESS NOTES. Skeleton cards and skeleton tiles carry the real card classes,
 // so both counts subtract them inline — "the feed loaded" is otherwise satisfied
@@ -217,7 +198,7 @@ async function openPeople(t, { search = "", feed = FEED, storage = {} } = {}) {
 
 /* --------------------------- 1. which cards link --------------------------- */
 
-test("an image post carries one link to People, named for the name and the destination", async (t) => {
+test("an image post carries a byline link and a contextual People action", async (t) => {
   const { document } = await openSocial(t);
 
   const cards = drawnCards(document);
@@ -243,14 +224,12 @@ test("an image post carries one link to People, named for the name and the desti
   assert.equal(textOf(link), peopleImagePostsLabel(ARI));
   assert.equal(link.getAttribute("aria-label"), null);
 
-  // The display name is a separate element holding only the name (#2312): a
-  // link that was the name, or sat inside it, is read as a second name by
-  // everything that reads a card's byline.
+  // The byline link holds only the display name; the contextual link is separate.
   const names = card.querySelectorAll(".post-author");
   assert.equal(names.length, 1);
-  assert.equal(names[0].tagName, "SPAN");
+  assert.equal(names[0].tagName, "A");
   assert.equal(textOf(names[0]), ARI);
-  assert.equal(names[0].getAttribute("href"), null);
+  assert.equal(names[0].getAttribute("href"), profileHref(ARI));
   assert.equal(within(link, names[0]), false, "the link was nested in the display name");
   assert.equal(link.classList.contains("post-author"), false, "the link carries the display name's hook");
 
@@ -258,7 +237,7 @@ test("an image post carries one link to People, named for the name and the desti
   // the card's way into the post. Focusables in the card, not a screenshot of it.
   const stops = tabSequence(document).filter((element) => within(element, card));
   // Report post (#2343) follows Open post, after everything else on the card.
-  assert.deepEqual(stops.map((element) => element.className), ["post-people", "release-detail-link", "text-button post-report-button"],
+  assert.deepEqual(stops.map((element) => element.className), ["post-author detail-author-link", "post-people", "release-detail-link", "text-button post-report-button"],
     "the card grew a tab stop of its own, or lost one it had");
   assert.equal(link.getAttribute("tabindex"), null);
   const children = card.children;
@@ -267,7 +246,7 @@ test("an image post carries one link to People, named for the name and the desti
   assert.ok(children.indexOf(link) < children.indexOf(card.querySelector(".post-report-button")));
 });
 
-test("a text-only post offers no People link at all, and keeps its remaining tab stop", async (t) => {
+test("a text-only post links its byline to People without an extra image-post action", async (t) => {
   const { document } = await openSocial(t);
 
   const card = drawnCards(document).find((node) => node.dataset?.postId === "p-06");
@@ -277,23 +256,22 @@ test("a text-only post offers no People link at all, and keeps its remaining tab
   // the whole parsed page and hangs for minutes.
   assert.equal(card.querySelectorAll(".post-people").length, 0,
     "a post with no image links to a People view that can hold nothing");
-  assert.equal(card.querySelectorAll("a").filter((node) => (node.getAttribute("href") ?? "").includes("/profile.html")).length, 0,
+  assert.equal(card.querySelectorAll("a").filter((node) => (node.getAttribute("href") ?? "").includes("/profile.html")).length, 1,
     "the card reaches People by some other anchor");
 
-  // The name is still there, still first in the byline, as prose.
+  // The byline is a keyboard-reachable destination even without image posts.
   const names = card.querySelectorAll(".post-name");
   assert.equal(names.length, 1);
-  assert.equal(names[0].tagName, "SPAN");
+  assert.equal(names[0].tagName, "A");
   assert.equal(textOf(names[0]), TESS);
-  assert.equal(names[0].getAttribute("href"), null, "a span was given a destination it cannot be activated at");
+  assert.equal(names[0].getAttribute("href"), profileHref(TESS));
 
-  // One stop left — the card's way into the post — and nothing was moved to
-  // make room for the stop this card does not have.
+  // The author precedes the post and report actions.
   const stops = tabSequence(document).filter((element) => within(element, card));
-  assert.deepEqual(stops.map((element) => element.className), ["release-detail-link", "text-button post-report-button"]);
+  assert.deepEqual(stops.map((element) => element.className), ["post-name detail-author-link", "release-detail-link", "text-button post-report-button"]);
 });
 
-test("across the whole settled feed, exactly the image posts link to People", async (t) => {
+test("across the whole settled feed, exactly the image posts offer the contextual People action", async (t) => {
   const { document } = await openSocial(t);
 
   const withImage = FEED.filter((entry) => entry.image);

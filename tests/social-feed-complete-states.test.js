@@ -97,7 +97,8 @@ test("Social transitions exclusively through all states and preserves an open dr
   const retry = document.querySelector(".feed-status-action");
   retry.focus();
   pressTab(document);
-  assert.match(textOf(document.activeElement), /^Open post by Mina/, "Retry leads into the posts kept on screen");
+  assert.equal(textOf(document.activeElement), "Mina", "Retry leads into the first post’s author link");
+  assert.equal(document.activeElement.getAttribute("href"), "/profile.html?author=Mina");
   retry.focus();
   pressEnter(document);
   assert.equal(retries, 1);
