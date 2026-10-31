@@ -24,6 +24,10 @@ const REFRESH_INTERVAL = 10_000;
 // element and in the media status line — so the two cannot drift apart. It
 // names the two controls it asks for exactly as they are labelled.
 export const PREVIEW_FAILURE = "We couldn’t create an image preview. Select Remove image, then Choose image to try again.";
+// Beside Publish post, in the voice of the size/type blocker: why the button is
+// off, and the way to post anyway — not the failure sentence a third time.
+const PREVIEW_PENDING_BLOCKER = "Publishing is unavailable until the preview is ready. To post without this image, select Remove image.";
+const PREVIEW_FAILED_BLOCKER = "Publishing is unavailable until you remove this image or choose another.";
 
 // The id of the composer's rejected-file message, referenced from the file
 // input's aria-describedby while the message is showing.
@@ -134,7 +138,7 @@ function mountMediaComposer(root, description, composer) {
   const input = root.querySelector("#post-image");
   const panel = root.querySelector("#compose-media");
   const frame = root.querySelector("#compose-preview-frame");
-  const preview = root.querySelector("#compose-preview-image");
+  let preview = root.querySelector("#compose-preview-image");
   const fallback = root.querySelector("#compose-preview-error");
   const source = root.querySelector("#compose-media-source");
   const caption = root.querySelector("#compose-preview-caption");
@@ -200,10 +204,10 @@ function mountMediaComposer(root, description, composer) {
     input.setAttribute("aria-describedby", `${described} ${REJECTED_FILE_ERROR_ID}`.trim());
   };
 
-  const setSelectionProblem = (message = "") => {
+  const setSelectionProblem = (message = "", detail = false) => {
     selectionProblem = message;
     if (publishBlocker) {
-      publishBlocker.textContent = message ? "Publishing is unavailable until you choose a supported image within 512 KB." : "";
+      publishBlocker.textContent = !message ? "" : detail ? message : "Publishing is unavailable until you choose a supported image within 512 KB.";
       publishBlocker.hidden = !message;
     }
     if (submit) submit.disabled = Boolean(message);
@@ -223,6 +227,7 @@ function mountMediaComposer(root, description, composer) {
     description.clear();
     description.setAttached(false);
     preview.removeAttribute("src");
+    frame.dataset.state = "removed";
     // Removing the file takes the failure sentence with it: a hidden panel still
     // holds text a reader can reach, and it describes a file that is now gone.
     fallback.textContent = "";
@@ -256,8 +261,37 @@ function mountMediaComposer(root, description, composer) {
     frame.dataset.state = "loading";
     fallback.textContent = "";
     fallback.hidden = true;
-    preview.hidden = false;
-    preview.src = next.preview;
+    // A distinct element owns each request: queued events on an old image
+    // cannot be mistaken for events belonging to its replacement.
+    const image = (root.ownerDocument ?? root).createElement("img");
+    image.id = "compose-preview-image";
+    image.alt = "";
+    preview = image;
+    const generation = selectionGeneration;
+    const current = () => generation === selectionGeneration && preview === image && media === next;
+    image.addEventListener("load", () => {
+      if (!current() || frame.dataset.state !== "loading") return;
+      frame.dataset.state = "ready";
+      fallback.hidden = true;
+      setSelectionProblem();
+      setStatus(fromPaint ? "" : "Image ready to describe and post. Nothing is sent until you publish.");
+    });
+    image.addEventListener("error", () => {
+      if (!current()) return;
+      if (fromPaint) {
+        clear();
+        failTransfer("The image from Paint could not be previewed. Your text draft is unchanged. Try sending it again.");
+        return;
+      }
+      frame.dataset.state = "error";
+      image.hidden = true;
+      fallback.textContent = PREVIEW_FAILURE;
+      fallback.hidden = false;
+      setStatus(PREVIEW_FAILURE, true);
+      setSelectionProblem(PREVIEW_FAILED_BLOCKER, true);
+    });
+    frame.replaceChildren(image, fallback);
+    image.src = next.preview;
     source.textContent = "Image to publish";
     caption.textContent = `${fromPaint ? "From Paint · " : ""}${next.width} × ${next.height} px · ${Math.max(1, Math.ceil(next.size / 1024))} KB`;
     // Written out, not composed from the heading above: the heading is a noun
@@ -265,7 +299,8 @@ function mountMediaComposer(root, description, composer) {
     // publish ready to describe and post." This is also the one moment a
     // visitor who never went near Paint is told where the file is — said once,
     // here, rather than repeated beside every control.
-    setStatus(fromPaint ? "" : "Image ready to describe and post. Nothing is sent until you publish.");
+    setStatus("Preparing image preview…");
+    setSelectionProblem(PREVIEW_PENDING_BLOCKER, true);
     description.setAttached(true);
     // Choosing a file moves nothing (#2294): the reader is on Choose image and
     // Tabs on through the preview to the description. Only an arrival from
@@ -273,24 +308,10 @@ function mountMediaComposer(root, description, composer) {
     if (focus) alt.focus();
   };
 
-  preview.addEventListener("load", () => { frame.dataset.state = "ready"; });
-  preview.addEventListener("error", () => {
-    if (arrivalPanel?.dataset.handoff === "prepared") {
-      clear();
-      failTransfer("The image from Paint could not be previewed. Your text draft is unchanged. Try sending it again.");
-      return;
-    }
-    frame.dataset.state = "error";
-    preview.hidden = true;
-    fallback.textContent = PREVIEW_FAILURE;
-    fallback.hidden = false;
-    setStatus(PREVIEW_FAILURE, true);
-  });
   // One path for a file however it arrived — chosen with Choose image or handed
   // over from Paint — so the type and size rules, the preview, Remove image and
   // the refusal are the same for both. Resolves whether the file was taken.
   const accept = async (file, { focus = false, fromPaint = false } = {}) => {
-    const generation = ++selectionGeneration;
     const refusal = !file ? { problem: "Choose an image to continue.", step: NEXT_STEP.missing }
       : !PUBLISH_IMAGE_TYPES.has(file.type) ? { problem: UNSUPPORTED_TYPE_ERROR, step: NEXT_STEP.type }
         : file.size > MAX_PUBLISH_IMAGE_BYTES ? { problem: overLimitError(file.size), step: NEXT_STEP.size } : null;
@@ -313,17 +334,27 @@ function mountMediaComposer(root, description, composer) {
       // status line under the rule, which is polite and two lines further down;
       // saying it in both places would be one press answered twice.
       showRejection(`${refusal.problem} ${selectionState} ${refusal.step}`);
-      setStatus("");
+      if (panel.hidden || frame.dataset.state === "ready") setStatus("");
       // Only an empty composer is held back, and then because it has no image
       // rather than because of this file. With an accepted image still attached
       // there is nothing to block: `get()` hands over that image, unchanged.
-      setSelectionProblem(held ? "" : refusal.problem);
+      if (panel.hidden || frame.dataset.state === "ready") setSelectionProblem(held ? "" : refusal.problem);
       if (!fromPaint) input.focus();
       return false;
     }
+    const generation = ++selectionGeneration;
     clearRejection();
-    setStatus(fromPaint ? "" : "Preparing image preview…");
-    panel.hidden = true;
+    media = null;
+    preview.removeAttribute("src");
+    preview.hidden = true;
+    frame.dataset.state = "loading";
+    fallback.textContent = "Preparing image preview… Select Remove image to cancel.";
+    fallback.hidden = false;
+    caption.textContent = file.name;
+    panel.hidden = false;
+    description.setAttached(true);
+    setStatus("Preparing image preview…");
+    setSelectionProblem(PREVIEW_PENDING_BLOCKER, true);
     try {
       const next = await fileToPublishImage(file);
       if (generation !== selectionGeneration) return null;
@@ -331,12 +362,17 @@ function mountMediaComposer(root, description, composer) {
       return true;
     } catch (error) {
       if (generation !== selectionGeneration) return null;
-      // clear() empties the field and the refusal slot with it, so the sentence
-      // for the file that just failed is written after it, not before.
-      clear();
-      showRejection(error.message);
-      setSelectionProblem(error.message);
-      if (!fromPaint) input.focus();
+      if (fromPaint) {
+        clear();
+        showRejection(error.message);
+        setSelectionProblem(error.message);
+      } else {
+        frame.dataset.state = "error";
+        fallback.textContent = PREVIEW_FAILURE;
+        fallback.hidden = false;
+        setStatus(PREVIEW_FAILURE, true);
+        setSelectionProblem(PREVIEW_FAILED_BLOCKER, true);
+      }
       return false;
     }
   };

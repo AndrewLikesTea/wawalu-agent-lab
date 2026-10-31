@@ -49,7 +49,7 @@ async function chooseFile(document, file) {
   const input = document.querySelector("#post-image");
   input.files = [file];
   input.dispatchEvent(new DomEvent("change", { bubbles: true }));
-  await waitFor(() => !document.querySelector("#compose-media").hidden, `the composer took ${file.name}`);
+  await waitFor(() => document.querySelector("#compose-preview-frame").dataset.state === "ready", `the composer took ${file.name}`);
 }
 
 test("an open composer claims the image into its draft, and publishes it as it would a chosen file", async (t) => {
@@ -60,7 +60,7 @@ test("an open composer claims the image into its draft, and publishes it as it w
 
   storage.setItem(PAINT_HANDOFF_KEY, handoffRecord(PNG));
   dispatchStorage(PAINT_HANDOFF_KEY);
-  await waitFor(() => !id("compose-media").hidden, "the composer took the image from Paint");
+  await waitFor(() => id("compose-preview-frame").dataset.state === "ready", "the composer took the image from Paint");
 
   assert.equal(storage.getItem(PAINT_HANDOFF_KEY), null, "the record was left for a second taker");
   assert.equal(id("post-body").value, DRAFT, "the draft was replaced by the handoff");
@@ -107,7 +107,7 @@ test("arriving from Paint takes the image once, focuses the description and clea
     ...FROM_PAINT,
     storage: { [PAINT_HANDOFF_KEY]: handoffRecord(PNG), [AUTHOR_STORAGE_KEY]: "Remy" },
   });
-  await waitFor(() => !id("compose-media").hidden, "the composer took the image from Paint");
+  await waitFor(() => id("compose-preview-frame").dataset.state === "ready", "the composer took the image from Paint");
 
   assert.equal(id("post-compose-panel").hidden, false);
   assert.equal(id("post-author").value, "Remy");
@@ -192,7 +192,7 @@ test("transfer confirmation is one status, and removal clears it without clearin
   typeInto(document, "post-author", "Remy");
   storage.setItem(PAINT_HANDOFF_KEY, handoffRecord(PNG));
   dispatchStorage(PAINT_HANDOFF_KEY);
-  await waitFor(() => !id("compose-media").hidden, "preview arrived");
+  await waitFor(() => id("compose-preview-frame").dataset.state === "ready", "preview arrived");
   assert.equal(id("paint-arrival").getAttribute("role"), "status");
   assert.match(textOf(id("paint-arrival")), /Image transferred/);
   assert.equal(id("paint-arrival").querySelector(".paint-arrival-shape").getAttribute("aria-hidden"), "true");
@@ -264,7 +264,7 @@ test("a transferred preview decode failure withdraws confirmation and offers Pai
   const { id, document } = await bootSocial(t, {
     ...FROM_PAINT, storage: { [PAINT_HANDOFF_KEY]: handoffRecord(PNG) },
   });
-  await waitFor(() => !id("compose-media").hidden, "preview arrived");
+  await waitFor(() => id("compose-preview-frame").dataset.state === "ready", "preview arrived");
   typeInto(document, "post-body", DRAFT);
   id("compose-preview-image").dispatchEvent(new DomEvent("error"));
   assert.equal(id("paint-arrival").hidden, true);
@@ -279,7 +279,7 @@ test("arrival keyboard order reaches description, name, publish and close; rever
   const { id, document } = await bootSocial(t, {
     ...FROM_PAINT, storage: { [PAINT_HANDOFF_KEY]: handoffRecord(PNG) },
   });
-  await waitFor(() => !id("compose-media").hidden, "preview arrived");
+  await waitFor(() => id("compose-preview-frame").dataset.state === "ready", "preview arrived");
   typeInto(document, "post-image-alt", ALT);
   assert.equal(pressTab(document).id, "post-author");
   assert.equal(pressTab(document).id, "post-submit");
@@ -370,7 +370,7 @@ test("a draftless arrival is refused for the post text its panel said was requir
   const { id, document, requests } = await bootSocial(t, {
     ...FROM_PAINT, routes: SAVED, storage: { [PAINT_HANDOFF_KEY]: handoffRecord(PNG) },
   });
-  await waitFor(() => !id("compose-media").hidden, "preview arrived");
+  await waitFor(() => id("compose-preview-frame").dataset.state === "ready", "preview arrived");
   assert.match(textOf(id("paint-arrival")), /both required before you publish/);
 
   typeInto(document, "post-image-alt", ALT);

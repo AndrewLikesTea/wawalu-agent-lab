@@ -617,7 +617,7 @@
                    they had decided whether it applied to them. It is now one
                    sentence beside Image description, which appears at the same
                    moment the rule starts to bind. -->
-              <div class="compose-media" id="compose-media" hidden>
+              <div class="compose-media" id="compose-media" role="group" aria-labelledby="compose-media-source" aria-describedby="post-media-status compose-preview-caption" hidden>
                 <!-- One name for the image the visitor chose. This region used to
                      give it two, a caption below the picture reading "Preview
                      before posting" under a heading reading "Image to publish",
@@ -629,7 +629,7 @@
                      every selection. -->
                 <div class="compose-media-head">
                   <p><span class="source-shape" aria-hidden="true"></span><strong id="compose-media-source">Image to publish</strong></p>
-                  <button class="text-button" id="remove-image" type="button">Remove image</button>
+                  <button class="text-button" id="remove-image" type="button" aria-describedby="post-media-status">Remove image</button>
                 </div>
                 <!-- Named by the heading above it rather than by its own
                      caption: a figure takes its accessible name from its

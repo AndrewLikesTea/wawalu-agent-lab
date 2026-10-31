@@ -91,7 +91,11 @@ async function choose(document, file) {
   const error = document.querySelector("#post-image-error");
   const status = document.querySelector("#post-media-status");
   await waitFor(
-    () => textOf(error) || (textOf(status) && textOf(status) !== "Preparing image preview…"),
+    () => {
+      const image = document.querySelector("#compose-preview-image");
+      if (image.src) image.dispatchEvent(new DomEvent("load"));
+      return textOf(error) || (textOf(status) && textOf(status) !== "Preparing image preview…");
+    },
     `the composer answered for ${file.name}`,
   );
   return error;
@@ -316,6 +320,7 @@ test("nothing a visitor reads in the composer calls choosing a file uploading", 
 // passes both checks and then fails to decode.
 test("the preview failure still speaks for a file that passes both checks", async (t) => {
   const { document } = await openComposer(t);
+  await chooseValid(t, document, new File([Buffer.from(PNG_BASE64, "base64")], "test.png", { type: "image/png" }));
   const preview = document.querySelector("#compose-preview-image");
   const fallback = document.querySelector("#compose-preview-error");
 
@@ -356,7 +361,8 @@ async function chooseValid(t, document, file) {
   const input = document.querySelector("#post-image");
   input.files = [file];
   input.dispatchEvent(new DomEvent("change", { bubbles: true }));
-  await waitFor(() => !document.querySelector("#compose-media").hidden, `the composer took ${file.name}`);
+  await waitFor(() => Boolean(document.querySelector("#compose-preview-image").src), `the composer took ${file.name}`);
+  document.querySelector("#compose-preview-image").dispatchEvent(new DomEvent("load"));
 }
 
 test("the refusal goes when a file the field accepts arrives", async (t) => {

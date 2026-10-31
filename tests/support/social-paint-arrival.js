@@ -8,7 +8,7 @@
 // The FileReader stub reads the File's real bytes, so what a test sees published
 // is what was handed over, not a fixture string.
 
-import { loadPage } from "./browser.js";
+import { DomEvent, loadPage } from "./browser.js";
 import { importPageModule, waitFor } from "./page-module.js";
 
 export function handoffRecord(bytes, { type = "image/png", createdAt = Date.now() } = {}) {
@@ -16,11 +16,25 @@ export function handoffRecord(bytes, { type = "image/png", createdAt = Date.now(
   return JSON.stringify({ dataUrl: `data:${type};base64,${data}`, type, name: "paint-export.png", size: bytes.length, createdAt });
 }
 
-export async function bootSocial(t, { storage = {}, routes = {}, search = "", hash = "" } = {}) {
+export async function bootSocial(t, { storage = {}, routes = {}, search = "", hash = "", autoImageLoad = true } = {}) {
   const page = await loadPage(new URL("../../src/social.html", import.meta.url), {
     storage,
     routes: { "/social-demo-data.json": { posts: [] }, "/api/social-posts?limit=100": { posts: [] }, ...routes },
   });
+  const createElement = page.document.createElement.bind(page.document);
+  page.document.createElement = (tag) => {
+    const element = createElement(tag);
+    if (tag === "img" && autoImageLoad) {
+      Object.defineProperty(element, "src", {
+        get() { return this.getAttribute("src"); },
+        set(value) {
+          this.setAttribute("src", value);
+          queueMicrotask(() => this.dispatchEvent(new DomEvent("load")));
+        },
+      });
+    }
+    return element;
+  };
   // Every request, with its method and body, so a test can say what was sent.
   const requests = [];
   const served = globalThis.fetch;
