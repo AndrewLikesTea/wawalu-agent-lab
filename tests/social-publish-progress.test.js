@@ -279,7 +279,7 @@ const IMAGE_PATHS = {
       arrayBuffer: async () => PNG_BYTES,
     }];
     input.dispatchEvent(new DomEvent("change", { bubbles: true }));
-    await waitFor(() => !session.id("compose-media").hidden, "the chosen file reached the composer");
+    await waitFor(() => session.id("compose-preview-frame").dataset.state === "ready", "the chosen file reached the composer");
     return session;
   },
   "a Paint handoff": async (t) => {
@@ -289,7 +289,7 @@ const IMAGE_PATHS = {
       storage: { [PAINT_HANDOFF_KEY]: handoffRecord(PNG_BYTES) },
       routes: { "/api/social-posts": SAVED_ROW },
     });
-    await waitFor(() => !session.id("compose-media").hidden, "the drawing from Paint reached the composer");
+    await waitFor(() => session.id("compose-preview-frame").dataset.state === "ready", "the drawing from Paint reached the composer");
     return session;
   },
 };
