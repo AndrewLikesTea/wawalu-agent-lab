@@ -1321,7 +1321,9 @@ export function mountProfile(root, options = {}) {
   };
 
   function choose(next) {
-    if (next === author) return;
+    // A suggested landing name becomes an explicit URL selection; re-pressing
+    // the current filter must not stack a duplicate history entry.
+    if (next === author && !preselected) return;
     author = next;
     preselected = false;
     options.onAuthorChange?.(next);
@@ -1335,7 +1337,9 @@ export function mountProfile(root, options = {}) {
   return {
     render,
     getAuthor() { return author; },
-    setAuthor(next) { author = next; renderPicker(); render(); },
+    setAuthor(next, { preselected: suggested = false } = {}) {
+      author = next; preselected = suggested; renderPicker(); render();
+    },
     seed(next, nextAuthor = author) {
       posts = next ?? []; author = nextAuthor; state = "ready"; renderPicker(); render(); settleRetryFocus();
     },

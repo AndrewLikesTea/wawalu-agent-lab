@@ -742,11 +742,11 @@ function renderPostCard(post, { index, onReport = null }) {
   const avatar = el("span", "post-avatar", initials(post.author));
   avatar.setAttribute("aria-hidden", "true");
 
-  // The display name remains prose. An image post's People link follows its
-  // content below, before the remaining actions in DOM and keyboard order.
+  // Every byline is a shareable route to that exact display name on People.
   const image = normalizeImage(post.image);
   const byline = el("div", "post-byline");
-  const author = el("span", image ? "post-author" : "post-name", post.author);
+  const author = el("a", image ? "post-author detail-author-link" : "post-name detail-author-link", post.author);
+  author.href = profileHref(post.author);
   // Ids are minted from the render index, never from post.id — a post id is
   // arbitrary text and must not be spliced into an id/IDREF list.
   author.id = `post-${index}-author`;

@@ -97,9 +97,10 @@ test("an image post renders as a figure with the description as its figcaption",
   assert.equal(img.width, 1200);
   assert.equal(img.height, 900);
 
-  // The name is prose; the way to People is its own link beside it, in words.
+  // The byline itself is a link to the exact People profile.
   const author = first(card, "post-author");
-  assert.equal(author.tagName, "SPAN");
+  assert.equal(author.tagName, "A");
+  assert.equal(author.href, "/profile.html?author=Mina");
   assert.equal(author.textContent, "Mina");
   const people = first(card, "post-people");
   assert.equal(people.tagName, "A");

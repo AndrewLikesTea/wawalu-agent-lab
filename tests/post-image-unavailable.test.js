@@ -245,7 +245,7 @@ test("the placeholder introduces no focusable element on any surface", () => {
   // The counts are the card's own shipped stops, not a round number: a feed card
   // offers the display name and then Open post, and a People tile is one link.
   for (const [name, render, expected] of [
-    ["feed", (container) => renderPosts(container, [post]), 2],
+    ["feed", (container) => renderPosts(container, [post]), 3],
     ["people", (container) => renderProfileGrid(container, [post], { author: "Mina Okafor" }), 1],
   ]) {
     const container = createElement("div");
