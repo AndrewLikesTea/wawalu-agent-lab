@@ -42,7 +42,7 @@ export function repositoryProofPair(decisions = REPOSITORY_DECISIONS, stamp = LA
 }
 
 // Only #repository-proof-status is live; nothing here moves focus. A failed
-// pairing leaves the authored last-verified record exactly as it was.
+// pairing leaves the authored decision exactly as it was.
 export function renderRepositoryProof(root, pair = repositoryProofPair()) {
   const section = root.querySelector("#repository-proof");
   const status = root.querySelector("#repository-proof-status");

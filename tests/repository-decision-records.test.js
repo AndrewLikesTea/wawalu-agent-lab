@@ -495,14 +495,15 @@ test("the view is reached and operated with the keyboard alone", async (t) => {
 
 // --- the hero's dogfooding count and its route (#3054) ----------------------
 //
-// The Repository evidence card in the hero says how many of the log's
-// decisions are Shiplog's own and opens exactly those. Its number is the
-// record count line's "from this repository" figure, read off the page.
+// The "Real decision from Shiplog's repository" card in the hero says how many
+// of the log's decisions are Shiplog's own and opens exactly those. Its number
+// is the record count line's "from this repository" figure, read off the page.
 
 const own = (page) => page.document.querySelector("#repository-own-decisions");
 const ownCount = (page) => textOf(page.document.querySelector("#repository-own-count"));
 const ownStops = (document) => tabSequence(document).filter((node) => node.id === "show-repository-decisions").length;
-const CAVEAT = "This is repository evidence, not a customer outcome or testimonial, and not a claim about what runs today.";
+const CAVEAT = "It comes from Shiplog's own public development history: not a customer outcome or testimonial, "
+  + "not data from any team using Shiplog, and not a claim about what runs today.";
 
 test("the card's count is the record count line's repository figure, and claims no outcome", async (t) => {
   const page = await openHome(t);

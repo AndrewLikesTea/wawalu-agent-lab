@@ -1,6 +1,7 @@
 # Homepage repository proof
 
-The static last-verified example is transcribed from the public historical
+The static "Real decision from Shiplog's repository" block, on the homepage
+and Releases, is transcribed from the public historical
 `src/build-stamp.js` at commit
 `a1dc0a2dd45b24f8c114dfabed2a31f095f75557`.
 That stamp records build `28b2398ff49c1026182305c85b8a2ed715069ab6`,
