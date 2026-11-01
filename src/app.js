@@ -633,7 +633,7 @@ export function provenanceSplitLine(visible = []) {
 export const REPOSITORY_VIEW_NOTE = "These are Shiplog's own decisions, recorded in Shiplog by the team that "
   + "operates it. Each one cites the public pull request it came from.";
 
-// The dogfooding count in the hero's Repository evidence card (#3054). The
+// The dogfooding count in the hero's "Real decision from Shiplog's repository" card (#3054). The
 // number is countRecordProvenance's `repository` over the whole loaded log —
 // the figure the record count line names "from this repository" — and the
 // sentence claims nothing about customers, usage or outcomes. Empty at zero,
@@ -1481,7 +1481,7 @@ export function renderRepositoryEvidence(root, decisions = SEED_DECISIONS) {
 }
 
 export const RELEASE_PAIR_LOADED = "Current result, confirmed by the live site: one repository decision and the running build that shipped it.";
-export const RELEASE_PAIR_UNAVAILABLE = "Current verification did not complete: the live site did not confirm a running build that ships one of this repository’s decisions. The last-verified example at the top of this page is a recorded build, not a live result.";
+export const RELEASE_PAIR_UNAVAILABLE = "Current verification did not complete: the live site did not confirm a running build that ships one of this repository’s decisions. The real decision at the top of this page is from a recorded build, not a live result.";
 
 // THE ONE LINK THE DATA PROVES (#2805). No record in this repository stores a
 // decision-to-release link: every repository decision sets releaseInLog false,
@@ -1564,7 +1564,7 @@ export async function verifyRepositoryReleasePair(root, {
   repositoryVerificationRequests.set(root, request);
   target.replaceChildren();
   target.dataset.state = "pending";
-  const pending = "Checking the live site for a current result. The last-verified example at the top of this page is a recorded build, not a live result.";
+  const pending = "Checking the live site for a current result. The real decision at the top of this page is from a recorded build, not a live result.";
   if (status.textContent !== pending) status.textContent = pending;
   let timer;
   try {

@@ -253,8 +253,8 @@ test("historical proof survives pending, current, failed and stale requests", as
   const page = await loadPage(home);
   t.after(() => page.restore());
   const fallback = page.document.getElementById("repository-last-verified");
-  assert.match(textOf(fallback), /Last verified/);
-  assert.match(textOf(fallback), /#2547.*28b2398ff49c/);
+  assert.match(textOf(fallback), /Real decision from Shiplog's repository/);
+  assert.match(textOf(fallback), /#2547.*shipped in build 28b2398ff49c/);
   assert.equal(fallback.querySelector("time").getAttribute("datetime"), "2026-09-25T09:08:40.330Z");
   const link = fallback.querySelectorAll("a")[1];
   assert.equal(link.getAttribute("href"), "https://github.com/AndrewLikesTea/wawalu-agent-lab/blob/a1dc0a2dd45b24f8c114dfabed2a31f095f75557/src/build-stamp.js");
@@ -319,8 +319,11 @@ test("opening product section keeps named repository proof and native links with
     (await import("../src/releases-repository-proof.js")).LAST_VERIFIED_BUILD);
   assert.ok(textOf(proof).includes(pair.decision.title));
   assert.ok(textOf(proof).includes(pair.release.commitSha.slice(0, 12)));
-  assert.match(textOf(proof), /Repository evidence/);
+  assert.equal(textOf(page.document.getElementById(proof.getAttribute("aria-labelledby"))), "Real decision from Shiplog's repository");
+  assert.doesNotMatch(textOf(proof), /Repository evidence|Real record|last-verified/i);
+  assert.match(textOf(proof), /shipped in build 28b2398ff49c on 25 September 2026/);
   assert.match(textOf(proof), /not a customer outcome or testimonial/);
+  assert.match(textOf(proof), /not data from any team using Shiplog/);
   assert.match(textOf(proof), /not a claim about what runs today/);
   const original = textOf(proof);
   const links = proof.querySelectorAll("a");

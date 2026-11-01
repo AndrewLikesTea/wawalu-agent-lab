@@ -32,8 +32,9 @@ test("the real record names the decision, its status and owner, the recorded bui
   const section = byId(page, "repository-proof");
   const text = textOf(section);
   assert.equal(section.dataset.state, "loaded");
-  assert.equal(textOf(byId(page, section.getAttribute("aria-labelledby"))), "Real record from the Shiplog repository");
-  assert.match(text, /Real record/);
+  assert.equal(textOf(byId(page, section.getAttribute("aria-labelledby"))), "Real decision from Shiplog's repository");
+  assert.equal(textOf(section.querySelector(".badge-repository")), "Real decision");
+  assert.doesNotMatch(text, /Real record|Repository evidence|last-verified record/);
   assert.ok(section.classList.contains("shiplog-real"));
   assert.equal(section.classList.contains("shiplog-demo"), false);
   for (const value of [
@@ -106,7 +107,7 @@ test("with no script yet, or a refresh still pending, the authored record is alr
   const [text, links] = recordOf(page);
   for (const value of LAST_VERIFIED_RECORD) assert.ok(text.includes(value.replace(/\s+/g, "")), value);
   assert.equal(links.length, 3);
-  assert.equal(textOf(byId(page, "repository-proof-status")), "Checking this last-verified record against the repository record.");
+  assert.equal(textOf(byId(page, "repository-proof-status")), "Checking this decision against the repository record.");
 });
 
 test("a confirmed refresh renders exactly the authored record and no failure label", async (t) => {
@@ -154,7 +155,7 @@ test("a pairing that throws mid-render fails only the repository block, which ke
   const authored = recordOf(page);
   initReleasesPage(page.document, page.storage, { seed: NO_SEED, readHealth: () => new Promise(() => {}), repositoryProof: throwing("decision") });
   assert.equal(byId(page, "repository-proof").dataset.state, "failed");
-  assert.equal(textOf(byId(page, "repository-proof-title")), "Real record from the Shiplog repository");
+  assert.equal(textOf(byId(page, "repository-proof-title")), "Real decision from Shiplog's repository");
   assert.equal(textOf(byId(page, "repository-proof-status")), REPOSITORY_PROOF_FAILED);
   assert.match(REPOSITORY_PROOF_FAILED, /this record from the repository failed/);
   assert.deepEqual(recordOf(page), authored, "a half-built refresh replaced the last-verified record");

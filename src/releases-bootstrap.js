@@ -13,7 +13,7 @@ export function bindDeploymentArrival(root, view = globalThis.window) {
 }
 
 // Keep the failure message independent of the page's module graph: the
-// authored last-verified record stays, and only its status line says the
+// authored decision stays, and only its status line says the
 // refresh failed (REPOSITORY_PROOF_FAILED, pinned equal by its test).
 export async function bootReleases(root, load = () => import("./releases-page.js")) {
   bindDeploymentArrival(root);
