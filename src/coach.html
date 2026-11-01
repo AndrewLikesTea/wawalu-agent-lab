@@ -65,15 +65,15 @@
            one.
 
            The line under the hero says whose tool this is (#2864): the lab's,
-           not Shiplog's, with the route to Shiplog. Its bytes are LAB_IDENTITY
-           in src/page-title.js. It sits outside the hero, which stays name then
+           not Shiplog's, with the route to Shiplog. Its bytes are
+           labIdentity("Prompt coach") in src/page-title.js. It sits outside the hero, which stays name then
            purpose, and outside the entry body below, which the module replaces
            on load, so it is painted text and not a pre-script fallback. -->
       <section class="coach-hero" aria-labelledby="page-title">
         <h1 id="page-title">Prompt coach</h1>
         <p id="page-tagline">Grade a prompt before you send it. Your pasted text stays in this browser. It is not sent to a model or stored.</p>
       </section>
-      <p class="hint" id="lab-identity">A separate lab tool, not part of <a href="/#decisions-title">Shiplog, the decision and release log</a>.</p>
+      <p class="hint" id="lab-identity">Prompt coach is a separate lab tool, not part of <a href="/#decisions-title">Shiplog, the decision and release log</a>.</p>
 
       <!-- Coach one prompt: the question a reader arrives with before they have
            any file to import. AI FinOps answers a different one, grading an

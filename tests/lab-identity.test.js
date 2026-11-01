@@ -3,7 +3,7 @@
 // Prompt coach, Social with its post page, People and Agent observatory are
 // hosted beside Shiplog. Their tabs used to end in "· Shiplog" and nothing near
 // their top said otherwise, so a visitor read each one as a Shiplog feature. Each
-// now carries the lab's name in its title and one shared sentence, LAB_IDENTITY,
+// now carries the lab's name in its title and one shared sentence, labIdentity(),
 // near its top — with a link to Shiplog's decision log. Shiplog's own pages keep
 // Shiplog's name.
 //
@@ -12,7 +12,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { LAB, LAB_IDENTITY, LAB_IDENTITY_HREF, LAB_IDENTITY_TEXT, PRODUCT, labTitle } from "../src/page-title.js";
+import { LAB, LAB_IDENTITY_HREF, PRODUCT, labIdentity, labIdentityText, labTitle } from "../src/page-title.js";
 import { parseHtml, textOf } from "./support/browser.js";
 
 // `before` is the first id the identity line must precede: the page's first
@@ -24,13 +24,17 @@ import { parseHtml, textOf } from "./support/browser.js";
 // `linked: false` is Social: its hero may gain no tab stop above the feed's
 // filters (tests/social.test.js), so it carries the same words with no link and
 // its route to Shiplog is the header's Decision log link.
+//
+// `subject` is the name the line opens with (#3078): the page names itself, so
+// no reader takes "the decision and release log" for the separate tool. The
+// post page shows one Social post, so its subject is Social.
 const LAB_PAGES = [
-  { file: "coach.html", name: "Prompt coach", before: "prompt-coaching" },
-  { file: "social.html", name: "Social", before: "feed-title", linked: false },
-  { file: "post.html", name: "Social post", after: "post-reporting", before: "site-footer-title" },
+  { file: "coach.html", name: "Prompt coach", subject: "Prompt coach", before: "prompt-coaching" },
+  { file: "social.html", name: "Social", subject: "Social", before: "feed-title", linked: false },
+  { file: "post.html", name: "Social post", subject: "Social", after: "post-reporting", before: "site-footer-title" },
   // People's tab names what it holds after the destination (#3058).
-  { file: "profile.html", name: ["People", "public image posts from Social"], before: "profile-order" },
-  { file: "agents.html", name: "Agent observatory", before: "activity-title" },
+  { file: "profile.html", name: ["People", "public image posts from Social"], subject: "People", before: "profile-order" },
+  { file: "agents.html", name: "Agent observatory", subject: "Agent observatory", before: "activity-title" },
 ];
 
 const SHIPLOG_PAGES = [
@@ -59,24 +63,26 @@ test("Shiplog's home page and Releases still identify as Shiplog", async () => {
 });
 
 test("each lab page says near its top that it is separate from Shiplog, and links to the decision log", async () => {
-  assert.match(LAB_IDENTITY, /separate/i);
   // The footer's mark for the same pages, word for word (#2881): one name for
   // the concept. The lab's own name is in each page's title, asserted above.
-  assert.match(LAB_IDENTITY, /^A separate lab tool, not part of /);
-  assert.doesNotMatch(LAB_IDENTITY, /Wawalu Lab project|tool in the lab/);
+  assert.equal(labIdentityText("Social"), "Social is a separate lab tool, not part of Shiplog, the decision and release log.");
+  assert.doesNotMatch(labIdentity("Social"), /Wawalu Lab project|tool in the lab/);
   assert.equal(LAB_IDENTITY_HREF, "/#decisions-title");
 
-  for (const { file, before, after, linked = true } of LAB_PAGES) {
+  for (const { file, subject, before, after, linked = true } of LAB_PAGES) {
     const html = await read(file);
     // One wording, shipped in the markup: these bytes and no paraphrase.
-    const sentence = linked ? LAB_IDENTITY : LAB_IDENTITY_TEXT;
+    const sentence = linked ? labIdentity(subject) : labIdentityText(subject);
     assert.ok(html.includes(`<p class="hint" id="lab-identity">${sentence}</p>`), `${file} must embed the shared sentence`);
 
     const document = parseHtml(html);
     const lines = document.querySelectorAll("#lab-identity");
     assert.equal(lines.length, 1, `${file} carries the identity line ${lines.length} times`);
     const text = textOf(lines[0]);
-    assert.equal(text, LAB_IDENTITY_TEXT, file);
+    assert.equal(text, labIdentityText(subject), file);
+    // One sentence, opened by the page's own name.
+    assert.equal(text.match(/\./g).length, 1, `${file}: the line must stay one sentence`);
+    assert.ok(text.startsWith(`${subject} is a separate lab tool, `), `${file}: the line must name its own page`);
     assert.match(text, /separate/i, file);
     assert.match(text, /separate lab tool/, file);
     assert.ok(titleOf(html).endsWith(` · ${LAB}`), `${file}: the lab's name must still reach the reader`);
