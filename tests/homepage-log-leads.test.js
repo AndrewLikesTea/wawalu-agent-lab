@@ -224,6 +224,12 @@ test("the painted front door leads with the promise, then names the log", async 
     /It is for engineering leads and release managers whose reasoning behind a release is scattered across chat, tickets, and documents\./);
   assert.equal((textOf(main).match(/engineering leads and release managers/g) ?? []).length, 1);
   assert.equal(blocks[1].querySelectorAll("a,button,details").length, 0, "the buyer sentence must add no tab stop");
+  // #3082: records are browser-local, so the late teammate gets them through
+  // the same file export and import the Team handoff criterion evaluates. The
+  // stays-in-this-browser claim itself is made once, by the recorder (#2941).
+  assert.match(textOf(blocks[1]),
+    /In this build, you export the log as a file, and a teammate who arrives six months later imports it in their own browser and reads that reasoning in one place\./);
+  assert.doesNotMatch(textOf(hero), /opens the release/);
   assert.ok(!ancestorIds(document.getElementById("decision-form")).includes("top"),
     "the buyer and trigger sit in the hero, which the decision form follows");
   assert.ok(ancestorIds(document.getElementById("decision-form")).includes("record-history"));
