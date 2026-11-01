@@ -20,7 +20,7 @@ import {
   UNACCEPTED_ONLY,
 } from "./releases.js";
 import { initAskAboutShiplog } from "./ask-about-shiplog.js";
-import { bindReleaseFilterUrl } from "./release-filter-url.js";
+import { bindReleaseFilterUrl, readReleaseFilters, releaseFilterSearch } from "./release-filter-url.js";
 import { loadReleaseData } from "./releases-data.js";
 import { loadDecisions, readDecisions } from "./app.js";
 import { initDemoProgress, trackedRecords } from "./demo-progress.js";
@@ -425,6 +425,36 @@ export function initReleasesPage(root = document, storage = localStorage, option
       filtersChanged();
     } else update();
   } });
+  // A shared view (#3077). "Copy link to this view" carries search and filters,
+  // never records, which stay in the sender's browser. So a link that opens on
+  // filters nothing here matches says that, inside the no-match state the
+  // region already announces, rather than reading as a broken page. Only the
+  // filters the page loaded with count, and only until they first change.
+  let sharedSearch = "";
+  let sharedSteps = null;
+  const showShared = (on) => {
+    if (!on) {
+      sharedSteps?.remove();
+      return;
+    }
+    const link = (text, href) => {
+      const node = ownerDocument.createElement("a");
+      node.setAttribute("href", href);
+      node.textContent = text;
+      return node;
+    };
+    if (!sharedSteps) {
+      sharedSteps = ownerDocument.createElement("p");
+      sharedSteps.append("Ask the sender for their exported file, then ",
+        link("import it on the Home page", "/index.html#import-title"), ". ",
+        link("Request a Shiplog demonstration", "#site-footer-intent-demo"));
+    }
+    const [body, action] = [listStatus.querySelector("p"), listStatus.querySelector("button")];
+    const sentence = "This link shares search and filters only. The sender’s releases are stored in the sender’s browser and are not included. Nothing in this browser matches them.";
+    if (body.textContent !== sentence) body.textContent = sentence;
+    if (action.textContent !== "Clear filters") action.textContent = "Clear filters";
+    if (sharedSteps.parentNode !== listStatus) listStatus.insertBefore(sharedSteps, action);
+  };
   const update = () => {
     // Whatever the list is showing, the figure is over the whole loaded log —
     // and over nothing at all when the log could not be read, because a log that
@@ -447,6 +477,7 @@ export function initReleasesPage(root = document, storage = localStorage, option
       container.replaceChildren();
       container.setAttribute("aria-busy", String(logState === "loading"));
       announce(logState === "loading" ? "loading" : "error");
+      showShared(false);
       if (count) count.textContent = "";
       if (followUpSlot) renderReleaseFollowUp(followUpSlot, null);
       return;
@@ -470,6 +501,8 @@ export function initReleasesPage(root = document, storage = localStorage, option
       : releases;
     logState = listed.length === 0 ? "empty" : "ready";
     shown = view.render({ releases: listed, decisions, exampleIds: exampleReleaseIds }, filters);
+    if (releaseFilterSearch("", filters) !== sharedSearch) sharedSearch = "";
+    showShared(Boolean(sharedSearch && listStatus) && shown.length === 0);
     summaryCopy.update();
     // One count, from the same computation that rendered the rows, and one
     // follow-up derived from exactly those rows — so the callout can never
@@ -485,6 +518,7 @@ export function initReleasesPage(root = document, storage = localStorage, option
     now: options.now,
     download: options.download,
   });
+  sharedSearch = releaseFilterSearch("", readReleaseFilters(locationRef?.search ?? "", knownDecisionIds));
   const filtersChanged = bindReleaseFilterUrl({
     root, search, statusFilter, decisionFilter, decisionStatusInputs, unacceptedFilter, knownDecisionIds,
     location: locationRef, history: historyRef,
@@ -548,12 +582,13 @@ export function initReleasesPage(root = document, storage = localStorage, option
     const action = event.target.closest?.("[data-action]");
     if (!action || action.hidden) return;
     if (action.dataset.action === "reset-filters") {
+      const leave = sharedSearch ? filtersChanged.replace : filtersChanged;
       if (search) search.value = "";
       if (statusFilter) statusFilter.value = "all";
       if (decisionFilter) decisionFilter.value = ALL_DECISIONS_FILTER;
       for (const input of decisionStatusInputs) input.checked = input.value === "all";
       if (unacceptedFilter) unacceptedFilter.checked = false;
-      filtersChanged();
+      leave();
       search?.focus?.();
     } else if (action.dataset.action === "record-release") {
       root.querySelector("#release-version")?.focus?.();
