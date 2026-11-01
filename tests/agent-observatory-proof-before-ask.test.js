@@ -93,7 +93,7 @@ test("the hero still reads eyebrow, title, lab identity, as one contiguous block
   assert.equal(textOf(lead[0]), "Synthetic engineering team");
   assert.equal(textOf(lead[1]), "Agent observatory");
   assert.equal(lead[3].getAttribute("id"), "lab-identity");
-  assert.equal(textOf(lead[3]), "A separate lab tool, not part of Shiplog, the decision and release log.");
+  assert.equal(textOf(lead[3]), "Agent observatory is a separate lab tool, not part of Shiplog, the decision and release log.");
 });
 
 test("Tab reaches both count links before the demonstration and pilot actions", async (t) => {

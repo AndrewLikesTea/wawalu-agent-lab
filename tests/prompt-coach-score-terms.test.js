@@ -70,7 +70,7 @@ test("the initial page explains the overall score before grading, with and witho
         "the explanation precedes the grading action");
       assert.equal(byId(document, "prompt-coaching").dataset.state, "idle");
       assert.equal(byId(document, "lab-identity").textContent,
-        "A separate lab tool, not part of Shiplog, the decision and release log.");
+        "Prompt coach is a separate lab tool, not part of Shiplog, the decision and release log.");
     };
     assertGuidance();
     await importPageModule("/prompt-coaching-page.js");
