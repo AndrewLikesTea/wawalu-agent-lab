@@ -43,6 +43,10 @@ test("page copies exact displayed order, then follows search and decision filter
   const page = await boot(t, { writeText: async (text) => writes.push(text) });
   const { node, document } = page;
   assert.equal(node("copy").getAttribute("aria-describedby"), "release-summary-scope release-summary-availability");
+  // #3079: the helper says what the copy holds and where it goes, not who it sells to.
+  const scope = textOf(node("scope"));
+  for (const phrase of ["linked decisions", "labeled separately"]) assert.ok(scope.includes(phrase), phrase);
+  assert.doesNotMatch(scope, /buyer/i);
   assert.equal(node("status").getAttribute("role"), "status");
   assert.equal(node("status").getAttribute("aria-live"), "polite");
   node("copy").focus(); pressEnter(document); await tick();
