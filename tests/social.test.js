@@ -53,7 +53,7 @@ const RETIRED_FEED_VARIANT = "Every display name below is invented for this demo
 // The composer's display-name hint. The name is fixed on the one post it is
 // published with (#2270) — not a rule about a profile or account, which a bare
 // "cannot be changed after publishing" let a first-time publisher read into it.
-const AUTHOR_HINT = "The display name appears with this post in the Social feed and defaults to “Guest.” You cannot change it on this post after you publish.";
+const AUTHOR_HINT = "Your display name appears with this post in the Social feed, on the post's own page and, for an image post, on People. Leave it blank and your post is published under “Guest.” Everyone who leaves it blank shares “Guest,” so People lists all their image posts together. You cannot change it on this post after you publish.";
 
 // Tag-balance check for the hand-authored SVG assets. A mismatched or unclosed
 // tag makes a browser drop the image, which would silently demote every seeded
@@ -1172,10 +1172,13 @@ test("the display name field explains where the name appears and that it cannot 
 
   const text = textOf(hints[0]);
   assert.equal(text, AUTHOR_HINT);
-  // The rule about People belongs to the image field, which is the control it
-  // depends on. Said here too, a reader has to reconcile two tellings of it.
-  assert.doesNotMatch(text, /People/,
-    "the display name hint explains People's grouping a second time");
+  // Every place the name appears, and what the shared "Guest" means on People
+  // (#3080): a blank field joins everyone else who left it blank. Never
+  // "published as", which People's authored copy forbids.
+  for (const part of ["post's own page", "People", "Guest", "published under", "display name"])
+    assert.ok(text.includes(part), `the hint no longer says "${part}"`);
+  assert.doesNotMatch(text, /published as/i);
+  assert.ok(text.split(/[.!?]”?\s/).length <= 4, "the hint runs past four sentences");
   // What a display name is not is the feed note's sentence, said once on the
   // page. Repeating it here would put the definition in two wordings again, and
   // the second copy would sit behind a panel a reader has to open.
@@ -2284,7 +2287,8 @@ test("once Social has loaded, the display name hint fixes the name on this post,
   const text = textOf(hint);
   assert.equal(text, AUTHOR_HINT);
   // All three facts, each in its own words.
-  assert.match(text, /defaults to “Guest\.”/, "the hint dropped the Guest default");
+  assert.match(text, /Leave it blank and your post is published under “Guest\.”/, "the hint dropped the Guest default");
+  assert.match(text, /Everyone who leaves it blank shares “Guest,”/, "the hint no longer says Guest is shared");
   assert.match(text, /appears with this post/, "the hint no longer says where the name appears");
   assert.match(text, /cannot change it on this post after you publish/,
     "the hint no longer ties permanence to this post");
