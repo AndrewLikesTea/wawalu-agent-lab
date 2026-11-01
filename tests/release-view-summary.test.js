@@ -43,6 +43,10 @@ test("page copies exact displayed order, then follows search and decision filter
   const page = await boot(t, { writeText: async (text) => writes.push(text) });
   const { node, document } = page;
   assert.equal(node("copy").getAttribute("aria-describedby"), "release-summary-scope release-summary-availability");
+  // #3079: the helper says what gets copied, keeps the provenance caveat, and
+  // no longer calls the text "Buyer-ready".
+  assert.equal(textOf(node("scope")), "Copies the releases shown, in the order shown, with their linked decisions, as plain text for email or planning documents. Example records and records added in this browser are labeled separately.");
+  assert.doesNotMatch(textOf(document.body), /buyer/i);
   assert.equal(node("status").getAttribute("role"), "status");
   assert.equal(node("status").getAttribute("aria-live"), "polite");
   node("copy").focus(); pressEnter(document); await tick();
