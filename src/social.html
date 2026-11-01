@@ -717,15 +717,14 @@
               <input id="post-author" name="author" type="text" maxlength="60" autocomplete="off"
                 placeholder="Guest" aria-describedby="post-author-hint" />
               <!-- One hint, saying what the display name does where the reader
-                   is: it rides along with this post in the feed, it falls back
-                   to Guest, and this post keeps it. A second hint beside it
-                   used to add that People groups image posts under the name —
-                   the same rule the image field states at the moment a reader
-                   chooses an image, in a third wording (#2405). The field that
-                   attaches an image is where that fact is now said, once.
-                   Plain help text in the field group, named by the input's own
-                   aria-describedby: nothing focusable. -->
-              <span class="hint" id="post-author-hint">The display name appears with this post in the Social feed and defaults to “Guest.” You cannot change it on this post after you publish.</span>
+                   is: every place it appears, what a blank field publishes
+                   under, and that this post keeps it. It names People because
+                   "Guest" is shared there: a reader leaving the field blank
+                   joins every other blank-name image post (#3080). It stays one
+                   hint, not a second one beside it (#2405). Plain help text in
+                   the field group, named by the input's own aria-describedby:
+                   nothing focusable. -->
+              <span class="hint" id="post-author-hint">Your display name appears with this post in the Social feed, on the post's own page and, for an image post, on People. Leave it blank and your post is published under “Guest.” Everyone who leaves it blank shares “Guest,” so People lists all their image posts together. You cannot change it on this post after you publish.</span>
             </div>
 
             <!-- Where the bytes go, said before the press that sends them
