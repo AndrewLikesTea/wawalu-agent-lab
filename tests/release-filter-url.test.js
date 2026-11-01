@@ -2,7 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readReleaseFilters, releaseFilterSearch } from "../src/release-filter-url.js";
 import { initReleasesPage } from "../src/releases-page.js";
-import { loadPage, DomEvent, pressKey, textOf } from "./support/browser.js";
+import { readFile } from "node:fs/promises";
+import { RELEASE_STORAGE_KEY } from "../src/releases.js";
+import { loadPage, DomEvent, pressKey, tabSequence, textOf } from "./support/browser.js";
 
 const defaults = { query: "", status: "all", decisionStatus: "all", decisionId: "all", unaccepted: "all" };
 test("URL vocabulary round-trips Unicode and reserved characters, omits defaults and preserves other parameters", () => {
@@ -20,9 +22,10 @@ test("invalid, duplicate and obsolete parameters normalize deterministically wit
   assert.doesNotThrow(() => readReleaseFilters("?q=%E0%A4%A&status=%"));
 });
 
-async function boot(t, search = "", clipboard) {
+async function boot(t, search = "", clipboard, { seed, prepare } = {}) {
   const page = await loadPage(new URL("../src/releases.html", import.meta.url));
   t.after(() => page.restore());
+  prepare?.(page);
   const location = { pathname: "/releases.html", search, hash: "#releases-title", origin: "https://labs.wawalu.org" };
   const entries = [search];
   let cursor = 0;
@@ -34,7 +37,7 @@ async function boot(t, search = "", clipboard) {
     pushState(state, title, url) { assert.deepEqual(state, this.state); write(url); entries.splice(++cursor); entries.push(location.search); },
     replaceState(state, title, url) { write(url); entries[cursor] = location.search; },
   };
-  initReleasesPage(page.document, page.storage, { location, history, clipboard,
+  initReleasesPage(page.document, page.storage, { location, history, clipboard, seed,
     navigation: { addEventListener(name, fn) { assert.equal(name, "popstate"); pop = fn; } } });
   return { ...page, location, writes, entries,
     navigate(delta) { cursor += delta; location.search = entries[cursor]; pop(); } };
@@ -214,4 +217,109 @@ test("direct navigation canonicalizes stale filters with one replacement", async
   assert.equal(get(page, "release-status").value, "all");
   assert.equal(get(page, "release-decision").value, "all");
   assert.equal(get(page, "release-decision-status-all").checked, true);
+});
+
+// --- #3077: a shared link that matches nothing in this browser says why -----
+const SHARED = "This link shares search and filters only. The sender’s releases are stored in the sender’s browser and are not included. Nothing in this browser matches them.";
+const sharedLinks = (page) => get(page, "release-list-status").querySelectorAll("a");
+const sharedCount = (page) => textOf(page.document.body).split("shares search and filters only").length - 1;
+const settled = async () => { await settle(); await settle(); await settle(); };
+
+test("a shared link that matches nothing explains why and offers the next steps in the live region", async (t) => {
+  const page = await boot(t, "?campaign=review&q=sender-only-release");
+  await settled();
+  const region = get(page, "release-list-status");
+  assert.equal(region.getAttribute("role"), "status");
+  assert.equal(region.getAttribute("aria-live"), "polite");
+  assert.equal(region.hidden, false);
+  assert.equal(textOf(region.querySelector("h3")), "No releases match your search and filters");
+  assert.equal(textOf(region.querySelector("p")), SHARED);
+  assert.equal(sharedCount(page), 1);
+  assert.doesNotMatch(textOf(region), /failed to load|uncovered/i);
+  assert.equal(sharedLinks(page).length, 2);
+  const [importLink, demoLink] = sharedLinks(page);
+  assert.equal(textOf(importLink), "import it on the Home page");
+  const [path, importId] = importLink.getAttribute("href").split("#");
+  assert.equal(path, "/index.html");
+  const home = await readFile(new URL("../src/index.html", import.meta.url), "utf8");
+  assert.match(home, new RegExp(`id="${importId}">Import Shiplog records from a file<`));
+  assert.equal(textOf(demoLink), "Request a Shiplog demonstration");
+  assert.equal(page.document.querySelectorAll(demoLink.getAttribute("href")).length, 1);
+  const button = region.querySelector("button");
+  assert.equal(textOf(button), "Clear filters");
+  assert.equal(button.type, "button");
+  assert.equal(button.hidden, false);
+  // Normal DOM order, all reachable by Tab: the import step, the clear, the demo.
+  const stops = tabSequence(page.document);
+  const at = [importLink, button, demoLink].map((node) => stops.indexOf(node));
+  assert.ok(at.every((index) => index >= 0), `not in the tab order: ${at}`);
+  assert.equal(page.writes.length, 0, "loading a shared link writes nothing");
+});
+
+test("Clear filters leaves the shared view: examples listed, params replaced, focus on the search", async (t) => {
+  const page = await boot(t, "?campaign=review&q=sender-only-release&status=planned");
+  await settled();
+  const before = page.entries.length;
+  get(page, "release-list-status").querySelector("button").click();
+  assert.equal(sharedCount(page), 0);
+  assert.equal(sharedLinks(page).length, 0);
+  assert.ok(page.document.querySelectorAll(".release-toggle").length > 0, "the example releases are not listed");
+  assert.equal(get(page, "release-list-status").hidden, true);
+  assert.equal(page.location.search, "?campaign=review");
+  assert.equal(page.entries.length, before, "the clear replaced the address rather than adding to history");
+  assert.ok(page.document.activeElement === get(page, "release-search"), "focus left the search");
+  // Narrowing by hand afterwards is the ordinary no-match state.
+  change(get(page, "release-search"), "sender-only-release", "input");
+  assert.equal(sharedCount(page), 0);
+  assert.match(textOf(get(page, "release-list-status").querySelector("p")), /^The log still holds releases/);
+  assert.equal(textOf(page.document.querySelector(".release-reset-action")), "Clear search and filters");
+});
+
+test("changing a shared view's filters by hand returns to the ordinary no-match state", async (t) => {
+  const page = await boot(t, "?q=sender-only-release");
+  await settled();
+  assert.equal(sharedCount(page), 1);
+  change(get(page, "release-search"), "sender-only-releases", "input");
+  assert.equal(sharedCount(page), 0);
+  assert.equal(sharedLinks(page).length, 0);
+  assert.equal(textOf(page.document.querySelector(".release-reset-action")), "Clear search and filters");
+});
+
+test("shared filters that match a release list it with no message", async (t) => {
+  const page = await boot(t, "?q=queue");
+  await settled();
+  assert.ok(page.document.querySelectorAll(".release-toggle").length > 0);
+  assert.equal(get(page, "release-list-status").hidden, true);
+  assert.equal(sharedCount(page), 0);
+});
+
+test("without params the message never appears; empty and failed loads keep their copy", async (t) => {
+  const plain = await boot(t, "");
+  await settled();
+  assert.equal(sharedCount(plain), 0);
+  change(get(plain, "release-search"), "sender-only-release", "input");
+  assert.equal(sharedCount(plain), 0);
+
+  const empty = await boot(t, "", undefined, { seed: { decisions: [], releases: [] } });
+  await settled();
+  assert.equal(textOf(get(empty, "release-list-status").querySelector("h3")), "No releases recorded yet");
+  assert.equal(textOf(get(empty, "release-list-status").querySelector("p")), "Record a release, with or without linked decisions.");
+  assert.equal(sharedCount(empty), 0);
+
+  for (const search of ["", "?q=sender-only-release"]) {
+    const failed = await boot(t, search, undefined, { prepare(page) {
+      const { getItem } = page.storage;
+      page.storage.getItem = (key) => {
+        if (key === RELEASE_STORAGE_KEY) throw new Error("storage refused the read");
+        return getItem(key);
+      };
+    } });
+    await settled();
+    const region = get(failed, "release-list-status");
+    assert.equal(textOf(region.querySelector("h3")), "Couldn’t load releases");
+    assert.equal(textOf(region.querySelector("p")), "This browser’s release log could not be read. Your saved records have not been changed.");
+    assert.equal(textOf(region.querySelector("button")), "Retry");
+    assert.equal(sharedCount(failed), 0);
+    assert.equal(sharedLinks(failed).length, 0);
+  }
 });

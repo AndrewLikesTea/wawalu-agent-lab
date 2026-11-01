@@ -78,6 +78,8 @@ export function bindReleaseFilterUrl({ root, search, statusFilter, decisionFilte
     update();
   };
   const change = () => { clearFeedback(); sync("pushState"); update(); };
+  // Leaving a shared view replaces its address, so a reload does not reopen it.
+  change.replace = () => { clearFeedback(); sync("replaceState"); update(); };
   search?.addEventListener("input", change);
   for (const control of [statusFilter, decisionFilter, ...decisionStatusInputs, unacceptedFilter]) {
     control?.addEventListener("change", change);
