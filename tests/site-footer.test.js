@@ -921,7 +921,7 @@ test("every page's directory says start here once, on Decisions, and AI FinOps s
   const HREFS = ["/", "/releases.html", "/evolution.html", "/coach.html", "/personal-history.html",
     "/social.html", "/profile.html", "/paint/", "/agents.html"];
   assert.deepEqual(DEMOS.map((demo) => demo.href), HREFS, "the directory's doors changed");
-  assert.equal(DIRECTORY_SUMMARY, "Where else to go in the lab — all 9 destinations");
+  assert.equal(DIRECTORY_SUMMARY, "Where else to go in the lab");
 
   const directory = (document, where) => {
     const lists = document.querySelectorAll(".site-footer-demos");
@@ -960,8 +960,11 @@ test("every page's directory says start here once, on Decisions, and AI FinOps s
 // the two had to be wrong on every page of the site. The heading names the lab as
 // what holds the destinations now, and the four rows the band excludes say so in
 // their own rendered text — one wording, SEPARATE_TOOL, so no page can soften it
-// into "also on Shiplog". The count clause and the list are untouched: nothing was
-// added, removed, or reordered, because the contradiction was in the labels.
+// into "also on Shiplog". The list is untouched: nothing was added, removed, or
+// reordered, because the contradiction was in the labels.
+// #3092: the heading said "all 9 destinations", but the top navigation is a
+// different nine (Home in, Personal AI history out), so neither is "all". The
+// heading carries no count now.
 // #2881: Social, People and Paint said "not part of Shiplog" in their own headers
 // and went unmarked here, beside Decision log and Releases. They carry the mark
 // now, and the mark and the band share one phrase: "separate lab tool".
@@ -976,9 +979,10 @@ test("the directory is headed by the lab, and every destination outside Shiplog 
   assert.deepEqual(SHIPLOG_LABELS, ["Decision log", "Releases"]);
   assert.doesNotMatch(DIRECTORY_SUMMARY, /Shiplog/,
     "the heading still puts the nine destinations on Shiplog, which the band denies");
-  assert.match(DIRECTORY_SUMMARY, /^Where else to go in the lab — all \d+ destinations$/);
+  assert.equal(DIRECTORY_SUMMARY, "Where else to go in the lab");
+  assert.doesNotMatch(DIRECTORY_SUMMARY, /\ball\b|\d/, "the heading claims a count again");
   // Still one line per destination and nine of them: a label change, not a
-  // restructure. The count clause has to equal the rows beneath it.
+  // restructure.
   assert.equal(DEMOS.length, 9);
 
   const marked = (document, where) => {

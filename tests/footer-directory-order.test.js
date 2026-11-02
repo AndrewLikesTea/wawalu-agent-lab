@@ -181,10 +181,10 @@ test("the five pages ship one disclosure, closed, named the same way on each", a
     assert.equal(summary.tagName, "SUMMARY", `${file}: the handle must be a summary`);
     assert.equal(summary.parentNode.getAttribute("id"), "site-footer-directory",
       `${file}: a summary that is not the disclosure's own child is not its control`);
-    // The accessible name, explicit and identical on all five: what is behind it
-    // and how much of it, so opening is not the only way to learn the size.
+    // The accessible name, explicit and identical on all five: what is behind it.
+    // #3092: no count — the top navigation is a different nine, so "all 9" was false.
     assert.equal(textOf(summary), DIRECTORY_SUMMARY, `${file}: the disclosure is named differently here`);
-    assert.match(textOf(summary), new RegExp(`\\b${DEMOS.length}\\b`), `${file}: the count is not stated`);
+    assert.doesNotMatch(textOf(summary), /\ball\b|\d/, `${file}: the heading claims a count again`);
     // The band's existing caption role, not a style of its own.
     assert.equal(summary.getAttribute("class"), "site-footer-note", `${file}: a new type role appeared`);
     // The list is inside it, and it is the only one on the page.
