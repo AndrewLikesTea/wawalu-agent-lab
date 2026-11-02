@@ -921,7 +921,7 @@ test("every page's directory says start here once, on Decisions, and AI FinOps s
   const HREFS = ["/", "/releases.html", "/evolution.html", "/coach.html", "/personal-history.html",
     "/social.html", "/profile.html", "/paint/", "/agents.html"];
   assert.deepEqual(DEMOS.map((demo) => demo.href), HREFS, "the directory's doors changed");
-  assert.equal(DIRECTORY_SUMMARY, "Where else to go in the lab — all 9 destinations");
+  assert.equal(DIRECTORY_SUMMARY, "Where else to go in the lab");
 
   const directory = (document, where) => {
     const lists = document.querySelectorAll(".site-footer-demos");
@@ -935,7 +935,12 @@ test("every page's directory says start here once, on Decisions, and AI FinOps s
     assert.equal(textOf(rows[HREFS.indexOf("/evolution.html")]), `AI FinOps — ${finops.purpose}. ${SEPARATE_TOOL}`,
       `${where}: the AI FinOps row`);
     const summary = document.querySelectorAll("#site-footer-directory-summary");
-    if (summary.length) assert.equal(textOf(summary[0]), DIRECTORY_SUMMARY, `${where}: the folded directory's count`);
+    if (summary.length) {
+      // #3092: the footer list and the top navigation are two different sets of
+      // nine, so a count here implied one of them was complete. No number at all.
+      assert.equal(textOf(summary[0]), "Where else to go in the lab", `${where}: the folded directory's heading`);
+      assert.doesNotMatch(textOf(summary[0]), /\d/, `${where}: the folded directory's heading counts again`);
+    }
   };
 
   for (const file of PAGES) {
@@ -976,7 +981,7 @@ test("the directory is headed by the lab, and every destination outside Shiplog 
   assert.deepEqual(SHIPLOG_LABELS, ["Decision log", "Releases"]);
   assert.doesNotMatch(DIRECTORY_SUMMARY, /Shiplog/,
     "the heading still puts the nine destinations on Shiplog, which the band denies");
-  assert.match(DIRECTORY_SUMMARY, /^Where else to go in the lab — all \d+ destinations$/);
+  assert.equal(DIRECTORY_SUMMARY, "Where else to go in the lab");
   // Still one line per destination and nine of them: a label change, not a
   // restructure. The count clause has to equal the rows beneath it.
   assert.equal(DEMOS.length, 9);

@@ -272,8 +272,8 @@ export function siteFooterMarkup(indent = "    ", {
   return lines.map((line) => `${indent}${line}`).join("\n");
 }
 
-// The one line a folded directory gets: the rest of the lab, and how much of it.
-export const DIRECTORY_SUMMARY = `Where else to go in the lab — all ${DEMOS.length} destinations`;
+// The one line a folded directory gets: the rest of the lab.
+export const DIRECTORY_SUMMARY = "Where else to go in the lab";
 
 /**
  * A real <ul>, so the destinations arrive as a list rather than a run-on
