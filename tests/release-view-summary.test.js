@@ -43,6 +43,9 @@ test("page copies exact displayed order, then follows search and decision filter
   const page = await boot(t, { writeText: async (text) => writes.push(text) });
   const { node, document } = page;
   assert.equal(node("copy").getAttribute("aria-describedby"), "release-summary-scope release-summary-availability");
+  // #3095: one word, "shown", for the filtered set — the export beside it says the same.
+  assert.equal(textOf(node("copy")), "Copy shown releases summary");
+  assert.doesNotMatch(textOf(node("availability")), /visible/);
   // #3079: the helper says what the copy holds and where it goes, not who it sells to.
   const scope = textOf(node("scope"));
   for (const phrase of ["linked decisions", "labeled separately"]) assert.ok(scope.includes(phrase), phrase);
@@ -51,14 +54,14 @@ test("page copies exact displayed order, then follows search and decision filter
   assert.equal(node("status").getAttribute("aria-live"), "polite");
   node("copy").focus(); pressEnter(document); await tick();
   assert.ok(writes[0].indexOf("v2") < writes[0].indexOf("v1"));
-  assert.match(textOf(node("status")), /Copied a summary of 2 visible releases/);
+  assert.match(textOf(node("status")), /Copied a summary of 2 shown releases/);
   assert.equal(document.activeElement, node("copy"));
   await tick(); assert.match(textOf(node("status")), /Copied/);
   document.querySelector("#release-search").focus(); typeText(document, "Queue");
   document.querySelector("#release-decision-status-accepted").click();
   node("copy").click(); await tick();
   assert.match(writes[1], /v2/); assert.doesNotMatch(writes[1], /v1|Preview/);
-  assert.match(textOf(node("status")), /1 visible release/);
+  assert.match(textOf(node("status")), /1 shown release/);
   document.querySelector("#release-search").focus(); typeText(document, "no matches");
   assert.equal(node("copy").disabled, true);
   assert.match(textOf(node("availability")), /Change the search or filters/);

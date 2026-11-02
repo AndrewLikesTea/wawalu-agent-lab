@@ -231,7 +231,7 @@ test("the success state says the record is browser-only and names the way out", 
   assert.equal(
     textOf(kept),
     "This release is stored in this browser only — a demo record, not a customer result."
-      + " “Export shown releases as JSON” above writes only the releases your search and filters are showing;"
+      + " “Export shown releases as JSON” above writes only the releases your search and filters have shown;"
       + " press “Clear filters” first to be sure this one is in the file."
       + " For the full record, use “Export history” on the Home page and choose “Everything stored in this browser”.",
   );
@@ -239,7 +239,7 @@ test("the success state says the record is browser-only and names the way out", 
   // promise that pressing the button takes this release along, because the
   // file is the filtered view. A success state that says otherwise sends a
   // first-time recorder away with a file their new release is not in.
-  assert.match(textOf(kept), /writes only the releases your search and filters are showing/);
+  assert.match(textOf(kept), /writes only the releases your search and filters have shown/);
   assert.doesNotMatch(textOf(kept), /takes it with you/);
   assert.match(
     textOf(page.document.querySelector("#release-export-scope")),
