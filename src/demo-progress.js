@@ -41,6 +41,7 @@
 // below, so a wording change still lands in a single place.
 
 import { completionProof, renderCompletionProof, initCompletionCopy } from "./demo-completion-proof.js";
+import { initDemoHandoff } from "./demo-handoff.js";
 import { recordReleaseHref } from "./decision-entry.js";
 import { DETAIL_LINK_TEXT, loadReleases, releaseDetailHref, releaseDetailLinkLabel } from "./releases.js";
 import { onRecordsChanged } from "./shiplog-records.js";
@@ -365,6 +366,7 @@ export function initDemoProgress(root, storage, { decisions, releases, surface =
   };
   const first = update();
   initCompletionCopy(root, update);
+  initDemoHandoff(root, update);
   const view = root.defaultView ?? root.ownerDocument?.defaultView;
   view?.addEventListener?.("storage", update);
   view?.addEventListener?.("pageshow", update);
