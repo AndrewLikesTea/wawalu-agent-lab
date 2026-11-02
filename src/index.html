@@ -222,7 +222,7 @@
                 <option value="pending">Pending</option>
                 <option value="accepted">Accepted</option>
               </select>
-              <span class="hint" id="status-hint">Choose Pending while the decision is under review and waiting on the owner to call it. Choose Accepted when the team has committed to it. To replace an older decision, select it under Replaces when recording the new one. The older decision is then marked Superseded, so you cannot select Superseded here. Proposed means the team has not committed to it; it may appear on example or imported records, but this form cannot set Proposed.</span>
+              <span class="hint" id="status-hint">Pending: Put to its owner for a decision. Waiting on the owner to accept it or replace it. Choose Accepted when the team has committed to it. To replace an older decision, select it under Replaces when recording the new one. The older decision is then marked Superseded, so you cannot select Superseded here. Proposed: Written up, but not yet put to its owner for a decision. It may appear on example or imported records, but this form cannot set Proposed.</span>
               <p class="field-error" id="status-error" hidden></p>
             </div>
 
@@ -458,8 +458,8 @@
                one control that hides records: it works off the Replaces link,
                not off the Superseded status, and those are not the same set. -->
           <dl class="status-glossary" aria-label="What each decision status means">
-            <div><dt>Proposed</dt><dd>Someone wrote it up. The team has not committed to it.</dd></div>
-            <div><dt>Pending</dt><dd>Under review. Waiting on the owner to call it.</dd></div>
+            <div><dt>Proposed</dt><dd>Written up, but not yet put to its owner for a decision.</dd></div>
+            <div><dt>Pending</dt><dd>Put to its owner for a decision. Waiting on the owner to accept it or replace it.</dd></div>
             <div><dt>Accepted</dt><dd>The team committed to it. Build against this one.</dd></div>
             <div><dt>Superseded</dt><dd>A later decision replaced it. It stays in the log as history.</dd></div>
             <div><dt>Accepted, not yet released</dt><dd>Accepted, and no release in this log names it yet.</dd></div>
