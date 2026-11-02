@@ -165,12 +165,12 @@ test("the site directory ships closed, and only the task pages fold it", async (
   assert.equal(summary.parentNode.getAttribute("id"), "site-footer-directory",
     "a summary that is not a disclosure's own child is not a control");
 
-  // It names what is behind it and how much of it there is, so opening it is not
-  // the only way to learn the size, and it is the lab rather than more about
-  // this post. It stopped saying "on Shiplog" in #2722: four of the nine
-  // destinations are not part of Shiplog, and the About band above says so.
+  // It names what is behind it: the lab rather than more about this post. It
+  // stopped saying "on Shiplog" in #2722: most of the destinations are not part
+  // of Shiplog, and the About band above says so. It stopped counting in #3092:
+  // this list and the top navigation are different nines.
   assert.equal(textOf(summary), DIRECTORY_SUMMARY);
-  assert.match(textOf(summary), new RegExp(`\\b${DEMOS.length}\\b`), "the summary must state the count it hides");
+  assert.doesNotMatch(textOf(summary), /\d/, "the summary must not count the destinations");
   assert.match(textOf(summary), /in the lab/);
   assert.doesNotMatch(textOf(summary), /post/i, "the summary must name the lab, not this post");
 
