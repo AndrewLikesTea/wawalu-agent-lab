@@ -284,6 +284,47 @@ test("every control the follow-up sentence names is rendered on the page, in bot
   }
 });
 
+// #3093: this form has no Social subject, so the sentence after "not about this
+// post" sends a Social question to Social's form, which has one. It is a
+// paragraph of its own because the one above is rewritten as text once a post
+// loads, so it is checked in both states.
+const SOCIAL_QUESTIONS = "For questions about Social, a separate lab tool, use the Shiplog follow-up request on Social, which takes them.";
+test("the post page sends Social questions to Social's follow-up request, after the not-about-this-post sentence", async () => {
+  const markup = await readFile(new URL("../src/post.html", import.meta.url), "utf8");
+  assert.ok(markup.indexOf('id="post-social-questions"') > markup.indexOf('id="site-footer"'),
+    "the Social pointer is not in the follow-up section");
+  assert.ok(markup.indexOf('id="post-detail"') < markup.indexOf('id="post-social-questions"'),
+    "the Social pointer adds a tab stop before #post-detail");
+  const social = await readFile(new URL("../src/social.html", import.meta.url), "utf8");
+  assert.ok(social.includes("This form also takes questions about Social, a separate lab tool."),
+    "Social no longer says its form takes questions about Social");
+  for (const [name, search, answer] of [["waiting", "", null], FLOWS[0]]) {
+    const page = await loadPage(new URL("../src/post.html", import.meta.url), { location: { search } });
+    const { document } = page;
+    try {
+      if (answer) {
+        globalThis.fetch = async (url) => answer(String(url));
+        await importPageModule("/post-page.js");
+        await waitFor(() => document.documentElement.dataset.shiplogPostDetail === "ready", `${name}: the lookup settled`);
+      }
+      const inner = document.getElementById("site-footer-title").parentNode;
+      const elements = inner.children.filter((node) => node.nodeType === 1);
+      const blocks = elements.filter((node) => node.getAttribute("class") === "site-footer-invitation");
+      assert.equal(blocks.length, 2, `${name}: ${blocks.length} invitation paragraphs`);
+      assert.ok(textOf(blocks[0]).includes("— not about this post. "), `${name}: the first paragraph lost "not about this post"`);
+      assert.equal(blocks[1].getAttribute("id"), "post-social-questions", `${name}: the Social pointer is not right after it`);
+      assert.equal(elements.indexOf(blocks[1]), elements.indexOf(blocks[0]) + 1, `${name}: something sits between the two sentences`);
+      assert.equal(textOf(blocks[1]), SOCIAL_QUESTIONS, `${name}: the Social pointer's words changed`);
+      const links = blocks[1].querySelectorAll("a");
+      assert.equal(links.length, 1, `${name}: the Social pointer has ${links.length} links`);
+      assert.equal(links[0].getAttribute("href"), "/social.html");
+      assert.equal(textOf(links[0]), "Social");
+    } finally {
+      page.restore();
+    }
+  }
+});
+
 test("the post topic is accepted only for Social requests; arbitrary topics stay invalid", async () => {
   for (const [purpose, topic] of [
     ["follow_up_people", POST_FOLLOW_UP_TOPIC],
