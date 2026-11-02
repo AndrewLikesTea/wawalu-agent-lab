@@ -190,8 +190,10 @@ test("Social: the reporting route sits outside the composer and points at the ex
   // words, so the painted page said how reporting works three times.
   // The report panel's own note is the form speaking once it is open, and stays
   // hidden until then, so it is not counted as a second explanation.
+  // Since #3096 the explanation's heading carries the link's words, so the
+  // phrase is read exactly twice: the link and the heading it lands on.
   const main = textOf(id("main-content")).split(textOf(id("post-report-panel"))).join(" ");
-  assert.ok(main.split("How reporting works").length - 1 <= 1, "Social says \"How reporting works\" more than once");
+  assert.equal(main.split("How reporting works").length - 1, 2, "Social says \"How reporting works\" other than on its link and its heading");
   assert.equal(main.split("The post stays up unless the team decides").length - 1, 1, "Social explains what a report leads to other than exactly once");
   // And the form's fields are described in that one place and nowhere else on
   // the painted page: the composer's terms point at the control, they do not
@@ -210,7 +212,9 @@ test("Social: reporting a post is a headed list of steps, then what happens afte
   const { document, id } = await bootSocial(t, { routes: { "/api/social-posts?limit=100": LIVE } });
   const region = id("post-report-about");
   assert.equal(region.getAttribute("aria-labelledby"), "post-report-about-title");
-  assert.equal(textOf(id("post-report-about-title")), "Reporting a post");
+  // The heading is the feed link's words, so the link lands on its own name (#3096).
+  assert.equal(textOf(id("post-report-about-title")), "How reporting works");
+  assert.equal(textOf(id("post-report-route").querySelectorAll("a")[0]), textOf(id("post-report-about-title")));
   assert.equal(id("post-report-about-title").tagName, "H2");
 
   assert.equal(region.querySelectorAll("ol").length, 1, "the steps are not one numbered list");
@@ -226,7 +230,7 @@ test("Social: reporting a post is a headed list of steps, then what happens afte
   assert.match(textOf(id("post-report-outcome")), /The post stays up unless the team decides after review to remove it\.$/);
   const shiplog = id("post-report-not-shiplog");
   assert.equal(textOf(shiplog),
-    "Questions about Shiplog itself go to the Shiplog follow-up request at the foot of this page instead; that request is not attached to any post.");
+    "Questions about Social or Shiplog that are not about one post go to the follow-up request at the foot of this page.");
   const links = shiplog.querySelectorAll("a");
   assert.equal(links.length, 1);
   assert.equal(links[0].getAttribute("href"), "#site-footer-panel");

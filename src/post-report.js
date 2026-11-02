@@ -43,7 +43,7 @@ export const REPORT_EMAIL_NOTE = "Your email address is required, and the Wawalu
 // How to file a report, one step per control a reader meets, each named as it
 // is drawn: the card's Report post button, the "Reason" radios, the optional
 // "Note for the team", the "Your email address" field and Send report (#2932).
-// Social ships these as its list under "Reporting a post"; src/post-page.js
+// Social ships these as its list under "How reporting works"; src/post-page.js
 // draws the same list, and tests/post-page-flow.test.js holds the two together.
 export const REPORT_STEPS = Object.freeze([
   "Select Report post on the post you want reviewed.",
