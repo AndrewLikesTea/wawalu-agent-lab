@@ -424,7 +424,8 @@ export function downloadShiplogExport(payload, options = {}) {
   const href = urlApi.createObjectURL(blob);
   const link = documentRef.createElement("a");
   link.href = href;
-  link.download = shiplogExportFilename(payload);
+  // The finished demo's handoff (demo-handoff.js) names its own file.
+  link.download = options.filename ?? shiplogExportFilename(payload);
   link.click();
   urlApi.revokeObjectURL(href);
 }

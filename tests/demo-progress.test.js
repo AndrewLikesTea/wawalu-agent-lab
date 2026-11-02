@@ -24,6 +24,10 @@ import {
 } from "../src/demo-progress.js";
 import { completionProof, initCompletionCopy } from "../src/demo-completion-proof.js";
 import { recordsChanged } from "../src/shiplog-records.js";
+import { DEMO_HANDOFF_STATUS } from "../src/demo-handoff.js";
+import { SHIPLOG_EXPORT_SCHEMA } from "../src/shiplog-export-schema.js";
+import { initShiplogImport } from "../src/shiplog-import.js";
+import { BUILD_STAMP } from "../src/build-stamp.js";
 import { DomEvent, loadPage, pressEnter, pressTab, tabSequence, textOf, typeText } from "./support/browser.js";
 
 const HOME = new URL("../src/index.html", import.meta.url);
@@ -512,4 +516,108 @@ test("pending clipboard requests suppress duplicate writes and stale feedback", 
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(textOf(status), '');
   assert.equal(button.getAttribute('aria-busy'), null);
+});
+
+// The teammate handoff (#3091). A second stored decision the demo did not
+// track, which the release also links: neither it nor its title may reach the file.
+const OTHER = { ...DECISION, id: "d-other", title: "Unrelated cache decision", createdAt: "2026-04-01T09:00:00.000Z" };
+const handoffStops = (page) => tabSequence(page.document)
+  .filter((node) => node.getAttribute("id") === "demo-handoff-download").length;
+
+test("the teammate handoff is out of the tab order until all four steps are done", async (t) => {
+  for (const records of [{}, { decisions: [DECISION] }, { decisions: [DECISION], releases: [{ ...RELEASE, decisionIds: [] }] }]) {
+    const page = await openHome(t, records);
+    assert.ok(done(page).hidden);
+    assert.equal(handoffStops(page), 0, "the handoff is a tab stop before the demo is done");
+    page.restore();
+  }
+  const page = await openHome(t, { decisions: [DECISION] });
+  page.storage.setItem(RELEASE_STORAGE_KEY, JSON.stringify([RELEASE]));
+  recordsChanged(page.document);
+  assert.equal(handoffStops(page), 1);
+  page.storage.setItem(RELEASE_STORAGE_KEY, JSON.stringify([{ ...RELEASE, decisionIds: [] }]));
+  recordsChanged(page.document);
+  assert.equal(handoffStops(page), 0, "an undone step left the handoff reachable");
+});
+
+test("the finished demo offers a handoff button that names the import control", async (t) => {
+  const page = await openHome(t, { decisions: [DECISION, OTHER], releases: [RELEASE] });
+  const button = byId(page, "demo-handoff-download");
+  assert.equal(button.tagName, "BUTTON");
+  assert.equal(button.type, "button");
+  assert.equal(textOf(button), "Download this demo for a teammate");
+  assert.equal(button.getAttribute("aria-describedby"), "demo-handoff-help");
+
+  const help = textOf(byId(page, "demo-handoff-help"));
+  const importLabel = textOf(page.document.querySelector('label[for="import-shiplog-file"]')).trim();
+  assert.equal(importLabel, "Choose JSON file");
+  assert.ok(help.includes(`“${importLabel}”`), "the help does not name the import control by its label");
+  assert.match(help, /The file stays on this device unless you send it\./);
+  assert.doesNotMatch(help, /customer|result|outcome/i);
+  assert.match(textOf(byId(page, "evaluation-path-scope")), /This is a demo workflow, not a customer result\./);
+
+  // Keyboard: the tab stop straight after the copy button.
+  const sequence = tabSequence(page.document);
+  let reached = null;
+  for (let press = 0; press < sequence.length && reached?.getAttribute?.("id") !== "completion-proof-copy"; press += 1) {
+    reached = pressTab(page.document);
+  }
+  assert.equal(reached?.getAttribute?.("id"), "completion-proof-copy");
+  assert.equal(pressTab(page.document)?.getAttribute?.("id"), "demo-handoff-download");
+});
+
+test("the handoff file holds only the demo pair, linked, and the home page imports it", async () => {
+  // One page open at a time, each restored before the next opens.
+  const open = (records) => openHome({ after() {} }, records);
+  let bytes;
+  let filename;
+  const first = await open({ decisions: [DECISION, OTHER], releases: [RELEASE] });
+  try {
+    byId(first, "demo-handoff-download").click();
+    assert.equal(first.downloads.length, 1, "pressing the button wrote no file");
+    ({ text: bytes, filename } = first.downloads.at(-1));
+    assert.equal(textOf(byId(first, "completion-proof-status")), DEMO_HANDOFF_STATUS.downloaded);
+  } finally {
+    first.restore();
+  }
+
+  assert.match(filename, /^shiplog-demo-handoff-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}Z\.json$/);
+  const file = JSON.parse(bytes);
+  assert.equal(file.schema, SHIPLOG_EXPORT_SCHEMA);
+  assert.deepEqual(file.decisions.map((decision) => decision.id), [DECISION.id]);
+  assert.deepEqual(file.releases.map((release) => [release.id, release.decisionIds]), [[RELEASE.id, [DECISION.id]]]);
+  assert.equal(file.record_count, 2);
+  assert.doesNotMatch(bytes, /d-other|Unrelated cache decision/);
+  assert.doesNotMatch(bytes, /"demo-[a-z0-9-]+"/, "a seeded example record reached the file");
+  if (BUILD_STAMP.commitSha) assert.ok(!bytes.includes(BUILD_STAMP.commitSha), "the repository's own record reached the file");
+
+  // A fresh browser with empty storage restores those bytes with its own control.
+  const second = await open();
+  let stored;
+  try {
+    initShiplogImport(second.document, second.storage);
+    const input = byId(second, "import-shiplog-file");
+    input.files = [{ name: filename, text: async () => bytes }];
+    await input.dispatchEvent(new DomEvent("change", { bubbles: true }));
+    assert.match(textOf(byId(second, "import-shiplog-headline")), /^Found 1 decision and 1 release in this file\./);
+    byId(second, "import-shiplog-commit").click();
+    stored = {
+      decisions: JSON.parse(second.storage.getItem(STORAGE_KEY)),
+      releases: JSON.parse(second.storage.getItem(RELEASE_STORAGE_KEY)),
+    };
+  } finally {
+    second.restore();
+  }
+  assert.deepEqual(stored.decisions.map((decision) => decision.id), [DECISION.id]);
+  assert.deepEqual(stored.releases.map((release) => [release.id, release.decisionIds]), [[RELEASE.id, [DECISION.id]]]);
+
+  // Reloaded, the teammate's log shows the same pair, linked.
+  const third = await open(stored);
+  try {
+    assert.ok(!done(third).hidden, "the restored pair does not read as linked");
+    assert.match(textOf(byId(third, "completion-proof-lines")), /Release v1\.3\.0 links to the decision “Adopt a durable job queue”/);
+    assert.match(textOf(byId(third, "decision-list")), /Adopt a durable job queue/);
+  } finally {
+    third.restore();
+  }
 });
