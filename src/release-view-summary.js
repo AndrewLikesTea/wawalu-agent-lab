@@ -5,7 +5,7 @@ import { copyText } from "./share-link.js";
 export function buildReleaseViewSummary(shown, exampleReleaseIds, exampleDecisionIds) {
   return [
     "Release history — current filtered view",
-    `${shown.length} release${shown.length === 1 ? "" : "s"}, in displayed order. Includes only releases visible after the active search and filters.`,
+    `${shown.length} release${shown.length === 1 ? "" : "s"}, in displayed order. Includes only releases shown by the active search and filters.`,
     "Example records demonstrate Shiplog; they are not customer or production data. Records added in this browser are local records, not proof of deployment.",
     ...shown.map((release, index) => {
       const brief = buildReleaseBrief(release, (release.decisions ?? []).map((decision) => ({
@@ -34,8 +34,8 @@ export function initReleaseViewSummary(root, { shown, provenance, clipboard }) {
     generation += 1;
     button.disabled = shown().length === 0;
     availability.textContent = button.disabled
-      ? "No releases are visible. Change the search or filters before copying; if the log failed to load, retry loading it first."
-      : `${shown().length} visible releases will be included.`;
+      ? "No releases are shown. Change the search or filters before copying; if the log failed to load, retry loading it first."
+      : `${shown().length} shown releases will be included.`;
     // Keep the receipt, but identify it as a previous snapshot after edits.
     if (status.textContent && !status.textContent.includes("The view changed.")) {
       status.textContent += " The view changed. Copy again for an updated summary.";
@@ -57,7 +57,7 @@ export function initReleaseViewSummary(root, { shown, provenance, clipboard }) {
     button.removeAttribute("aria-disabled");
     const changed = currentGeneration !== generation ? " The view has since changed; copy again for an updated summary." : "";
     if (copied) {
-      status.textContent = `Copied a summary of ${count} visible release${count === 1 ? "" : "s"} to the clipboard.${changed}`;
+      status.textContent = `Copied a summary of ${count} shown release${count === 1 ? "" : "s"} to the clipboard.${changed}`;
     } else {
       text.value = summary;
       fallback.hidden = false;
