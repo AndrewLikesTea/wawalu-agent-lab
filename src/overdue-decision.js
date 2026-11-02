@@ -15,8 +15,9 @@
 // -----------------
 // The status glossary shipped on the decisions page defines all four words:
 //
-//   Proposed    Someone wrote it up. The team has not committed to it.
-//   Pending     Under review. Waiting on the owner to call it.
+//   Proposed    Written up, but not yet put to its owner for a decision.
+//   Pending     Put to its owner for a decision. Waiting on the owner to
+//               accept it or replace it.
 //   Accepted    The team committed to it. Build against this one.
 //   Superseded  A later decision replaced it. It stays in the log as history.
 //
@@ -42,7 +43,7 @@
 //
 // One window, not a ladder per status: a second threshold would be a second
 // number nothing in the product can justify. Fourteen days is one sprint
-// boundary, which is the interval at which "waiting on the owner to call it"
+// boundary, which is the interval at which "waiting on the owner to accept it"
 // stops being waiting and becomes drift. It is an assumption, it is stated in
 // the rendered copy rather than hidden in this file, and a caller may override
 // it with `reviewWindowDays`.
@@ -84,8 +85,9 @@ export const OVERDUE_FINDING_KINDS = Object.freeze({
 
 /** The heading each state carries. The two calm ones do not use urgent words. */
 export const OVERDUE_FINDING_HEADINGS = Object.freeze({
-  // "Waiting on a decision" is the page's own definition of Pending — "waiting
-  // on the owner to call it" — and it is equally true of Proposed. It does not
+  // "Waiting on a decision" echoes the page's definitions: a Pending record is
+  // waiting on its owner, and a Proposed one has not yet been put to a decision
+  // at all. It is true of both. It does not
   // name a fifth status.
   [OVERDUE_FINDING_KINDS.overdue]: "Waiting on a decision",
   [OVERDUE_FINDING_KINDS.noneOverdue]: "Review check",

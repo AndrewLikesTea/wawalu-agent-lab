@@ -281,11 +281,27 @@ test("Home decision form explains each status beside its Status control", async 
   assert.equal(status.getAttribute("aria-describedby"), "status-hint");
   assert.deepEqual(status.querySelectorAll("option").map(textOf), ["Pending", "Accepted"]);
   assert.equal(textOf(form.querySelector("#status-hint")),
-    "Choose Pending while the decision is under review and waiting on the owner to call it. "
+    `Pending: ${PENDING_DEFINITION} `
     + "Choose Accepted when the team has committed to it. "
     + "To replace an older decision, select it under Replaces when recording the new one. "
     + "The older decision is then marked Superseded, so you cannot select Superseded here. "
-    + "Proposed means the team has not committed to it; it may appear on example or imported records, "
+    + `Proposed: ${PROPOSED_DEFINITION} It may appear on example or imported records, `
     + "but this form cannot set Proposed.");
   assert.ok(form.querySelector("#supersedes"), "the named Replaces control is in the same form");
+});
+
+const PROPOSED_DEFINITION = "Written up, but not yet put to its owner for a decision.";
+const PENDING_DEFINITION = "Put to its owner for a decision. Waiting on the owner to accept it or replace it.";
+
+test("Home's status legend and the form's status help define Proposed and Pending in the same words", async (t) => {
+  const page = await loadPage(new URL("../src/index.html", import.meta.url));
+  t.after(() => page.restore());
+  const legend = Object.fromEntries(page.document.querySelector(".status-glossary").querySelectorAll("div")
+    .map((row) => [textOf(row.querySelector("dt")), textOf(row.querySelector("dd"))]));
+  assert.equal(legend.Proposed, PROPOSED_DEFINITION);
+  assert.equal(legend.Pending, PENDING_DEFINITION);
+  const help = textOf(page.document.querySelector("#status-hint"));
+  assert.ok(help.includes(`Proposed: ${legend.Proposed}`), "the form help defines Proposed in the legend's words");
+  assert.ok(help.includes(`Pending: ${legend.Pending}`), "the form help defines Pending in the legend's words");
+  assert.doesNotMatch(`${legend.Proposed} ${legend.Pending} ${help}`, /has not committed to/);
 });
