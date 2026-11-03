@@ -564,10 +564,14 @@
                    step that is left, and src/social-page.js writes the
                    "did not arrive" refusal, with both ways forward and the route
                    back to Paint, into the slot below the picker. This section
-                   says what to do; the page says what happened. -->
+                   says what to do; the page says what happened.
+                   Both routes now read word for word as People's do (#3104):
+                   one sentence each, the full stop keeping the file route apart
+                   from the picker below it, and no glyph beside "(opens in a new
+                   tab)", which already says the tab changes. -->
               <ul class="hint" id="post-image-steps">
-                <li>From Paint: <a class="secondary-button paint-link" href="/paint/" target="_blank" rel="noopener">Create or open an image in Paint <span class="new-tab-note">(opens in a new tab)</span> <span aria-hidden="true">↗</span></a> then select “Use this image in a Social post”</li>
-                <li>From a file: add an image already saved on this device</li>
+                <li>From Paint: <a class="secondary-button paint-link" href="/paint/" target="_blank" rel="noopener">Create or open an image in Paint <span class="new-tab-note">(opens in a new tab)</span></a>, then select “Use this image in a Social post”.</li>
+                <li>From a file: select Choose image to add an image from this device.</li>
               </ul>
               <div class="media-source-actions">
                 <label class="secondary-button file-button" for="post-image">Choose image
@@ -724,7 +728,7 @@
                    hint, not a second one beside it (#2405). Plain help text in
                    the field group, named by the input's own aria-describedby:
                    nothing focusable. -->
-              <span class="hint" id="post-author-hint">Your display name appears with this post in the Social feed, on the post's own page and, for an image post, on People. Leave it blank and your post is published under “Guest.” Everyone who leaves it blank shares “Guest,” so People lists all their image posts together. You cannot change it on this post after you publish.</span>
+              <span class="hint" id="post-author-hint">Your display name appears with this post in the Social feed, on the post's own page and, for an image post, on People. Leave it blank and your post is published under “Guest”. Everyone who leaves it blank shares “Guest,” so People lists all their image posts together. You cannot change it on this post after you publish.</span>
             </div>
 
             <!-- Where the bytes go, said before the press that sends them

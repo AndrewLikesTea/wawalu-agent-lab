@@ -53,7 +53,7 @@ const RETIRED_FEED_VARIANT = "Every display name below is invented for this demo
 // The composer's display-name hint. The name is fixed on the one post it is
 // published with (#2270) — not a rule about a profile or account, which a bare
 // "cannot be changed after publishing" let a first-time publisher read into it.
-const AUTHOR_HINT = "Your display name appears with this post in the Social feed, on the post's own page and, for an image post, on People. Leave it blank and your post is published under “Guest.” Everyone who leaves it blank shares “Guest,” so People lists all their image posts together. You cannot change it on this post after you publish.";
+const AUTHOR_HINT = "Your display name appears with this post in the Social feed, on the post's own page and, for an image post, on People. Leave it blank and your post is published under “Guest”. Everyone who leaves it blank shares “Guest,” so People lists all their image posts together. You cannot change it on this post after you publish.";
 
 // Tag-balance check for the hand-authored SVG assets. A mismatched or unclosed
 // tag makes a browser drop the image, which would silently demote every seeded
@@ -2287,7 +2287,7 @@ test("once Social has loaded, the display name hint fixes the name on this post,
   const text = textOf(hint);
   assert.equal(text, AUTHOR_HINT);
   // All three facts, each in its own words.
-  assert.match(text, /Leave it blank and your post is published under “Guest\.”/, "the hint dropped the Guest default");
+  assert.match(text, /Leave it blank and your post is published under “Guest”\./, "the hint dropped the Guest default");
   assert.match(text, /Everyone who leaves it blank shares “Guest,”/, "the hint no longer says Guest is shared");
   assert.match(text, /appears with this post/, "the hint no longer says where the name appears");
   assert.match(text, /cannot change it on this post after you publish/,
