@@ -124,7 +124,7 @@ const describedBy = (document) => byId(document, "site-footer-email").getAttribu
 // guidance: a review request, not a question channel (#2937). #3074: the form
 // also takes a question about the page's tool, so the line names the tool the
 // subject choice offers instead of calling the form Shiplog-only.
-const FEED_INVITATION = (tool) => `${INVITATION} This form also takes questions about ${tool}, a separate lab tool. The topics below are about Shiplog only — whether it is available for your team, a demonstration, a pilot, and security and data handling. Neither subject covers an individual post. To ask the Wawalu team to review a post, select Report post on that post.`;
+const FEED_INVITATION = (tool) => `${INVITATION} Choose Shiplog to ask about availability or pricing, a demonstration, a pilot, or security and data handling. Choose ${tool} (a separate lab tool) to ask about ${tool}; those topics do not apply to it, so the form switches them off. To ask the Wawalu team to review a post, select Report post on that post.`;
 
 const FOOTER_VARIANT = new Map([
   // #2995: the home page's form stays email-only, so it alone asks no name or organization.

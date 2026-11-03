@@ -138,7 +138,7 @@ test("Social feed keeps its general invitation and fixed topic", async () => {
     assert.equal(document.getElementById("site-footer-form").dataset.followUpTopic, topic);
     assert.equal(textOf(document.getElementById("site-footer-topic-note")), `This request is sent about the ${topic}.`);
     const heading = textOf(document.querySelector(".site-footer-invitation"));
-    assert.equal(heading, `${INVITATION} This form also takes questions about Social, a separate lab tool. The topics below are about Shiplog only — whether it is available for your team, a demonstration, a pilot, and security and data handling. Neither subject covers an individual post. To ask the Wawalu team to review a post, select Report post on that post.`);
+    assert.equal(heading, `${INVITATION} Choose Shiplog to ask about availability or pricing, a demonstration, a pilot, or security and data handling. Choose Social (a separate lab tool) to ask about Social; those topics do not apply to it, so the form switches them off. To ask the Wawalu team to review a post, select Report post on that post.`);
     assert.ok(heading.includes(`select ${REPORT_POST_LABEL} on that post`),
       `Social names the reporting control something other than "${REPORT_POST_LABEL}"`);
     assert.doesNotMatch(heading, /Copy link to this post|this post itself/,
@@ -160,6 +160,16 @@ for (const file of ["social.html", "profile.html"]) {
         `${file} does not say what ${REPORT_POST_LABEL} is for`);
       assert.doesNotMatch(heading, /question is about one of the posts|on that post instead/,
         `${file} still sends a question about a post to ${REPORT_POST_LABEL}`);
+      // #3108: the line names each choice as its radio label reads, says the
+      // Shiplog topics are off for the tool, and never says "subject".
+      for (const id of ["site-footer-subject-shiplog", "site-footer-subject-tool"]) {
+        const label = textOf(page.document.querySelector(`label[for="${id}"]`));
+        assert.ok(heading.includes(`Choose ${label} to ask about`), `${file} does not name the "${label}" choice`);
+      }
+      assert.match(heading, /those topics do not apply to it/, `${file} does not say the topics are off for the tool`);
+      assert.equal(/subject/i.test(heading), false, `${file} calls a choice a subject`);
+      assert.equal(heading.split(/(?<=\.) /).filter((s) => s.includes(REPORT_POST_LABEL)).length, 1,
+        `${file} names ${REPORT_POST_LABEL} in more than one sentence`);
     } finally {
       page.restore();
     }
@@ -296,7 +306,7 @@ test("the post page sends Social questions to Social's follow-up request, after 
   assert.ok(markup.indexOf('id="post-detail"') < markup.indexOf('id="post-social-questions"'),
     "the Social pointer adds a tab stop before #post-detail");
   const social = await readFile(new URL("../src/social.html", import.meta.url), "utf8");
-  assert.ok(social.includes("This form also takes questions about Social, a separate lab tool."),
+  assert.ok(social.includes("Choose Social (a separate lab tool) to ask about Social;"),
     "Social no longer says its form takes questions about Social");
   for (const [name, search, answer] of [["waiting", "", null], FLOWS[0]]) {
     const page = await loadPage(new URL("../src/post.html", import.meta.url), { location: { search } });

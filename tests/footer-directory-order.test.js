@@ -54,7 +54,7 @@ const OPEN_PAGES = ["index.html", "evolution.html", "agent-trace.html"];
 
 // The pages whose heading line says more than INVITATION, and exactly what each
 // of them says. Every other page is held to INVITATION alone.
-const FEED_INVITATION = (tool) => `${INVITATION} This form also takes questions about ${tool}, a separate lab tool. The topics below are about Shiplog only — whether it is available for your team, a demonstration, a pilot, and security and data handling. Neither subject covers an individual post. To ask the Wawalu team to review a post, select Report post on that post.`;
+const FEED_INVITATION = (tool) => `${INVITATION} Choose Shiplog to ask about availability or pricing, a demonstration, a pilot, or security and data handling. Choose ${tool} (a separate lab tool) to ask about ${tool}; those topics do not apply to it, so the form switches them off. To ask the Wawalu team to review a post, select Report post on that post.`;
 const EXPECTED_INVITATION = {
   // The shipped markup, which is the waiting page: the two sentences that tell
   // a reader to select Report post or Copy link to this post are added to this
@@ -78,8 +78,11 @@ test("on Social and People the heading line names the subjects the form offers",
     assert.deepEqual(labels, ["Shiplog", `${tool} (a separate lab tool)`], `${file}: the subject choices changed`);
     const invitation = textOf(document.querySelector(".site-footer-invitation"));
     assert.ok(invitation.startsWith("Questions about Shiplog?"), `${file}: the heading line no longer names Shiplog`);
-    assert.ok(invitation.includes(`questions about ${tool}, a separate lab tool.`),
-      `${file}: the heading line does not name the lab tool the choices offer`);
+    // #3108: each choice is named as its label reads.
+    for (const label of labels) {
+      assert.ok(invitation.includes(`Choose ${label} to ask about`),
+        `${file}: the heading line does not name the "${label}" choice`);
+    }
     assert.doesNotMatch(invitation, /topics below are about Shiplog —/, `${file}: the heading line calls the whole form Shiplog-only`);
   }
 });
