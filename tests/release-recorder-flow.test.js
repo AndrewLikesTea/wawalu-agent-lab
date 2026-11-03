@@ -727,6 +727,45 @@ test("a recorded release opens a detail page listing each linked decision", asyn
   assert.equal(linked[0].href, `/decision.html?id=${QUEUE_DECISION.id}`);
 });
 
+// The recorder's hint promises that the first decision ticked — not the topmost
+// one in the list — gets its own section. Tick them against list order and the
+// detail page must agree with the hint.
+test("the first decision ticked, not the topmost, gets its own section on the release page", async (t) => {
+  const recorder = await openReleases(t, { decisions: [QUEUE_DECISION, CACHE_DECISION] });
+  assert.deepEqual(optionLabels(recorder), [QUEUE_DECISION.title, CACHE_DECISION.title]);
+  assert.match(textOf(recorder.document.querySelector("#release-decisions-hint")), /The first decision you tick gets its own section/);
+  optionFor(recorder, CACHE_DECISION.title).click();
+  optionFor(recorder, QUEUE_DECISION.title).click();
+  fillRequired(recorder, { version: "v1.6.1" });
+  submit(recorder);
+  const [saved] = stored(recorder);
+  assert.deepEqual(saved.decisionIds, [CACHE_DECISION.id, QUEUE_DECISION.id]);
+  recorder.restore();
+
+  const page = await loadPage(RELEASE_DETAIL_PAGE, {
+    storage: {
+      [STORAGE_KEY]: JSON.stringify([QUEUE_DECISION, CACHE_DECISION]),
+      [RELEASE_STORAGE_KEY]: JSON.stringify([saved]),
+    },
+    location: { search: `?id=${saved.id}` },
+  });
+  t.after(() => page.restore());
+  initReleaseDetail();
+
+  const detail = page.document.querySelector("#release-detail");
+  assert.equal(detail.getAttribute("aria-busy"), "false", "the detail view never left its loading state");
+  assert.equal(detail.querySelectorAll(".detail-governing").length, 1);
+  assert.equal(textOf(detail.querySelector(".detail-governing-name")), CACHE_DECISION.title);
+  // The other linked decision is listed below that section.
+  const titles = detail.querySelectorAll(".detail-decision-title").map(textOf);
+  assert.deepEqual(titles, [CACHE_DECISION.title, QUEUE_DECISION.title]);
+  const content = textOf(detail);
+  assert.ok(
+    content.indexOf("First linked decision") < content.lastIndexOf(QUEUE_DECISION.title),
+    "the other linked decision is not listed below the first one's section",
+  );
+});
+
 test("a recorded release exports with its decision associations intact", async (t) => {
   const page = await openReleases(t, { decisions: [QUEUE_DECISION, CACHE_DECISION] });
   optionFor(page, CACHE_DECISION.title).click();
