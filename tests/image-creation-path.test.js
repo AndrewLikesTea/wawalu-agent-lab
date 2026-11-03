@@ -366,19 +366,17 @@ test("every route into Paint on Social and People says in words that it opens a 
 // The site's every other arrow is a → on a same-tab route, and People's Paint
 // button used to carry one while Social's carried ↗ for the identical action.
 // That button is gone — it was People's second offer of the same route — so
-// what is left to check is the composer's, and the rule it has to follow.
-test("the button-shaped routes into Paint carry one arrow, and it is the leaves-this-tab one", () => {
+// what is left to check is the composer's. Since #3104 it carries no arrow at
+// all, like People's link: "(opens in a new tab)" already says the tab changes,
+// and a ↗ after it said it twice.
+test("the button-shaped routes into Paint carry no arrow beside their new-tab words", () => {
   const buttons = ["Social", "People"].flatMap((name) => entryPointsOn(name))
     .filter((link) => /button-link|secondary-button/.test(link.className ?? ""));
   assert.equal(buttons.length, 1, "the number of button-shaped routes into Paint changed");
 
   for (const link of buttons) {
-    // The arrow is decoration on top of the disclosure: hidden from assistive
-    // technology so it is not read as punctuation, and never the only signal.
-    const glyphs = link.querySelectorAll("span").filter((span) => /[↗→]/.test(textOf(span)));
-    assert.equal(glyphs.length, 1, `${textOf(link)} does not carry exactly one glyph`);
-    assert.equal(textOf(glyphs[0]), "↗", `${textOf(link)} points → at a route that leaves this tab`);
-    assert.equal(glyphs[0].getAttribute("aria-hidden"), "true", "the glyph is read as punctuation");
+    assert.doesNotMatch(textOf(link), /[↗→]/, `${textOf(link)} carries a glyph beside its new-tab words`);
+    assert.match(textOf(link), /\(opens in a new tab\)$/);
   }
 });
 
@@ -452,9 +450,11 @@ test("the composer lists the two ways in and puts the rule beside the control", 
   // this: the composer's hint already opens "Add an image if you want one".
   assert.equal(steps.tagName, "UL", "the two routes are numbered as if they were steps");
   const items = steps.querySelectorAll("li");
+  // #3104 puts both routes in People's words, one sentence each, so the file
+  // route names the picker again and its full stop parts it from the label.
   assert.deepEqual(items.map(textOf), [
-    "From Paint: Create or open an image in Paint (opens in a new tab) ↗ then select “Use this image in a Social post”",
-    "From a file: add an image already saved on this device",
+    "From Paint: Create or open an image in Paint (opens in a new tab), then select “Use this image in a Social post”.",
+    "From a file: select Choose image to add an image from this device.",
   ]);
   assert.equal(textOf(documents.Social.querySelector("body"))
     .split("export an image and select it using “Choose image”").length - 1, 0,
@@ -517,8 +517,9 @@ test("the composer lists the two ways in and puts the rule beside the control", 
 });
 
 // (c) The Paint route is still the link it was: same words, same new tab, same
-// declaration of it, same arrow. Splitting the sentence must not have quietly
-// turned the first route into plain text.
+// declaration of it — and, since #3104, no arrow after the declaration.
+// Splitting the sentence must not have quietly turned the first route into
+// plain text.
 test("the Paint route keeps its new-tab words and its external indication", () => {
   const first = documents.Social.getElementById("post-image-steps").querySelectorAll("li")[0];
   const link = first.querySelector("a");
@@ -526,18 +527,15 @@ test("the Paint route keeps its new-tab words and its external indication", () =
   assert.equal(link.getAttribute("href"), PAINT_PATH);
   assert.equal(link.getAttribute("target"), "_blank");
   assert.match(link.getAttribute("rel") ?? "", /noopener/);
-  assert.equal(textOf(link), "Create or open an image in Paint (opens in a new tab) ↗");
-  assert.match(textOf(link), /\(opens in a new tab\)/);
-  const glyphs = link.querySelectorAll("span").filter((span) => /[↗→]/.test(textOf(span)));
-  assert.equal(glyphs.length, 1);
-  assert.equal(glyphs[0].getAttribute("aria-hidden"), "true");
+  assert.equal(textOf(link), "Create or open an image in Paint (opens in a new tab)");
+  assert.equal(link.querySelectorAll("span").filter((span) => /[↗→]/.test(textOf(span))).length, 0);
   // The route item labels the link and names the Paint control after it (#2514),
   // and adds no second control: the list contributes one tab stop, here, and
   // none anywhere else in it.
   assert.equal(first.querySelectorAll("a,button,input").length, 1,
     "the Paint route grew a second control");
   assert.equal(textOf(first),
-    `From Paint: ${textOf(link)} then select “Use this image in a Social post”`);
+    `From Paint: ${textOf(link)}, then select “Use this image in a Social post”.`);
 });
 
 // (d) The numbered list and the relocated rule are text, so the only stop they
@@ -555,7 +553,7 @@ test("the composer's focusable sequence takes the Paint step before Choose image
     const named = stops.map((node) => node.getAttribute("id") ?? textOf(node));
     assert.deepEqual(named, [
       "post-body",
-      "Create or open an image in Paint (opens in a new tab) ↗",
+      "Create or open an image in Paint (opens in a new tab)",
       "post-image",
       "remove-image",
       "post-image-alt",
@@ -594,17 +592,17 @@ test("the composer names the round trip in the order it is taken, once", () => {
   // is a labelled line a reader can skip to rather than the back half of a
   // sentence about Paint.
   assert.ok(at("Use this image in a Social post")
-    < at("From a file: add an image already saved on this device"),
+    < at("From a file: select Choose image to add an image from this device."),
     "the file route is offered ahead of the one-press action from Paint");
   // #2294: the list ends on the picker it leads into and no longer points back
   // "above" at it. Describing the image and publishing it are said at the
   // description field and beside Publish post, where they happen.
   assert.doesNotMatch(steps, /\babove\b/, "the steps send the reader back up the form");
-  // #2594: the sequence no longer identifies the picker by quoting its label.
-  // It sits directly above the control, so quoting it rendered the label twice
-  // running. The control keeps the name; the routes keep the reasons.
-  assert.doesNotMatch(steps, /Choose image/,
-    "the steps restate the label on the control they are read above");
+  // #3104: the file route names the picker in People's words, once, and ends on
+  // a full stop so it cannot run into the label below it the way #2594 saw.
+  assert.equal(steps.split("Choose image").length - 1, 1,
+    "the steps name the control they are read above other than once");
+  assert.match(steps, /from this device\.\s*$/);
   assert.equal(textOf(documents.Social.querySelector('label[for="post-image"]')), "Choose image");
 
   // Once, in the field where the file is chosen — not restated elsewhere.
@@ -654,19 +652,18 @@ test("the image section holds exactly one list of ways in, and it is the image o
     "the file route names Paint too, so the routes are joined again");
 });
 
-test("the file route says what it is for and leaves the picker its own name", () => {
+test("the file route names the picker in People's words and ends before it", () => {
   const items = documents.Social.getElementById("post-image-steps").querySelectorAll("li");
   const last = textOf(items[items.length - 1]);
 
-  // The last route says where the image comes from — one the visitor already has
-  // (#2514) — without quoting the label on the control below it (#2594): read
-  // straight through, the two used to run together as "…on this device Choose
-  // image". "Publish post" is still said once, by the button, not in a list read
-  // before the fields it follows.
+  // The last route says where the image comes from (#2514). It names the control
+  // below it in People's words (#3104), and its full stop keeps the two from
+  // running together as "…on this device Choose image" (#2594). "Publish post"
+  // is still said once, by the button, not in a list read before the fields it
+  // follows.
   const label = textOf(documents.Social.querySelector('label[for="post-image"]'));
   assert.equal(label, "Choose image");
-  assert.ok(!last.includes(label), `the file route still quotes the control: ${last}`);
-  assert.equal(last, "From a file: add an image already saved on this device");
+  assert.equal(last, "From a file: select Choose image to add an image from this device.");
   assert.doesNotMatch(textOf(documents.Social.getElementById("post-image-steps")), /Publish/,
     "the routes name the publish press ahead of the fields again");
   assert.equal(textOf(documents.Social.querySelector('button[type="submit"]')), "Publish post");
@@ -893,7 +890,7 @@ test("People names the same steps in the same words as the composer", async () =
   assert.ok(invitation.indexOf("Publish a post on Social.") < invitation.indexOf(RESULT));
   const paintLink = documents.People.getElementById("profile-paint-route");
   assert.equal(textOf(paintLink), "Create or open an image in Paint (opens in a new tab)");
-  assert.equal(textOf(composerPaintLink()).replace(/ ↗$/, ""), textOf(paintLink));
+  assert.equal(textOf(composerPaintLink()), textOf(paintLink));
   assert.equal(paintLink.getAttribute("target"), "_blank");
   assert.doesNotMatch(invitation, /PNG|export|save|download|upload/i,
     "People should describe the direct handoff without requiring an exported file");
@@ -912,6 +909,30 @@ test("People names the same steps in the same words as the composer", async () =
   assert.ok(invitation.includes("when you write a Social post, select Choose image"));
   assert.ok(invitation.indexOf("From a file") < invitation.indexOf("Either way, fill in the required image description."));
   assert.doesNotMatch(invitation, /Paint is required|you need Paint|only (in|from|with) Paint/i);
+});
+
+// #3104: Social and People describe the two image routes in one wording. The
+// Paint sentence is word for word the same; the file sentence differs only by
+// People's lead-in. No ↗ after "(opens in a new tab)", no space before the
+// comma after the link, and the full stop outside the quoted Paint label. The
+// harness parses no markup, so the source halves are pinned too.
+test("Social and People word the From Paint and From a file routes the same", () => {
+  const PAINT = "From Paint: Create or open an image in Paint (opens in a new tab), then select “Use this image in a Social post”.";
+  const FILE = "select Choose image to add an image from this device.";
+  const social = textOf(documents.Social.getElementById("post-image-steps")).replace(/\s+/g, " ").trim();
+  const people = textOf(documents.People.querySelector(".feed-create")).replace(/\s+/g, " ").trim();
+  assert.equal(social, `${PAINT} From a file: ${FILE}`);
+  assert.ok(people.includes(`${PAINT} From a file: when you write a Social post, ${FILE}`), people);
+  for (const [name, text] of [["Social", social], ["People", people]]) {
+    assert.doesNotMatch(text, /↗/, `${name} draws a glyph beside the new-tab words`);
+    assert.doesNotMatch(text, /\)\s+,/, `${name} renders a space before the comma`);
+    assert.doesNotMatch(text, /\.”/, `${name} puts a full stop inside a quoted label`);
+    assert.doesNotMatch(text, /saved on this device/, `${name} names the file source a second way`);
+    assert.match(sources[name], /\(opens in a new tab\)<\/span><\/a>, then select “Use this image in a Social post”\./);
+    assert.match(sources[name], /select Choose image to add an image from this device\./);
+  }
+  assert.doesNotMatch(sources.Social, /under “Guest\.”/);
+  assert.match(textOf(documents.Social.getElementById("post-author-hint")), /published under “Guest”\. /);
 });
 
 test("the steps are the image field's own description, so focusing it reads them", () => {
