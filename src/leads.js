@@ -70,7 +70,8 @@ export const FOLLOW_UP_TOPICS = Object.freeze({
   follow_up_agents: "Agent observatory page — watch a synthetic engineering team build and review work",
 });
 /**
- * The second subject on the three pages that host a separate lab tool (#2877).
+ * The second subject on the pages that host a separate lab tool (#2877; Prompt
+ * coach joined in #3110, so a coach question stops arriving as a Shiplog lead).
  * Their footer form asks whether the request is about Shiplog or about the tool
  * on the page; choosing the tool sends this topic instead of the page's, so the
  * stored row says which of the two the visitor asked about. Each string is also
@@ -79,6 +80,7 @@ export const FOLLOW_UP_TOPICS = Object.freeze({
  * intent radios are the Shiplog questions.
  */
 export const FOLLOW_UP_TOOL_TOPICS = Object.freeze({
+  follow_up_coach: "Prompt coach (a separate lab tool)",
   follow_up_social: "Social (a separate lab tool)",
   follow_up_people: "People (a separate lab tool)",
   follow_up_agents: "Agent observatory (a separate lab tool)",
@@ -142,7 +144,7 @@ function json(body, status, requestId, headers = {}) {
 // intent the row holds once the write is done. A repeat request keeps its first
 // message but, on a form that asks, takes the new intent and topic — the latest
 // answer is the one the team needs, and the receipt names the stored value
-// rather than the sent one. The topic moves with it because on the three tool
+// rather than the sent one. The topic moves with it because on the tool
 // pages it is the subject chosen (FOLLOW_UP_TOOL_TOPICS); everywhere else a
 // purpose has exactly one topic, so rewriting it changes nothing.
 //

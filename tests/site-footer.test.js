@@ -124,7 +124,10 @@ const describedBy = (document) => byId(document, "site-footer-email").getAttribu
 // guidance: a review request, not a question channel (#2937). #3074: the form
 // also takes a question about the page's tool, so the line names the tool the
 // subject choice offers instead of calling the form Shiplog-only.
-const FEED_INVITATION = (tool) => `${INVITATION} Choose Shiplog to ask about availability or pricing, a demonstration, a pilot, or security and data handling. Choose ${tool} (a separate lab tool) to ask about ${tool}; those topics do not apply to it, so the form switches them off. To ask the Wawalu team to review a post, select Report post on that post.`;
+// #3110: Prompt coach takes the same subject choice, so it carries the routing
+// sentences without the Report post one: the coach page lists no posts.
+const TOOL_INVITATION = (tool) => `${INVITATION} Choose Shiplog to ask about availability or pricing, a demonstration, a pilot, or security and data handling. Choose ${tool} (a separate lab tool) to ask about ${tool}; those topics do not apply to it, so the form switches them off.`;
+const FEED_INVITATION = (tool) => `${TOOL_INVITATION(tool)} To ask the Wawalu team to review a post, select Report post on that post.`;
 
 const FOOTER_VARIANT = new Map([
   // #2995: the home page's form stays email-only, so it alone asks no name or organization.
@@ -134,7 +137,8 @@ const FOOTER_VARIANT = new Map([
   ["executive-briefing.html", { redirect: FOLLOW_UP_REDIRECT.briefing }],
   ["coach.html", {
     followUpType: "follow_up_coach", followUpTopic: FOLLOW_UP_TOPICS.follow_up_coach,
-    collapsedDemos: true, askMessage: true, offer: true, assets: true,
+    invitation: TOOL_INVITATION("Prompt coach"),
+    collapsedDemos: true, askMessage: true, offer: true, assets: true, tool: FOLLOW_UP_TOOL_TOPICS.follow_up_coach,
   }],
   // `collapsedDemos` is the third shape, and issue #2250 gave it to the five
   // pages a visitor is on to do one thing — read a post, read the feed, pick a
@@ -179,7 +183,7 @@ const FOOTER_VARIANT = new Map([
   // drawn on every card here and on every tile on People. It names that control
   // for a review only, never for a question (#2937), and stops: how a report is
   // then handled is Social's disclosure to explain, once (#2471).
-  // `tool` (#2877): the three pages that host a separate lab tool let a visitor
+  // `tool` (#2877, coach since #3110): the pages that host a separate lab tool let a visitor
   // ask about that tool instead of Shiplog. The page's tool name is passed here
   // and rendered into its markup, not kept in the shared footer module.
   ["social.html", {

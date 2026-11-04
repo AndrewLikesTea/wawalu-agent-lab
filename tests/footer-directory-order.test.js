@@ -54,8 +54,11 @@ const OPEN_PAGES = ["index.html", "evolution.html", "agent-trace.html"];
 
 // The pages whose heading line says more than INVITATION, and exactly what each
 // of them says. Every other page is held to INVITATION alone.
-const FEED_INVITATION = (tool) => `${INVITATION} Choose Shiplog to ask about availability or pricing, a demonstration, a pilot, or security and data handling. Choose ${tool} (a separate lab tool) to ask about ${tool}; those topics do not apply to it, so the form switches them off. To ask the Wawalu team to review a post, select Report post on that post.`;
+const TOOL_INVITATION = (tool) => `${INVITATION} Choose Shiplog to ask about availability or pricing, a demonstration, a pilot, or security and data handling. Choose ${tool} (a separate lab tool) to ask about ${tool}; those topics do not apply to it, so the form switches them off.`;
+const FEED_INVITATION = (tool) => `${TOOL_INVITATION(tool)} To ask the Wawalu team to review a post, select Report post on that post.`;
 const EXPECTED_INVITATION = {
+  // #3110: the coach lists no posts, so it routes the subject without Report post.
+  "coach.html": TOOL_INVITATION("Prompt coach"),
   // The shipped markup, which is the waiting page: the two sentences that tell
   // a reader to select Report post or Copy link to this post are added to this
   // paragraph by src/post-page.js once a post loads, and only then, because
