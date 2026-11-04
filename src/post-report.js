@@ -51,6 +51,12 @@ export const REPORT_STEPS = Object.freeze([
   "Add a note for the team if you want to.",
   "Enter your email address, then select Send report.",
 ]);
+// How a publisher asks for their own post to come down (#3115): nothing edits or
+// deletes a post, so the route is this form, under the reason that fits. The
+// label is read from REPORT_REASONS so the sentence names the radio as drawn.
+// Social and People ship it in their markup; src/post-page.js adds it beside a
+// drawn Report post button.
+export const OWN_POST_REMOVAL = `To ask the Wawalu team to remove your own post, select ${REPORT_POST_LABEL} on it and choose “${REPORT_REASONS.find((reason) => reason.value === "posted_in_error").label}”.`;
 export const REPORT_RECEIVED ="Report sent. The Wawalu team will review this post, and it stays up while they do.";
 export const REPORT_NOT_SENT = "Your report was not sent.";
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
