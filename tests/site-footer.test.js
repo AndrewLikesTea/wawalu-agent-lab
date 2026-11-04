@@ -200,6 +200,7 @@ const FOOTER_VARIANT = new Map([
   // one, so its open map sat between the evaluation-brief link and the form.
   ["agents.html", {
     followUpType: "follow_up_agents", followUpTopic: FOLLOW_UP_TOPICS.follow_up_agents,
+    invitation: TOOL_INVITATION("Agent observatory"),
     collapsedDemos: true, askMessage: true, offer: true, assets: true, tool: FOLLOW_UP_TOOL_TOPICS.follow_up_agents,
   }],
 ]);

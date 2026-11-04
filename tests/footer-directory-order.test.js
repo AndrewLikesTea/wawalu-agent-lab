@@ -67,13 +67,15 @@ const EXPECTED_INVITATION = {
   "post.html": `${INVITATION} The topics below are about Shiplog — whether it is available for your team, a demonstration, a pilot, and security and data handling — not about this post. Nothing about the post is attached to the request automatically.`,
   "social.html": FEED_INVITATION("Social"),
   "profile.html": FEED_INVITATION("People"),
+  // #3114: the observatory lists no posts either, so it matches the coach.
+  "agents.html": TOOL_INVITATION("Agent observatory"),
 };
 
 // #3074: the heading line used to call the form Shiplog-only while the subject
 // choice under it offered the page's lab tool. Both now name the same two
 // subjects, and the tool is still called separate from Shiplog.
-test("on Social and People the heading line names the subjects the form offers", async () => {
-  for (const [file, tool] of [["social.html", "Social"], ["profile.html", "People"]]) {
+test("on the tool pages the heading line names the subjects the form offers", async () => {
+  for (const [file, tool] of [["social.html", "Social"], ["profile.html", "People"], ["agents.html", "Agent observatory"]]) {
     const document = await parse(file);
     const labels = [...document.querySelectorAll("label")]
       .filter((label) => (label.getAttribute("for") ?? "").startsWith("site-footer-subject-"))

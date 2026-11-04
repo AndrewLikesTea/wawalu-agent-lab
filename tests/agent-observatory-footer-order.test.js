@@ -84,7 +84,7 @@ test("the observatory reads About, then the follow-up form, then the destination
   assert.equal(textOf(band[assets + 1]), ASSETS_DESCRIPTION,
     "the sentence describing the brief and the scorecard left the link it belongs to");
   assert.equal(invitation, assets + 2, "something sits between the About block and the follow-up block");
-  assert.equal(textOf(band[invitation]), INVITATION);
+  assert.equal(textOf(band[invitation]), `${INVITATION} Choose Shiplog to ask about availability or pricing, a demonstration, a pilot, or security and data handling. Choose Agent observatory (a separate lab tool) to ask about Agent observatory; those topics do not apply to it, so the form switches them off.`);
   assert.equal(panel, invitation + 1);
   assert.equal(band.slice(assets, panel).filter((node) => node.tagName === "A").length, 1,
     "a destination link still sits between the About block and the form");
