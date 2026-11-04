@@ -1699,6 +1699,7 @@ const PUBLISH_CONDITIONS = [
 // on none of its three other states, so a clause promising one could not travel
 // with them.
 const COMPOSER_CONSEQUENCE = "A published post is public and cannot be edited or deleted by the person who published it. "
+  + "To ask the Wawalu team to remove your own post, select Report post on it and choose “Mistaken or posted in error”. "
   + "Anyone can select Report post on it. "
   + PUBLISH_INSTRUCTION;
 // Social says who can read a published post in the storage block above its

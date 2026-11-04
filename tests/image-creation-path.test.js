@@ -53,6 +53,7 @@ const NEARBY_INVITATION = { People: documents.People };
 // then the instruction.
 const PEOPLE_CONSEQUENCE =
   "A published post is public and cannot be edited or deleted by the person who published it. "
+  + "To ask the Wawalu team to remove your own post, select Report post on it and choose “Mistaken or posted in error”. "
   + "Anyone can select Report post on it. "
   + "Do not include customer or production data.";
 // The longer second-person sentences this replaced, retired from every page.

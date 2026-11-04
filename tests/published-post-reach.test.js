@@ -36,6 +36,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { loadPage, textOf } from "./support/browser.js";
 import { PUBLISHED_POST_REACH, PUBLISHED_POST_TERMS } from "../src/social.js";
+import { OWN_POST_REMOVAL } from "../src/post-report.js";
 
 // The three pages that show a reader a post somebody published, named the way a
 // reader would name them. Nothing else on the site shows one.
@@ -163,8 +164,9 @@ test("the reporting clause stays on the two pages that always draw the control",
     assert.equal(times(markup, CLAUSE), 1, `${file} does not state the reporting clause exactly once`);
     // Directly after the terms, so the pair still reads as one thought: a post
     // cannot be taken down by its publisher, and this is the route that does
-    // end in removal (#2373).
-    assert.equal(times(markup, `${PUBLISHED_POST_TERMS} ${CLAUSE}`), 1,
+    // end in removal (#2373). Since #3115 the publisher's own removal route
+    // sits between them, directly after the terms.
+    assert.equal(times(markup, `${PUBLISHED_POST_TERMS} ${OWN_POST_REMOVAL} ${CLAUSE}`), 1,
       `${file} parted the reporting route from the terms it qualifies`);
   }
   const post = await read("post.html");

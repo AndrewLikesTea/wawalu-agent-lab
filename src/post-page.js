@@ -7,7 +7,7 @@ import {
   postProvenanceSentence, renderPostDetail,
 } from "/post-detail.js";
 
-import { REPORT_EMAIL_NOTE, REPORT_STEPS, mountPostReport, renderReportButton } from "/post-report.js";
+import { OWN_POST_REMOVAL, REPORT_EMAIL_NOTE, REPORT_STEPS, mountPostReport, renderReportButton } from "/post-report.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -42,7 +42,7 @@ const INVITATION_ATTACHMENT = "Nothing about the post is attached to the request
 const INVITATION_COPY = "Select Copy link to this post above, then paste the link into the Anything else we should know? field so the team knows which post you mean.";
 // Social's and People's reporting clause, in their bytes, closing the terms
 // sentence in #post-published-terms on the same rule: only beside a drawn
-// Report post button (#2942).
+// Report post button (#2942). OWN_POST_REMOVAL rides on the same rule (#3115).
 const TERMS_REPORT = "Anyone can select Report post on it.";
 
 async function fetchLivePost(id) {
@@ -123,7 +123,7 @@ async function init() {
   const waitingTerms = terms?.textContent ?? "";
   const nameControls = (drawn) => {
     if (invitation) invitation.textContent = drawn ? loadedInvitation : waitingInvitation;
-    if (terms) terms.textContent = drawn ? `${waitingTerms} ${TERMS_REPORT}` : waitingTerms;
+    if (terms) terms.textContent = drawn ? `${waitingTerms} ${OWN_POST_REMOVAL} ${TERMS_REPORT}` : waitingTerms;
     if (!reporting) return;
     // Same rule the People link follows: a reader standing on the handle when
     // it goes must not be dropped to the top of the document, so focus moves

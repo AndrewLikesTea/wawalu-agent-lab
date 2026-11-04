@@ -4,17 +4,22 @@ import { readFile } from "node:fs/promises";
 import { loadPage, pressEnter, textOf, typeText } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 import { handleLeadRequest, POST_FOLLOW_UP_TOPIC, FOLLOW_UP_TOPICS } from "../src/leads.js";
-import { REPORT_POST_LABEL } from "../src/post-report.js";
+import { OWN_POST_REMOVAL, REPORT_POST_LABEL, REPORT_REASONS } from "../src/post-report.js";
 import { INVITATION } from "../src/site-footer.js";
 import { POST_COPY_LABEL } from "../src/post-share.js";
 import { PUBLISHED_POST_TERMS } from "../src/social.js";
 
 // Social's and People's reporting clause, read from both pages so the post page
 // cannot drift from their bytes (#2942).
+// The removal route sits right after the terms on every page that says them
+// (#3115), in one wording.
 const REPORT_CLAUSE = "Anyone can select Report post on it.";
+const REMOVAL = "To ask the Wawalu team to remove your own post, select Report post on it and choose “Mistaken or posted in error”.";
+assert.equal(OWN_POST_REMOVAL, REMOVAL);
+assert.ok(REPORT_REASONS.some((reason) => reason.label === "Mistaken or posted in error"), "the removal route names a reason the form does not offer");
 for (const file of ["social.html", "profile.html"]) {
   const markup = await readFile(new URL(`../src/${file}`, import.meta.url), "utf8");
-  assert.ok(markup.includes(`${PUBLISHED_POST_TERMS} ${REPORT_CLAUSE}`), `${file} no longer closes the terms on ${REPORT_CLAUSE}`);
+  assert.ok(markup.includes(`${PUBLISHED_POST_TERMS} ${REMOVAL} ${REPORT_CLAUSE}`), `${file} no longer follows the terms with the removal route and ${REPORT_CLAUSE}`);
 }
 
 // The block a shared link lands a stranger on. It used to be headed "Questions
@@ -74,7 +79,7 @@ for (const state of ["loading", "loaded"]) {
       assert.match(textOf(byId("page-title")), /post/i);
       assert.equal(textOf(document.querySelector(".site-footer-invitation")), state === "loaded" ? invitation : waiting);
       // #2942: the terms close on Social's reporting clause only beside the button.
-      assert.equal(textOf(byId("post-published-terms")), state === "loaded" ? `${PUBLISHED_POST_TERMS} ${REPORT_CLAUSE}` : PUBLISHED_POST_TERMS);
+      assert.equal(textOf(byId("post-published-terms")), state === "loaded" ? `${PUBLISHED_POST_TERMS} ${REMOVAL} ${REPORT_CLAUSE}` : PUBLISHED_POST_TERMS);
       assert.equal(textOf(byId("site-footer-topic-note")), "This request is sent about the Social post page — one post from Social, at its own link.");
       assert.equal(byId("site-footer-topic-note").hidden, false);
       byId("site-footer-intent-demo").click();
@@ -263,8 +268,9 @@ test("every control the follow-up sentence names is rendered on the page, in bot
       assert.equal(textOf(reportButton), "Report post");
       assert.ok(sentence.includes(`To ask the Wawalu team to review this post, select ${textOf(reportButton)}.`),
         `${name}: the review guidance does not match the visible reporting control`);
-      assert.equal(textOf(document.getElementById("post-published-terms")), `${PUBLISHED_POST_TERMS} ${REPORT_CLAUSE}`,
-        `${name}: the terms do not close on Social's reporting clause`);
+      assert.equal(textOf(document.getElementById("post-published-terms")), `${PUBLISHED_POST_TERMS} ${REMOVAL} ${REPORT_CLAUSE}`,
+        `${name}: the terms are not followed by the removal route and Social's reporting clause`);
+      assert.ok(REMOVAL.includes(`select ${textOf(reportButton)} on it`), `${name}: the removal route does not name the visible control`);
 
       // The copying control: named by the words on it, and there is exactly one.
       assert.ok(sentence.includes(`Select ${POST_COPY_LABEL} above,`),

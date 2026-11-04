@@ -350,6 +350,7 @@ test("People: the helper points at the terms instead of restating them, once the
   statesTheDistinction(helper, "People's helper");
   assert.ok(helper.trim().endsWith(
     "A published post is public and cannot be edited or deleted by the person who published it. "
+    + "To ask the Wawalu team to remove your own post, select Report post on it and choose “Mistaken or posted in error”. "
     + "Anyone can select Report post on it. "
     + "Do not include customer or production data."),
   `People's helper no longer states both halves of the distinction: ${helper}`);

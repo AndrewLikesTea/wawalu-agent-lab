@@ -777,7 +777,7 @@ const PUBLISH_INSTRUCTION = "Do not include customer or production data.";
 // page renders them too, and that page draws a Report post button on a loaded
 // post and on none of its three other states — so the reporting clause could not
 // travel with them and became its own sentence here.
-const PUBLISH_TERMS = `${PUBLISHED_POST_TERMS} Anyone can select Report post on it.`;
+const PUBLISH_TERMS = `${PUBLISHED_POST_TERMS} To ask the Wawalu team to remove your own post, select Report post on it and choose “Mistaken or posted in error”. Anyone can select Report post on it.`;
 const PUBLISH_CONSEQUENCE = PUBLISH_TERMS + " " + PUBLISH_INSTRUCTION;
 // The four sentences this replaced. They stacked two facts a reader had to add
 // up — public, and permanent — and then a third about reporting, and the first
@@ -1203,7 +1203,7 @@ test("the display name field explains where the name appears and that it cannot 
   // display name a second time (#2648) — a published post is public, and what
   // the name rides along with is this sentence's to say.
   assert.match(textOf(page.document.querySelector("#post-consequence")),
-    /^A published post is public and cannot be edited or deleted by the person who published it\. Anyone can select Report post on it\./);
+    /^A published post is public and cannot be edited or deleted by the person who published it\. To ask the Wawalu team to remove your own post, select Report post on it and choose “Mistaken or posted in error”\. Anyone can select Report post on it\./);
   assert.doesNotMatch(textOf(page.document.querySelector("#post-consequence")), /display name/,
     "the consequence names the display name again, in a second wording of this field's hint");
   assert.equal(page.document.querySelectorAll(".publish-consequence").length, 1);
@@ -2915,15 +2915,17 @@ test("the composer says where a published post is stored before anything is type
     assert.equal(main.includes(retired), false,
       `Social states where a post goes a second way: ${retired}`);
   }
-  // Five sentences between the display name field and the control that
-  // publishes — where the bytes go, who can read it, the terms, the reporting
+  // Six sentences between the display name field and the control that
+  // publishes — where the bytes go, who can read it, the terms, the removal
+  // route, the reporting
   // route, and the one instruction — and no sentence longer than a reader will
   // read at a button they cannot undo. It was three until #2734, which split
   // two of them in half so that the reach and the terms could each be a whole
   // sentence the other two pages render in the same bytes. No word was added:
-  // the clause boundaries became full stops.
+  // the clause boundaries became full stops. #3115 added the sixth: how a
+  // publisher asks for their own post to be removed, after the terms.
   const sentences = `${STORAGE_SCOPE} ${PUBLISH_CONSEQUENCE}`.split(". ").filter(Boolean);
-  assert.equal(sentences.length, 5, "the composer's consequences grew a sixth sentence");
+  assert.equal(sentences.length, 6, "the composer's consequences grew a seventh sentence");
   for (const sentence of sentences) {
     const words = sentence.split(/\s+/).filter(Boolean).length;
     assert.ok(words < 25, `${words} words is too long to read at the button: ${sentence}`);
