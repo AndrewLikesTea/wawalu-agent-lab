@@ -1,4 +1,5 @@
-// #2877: Social, People and Agent observatory are separate lab tools, and their
+// #2877: Social, People and Agent observatory (and, since #3110, Prompt coach)
+// are separate lab tools, and their
 // footer follow-up form asks whether the request is about Shiplog or about the
 // tool on the page. The choice is held here from the click to the row and back:
 // the radio in the markup, the topic on the wire, what the endpoint accepts and
@@ -29,6 +30,7 @@ const byId = (document, id) => document.getElementById(id);
 
 // Page, purpose, and the tool's name as the radio, the wire and the row carry it.
 const TOOL_PAGES = [
+  ["coach.html", "follow_up_coach", "Prompt coach (a separate lab tool)"],
   ["social.html", "follow_up_social", "Social (a separate lab tool)"],
   ["profile.html", "follow_up_people", "People (a separate lab tool)"],
   ["agents.html", "follow_up_agents", "Agent observatory (a separate lab tool)"],
@@ -155,6 +157,9 @@ for (const [file, purpose, tool] of TOOL_PAGES) {
     assert.ok(receipt.includes(CONFIRMATION_INTENT_DETAIL), receipt);
     assert.ok(!receipt.includes(INTENT_LEAD), receipt);
     assert.ok(!receipt.includes(`${SUBJECT_LEAD}Shiplog`), receipt);
+    // The reply promise holds for a tool question too (#3110).
+    assert.equal(textOf(byId(document, "site-footer-reply")), FOLLOW_UP_REPLY);
+    assert.equal(byId(document, "site-footer-reply").getAttribute("hidden"), null);
   });
 
   test(`${file}: switching back to Shiplog asks the Shiplog question again`, async (t) => {
@@ -197,6 +202,9 @@ test("the endpoint takes a tool topic only on its own purpose, and with no inten
   await refused({ email: EMAIL, purpose: "follow_up_social", topic: "Social (a lab tool)" }, "invalid_topic");
   await refused({ email: EMAIL, purpose: "follow_up_social", topic: FOLLOW_UP_TOOL_TOPICS.follow_up_people }, "invalid_topic");
   await refused({ email: EMAIL, purpose: "follow_up_coach", topic: FOLLOW_UP_TOOL_TOPICS.follow_up_social }, "invalid_topic");
+  await refused({ email: EMAIL, purpose: "follow_up_social", topic: FOLLOW_UP_TOOL_TOPICS.follow_up_coach }, "invalid_topic");
+  await refused({ email: EMAIL, purpose: "follow_up_coach", topic: FOLLOW_UP_TOOL_TOPICS.follow_up_coach, intent: "pilot" },
+    "invalid_request");
   await refused({ email: EMAIL, purpose: "follow_up_releases", topic: "Releases (a separate lab tool)" }, "invalid_topic");
   await refused({ email: EMAIL, purpose: "follow_up_agents", topic: FOLLOW_UP_TOOL_TOPICS.follow_up_agents, intent: "demo" },
     "invalid_request");

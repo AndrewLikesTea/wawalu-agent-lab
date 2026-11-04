@@ -339,11 +339,16 @@
         <p class="site-footer-identity"><a id="site-footer-source" href="https://github.com/AndrewLikesTea/wawalu-agent-lab">Open the public repository this site is built from</a></p>
         <a class="site-footer-redirect-link" id="site-footer-assets" href="/#shiplog-evaluation-brief">Evaluation brief and blank pilot scorecard</a>
         <p class="site-footer-identity" id="site-footer-assets-detail">The brief says what Shiplog records and who operates it; the scorecard is a blank form your evaluating team fills in during a pilot.</p>
-        <p class="site-footer-invitation">Questions about Shiplog? Send the Wawalu team that operates it a follow-up request.</p>
+        <p class="site-footer-invitation">Questions about Shiplog? Send the Wawalu team that operates it a follow-up request. Choose Shiplog to ask about availability or pricing, a demonstration, a pilot, or security and data handling. Choose Prompt coach (a separate lab tool) to ask about Prompt coach; those topics do not apply to it, so the form switches them off.</p>
         <div class="site-footer-panel" id="site-footer-panel">
           <form id="site-footer-form" class="site-footer-form" data-follow-up-type="follow_up_coach" data-follow-up-topic="Prompt coach page — grade a prompt, then revise and grade again" novalidate>
             <p class="site-footer-note" id="site-footer-offer">There is no self-serve signup and no published price. Whether Shiplog is available for your team and what it would cost are both answered on request.</p>
             <p class="site-footer-note" id="site-footer-topic-note">This request is sent about the Prompt coach page — grade a prompt, then revise and grade again.</p>
+            <fieldset class="decision-picker-field" id="site-footer-subject">
+              <legend>What is your question about?</legend>
+              <div class="filter-option"><input id="site-footer-subject-shiplog" name="subject" type="radio" value="" checked /><label for="site-footer-subject-shiplog">Shiplog</label></div>
+              <div class="filter-option"><input id="site-footer-subject-tool" name="subject" type="radio" value="Prompt coach (a separate lab tool)" /><label for="site-footer-subject-tool">Prompt coach (a separate lab tool)</label></div>
+            </fieldset>
             <fieldset class="decision-picker-field" id="site-footer-intent">
               <legend>What do you want to discuss?</legend>
               <p class="site-footer-error" id="site-footer-intent-error" role="alert" hidden></p>
