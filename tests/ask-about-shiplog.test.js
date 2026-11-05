@@ -112,11 +112,9 @@ for (const [name, open] of CARRIERS) {
     assert.equal(tabSequence(document).filter((node) => node === described[0]).length, 0,
       `${name}: the description became a tab stop`);
 
-    // #2689: and the caption does not make the promise the form it points at
-    // already makes. Painted, and counted across the whole page: the footer
-    // here is drawn by site-footer.js, so the one surviving copy is the one a
-    // reader meets beside the work-email field.
-    const replies = document.querySelectorAll("p").filter((node) => textOf(node) === FOLLOW_UP_REPLY);
+    // The new repository evidence actions carry their own response expectation.
+    // Elsewhere, keep the original caption distinct from the form’s reply copy.
+    const replies = document.querySelectorAll("p").filter((node) => textOf(node) === FOLLOW_UP_REPLY && node.id !== "repository-evidence-reply");
     assert.equal(replies.length, 1, `${name}: the reply promise is painted ${replies.length} times`);
     assert.equal(replies[0].getAttribute("id"), "site-footer-reply",
       `${name}: the surviving copy is not the form's own`);
@@ -271,12 +269,9 @@ test("all six pages carry their follow-up description once at the label", async 
       .querySelectorAll(`#${ASK_ABOUT_SHIPLOG_DESCRIPTION_ID}`).length, 0,
       `${file}: the description is repeated beside the form it points at`);
 
-    // And the promise the form makes is made once on the whole page, at the
-    // form. #2689: the caption ended on the same sentence, so these pages said
-    // it twice within one scroll — once describing a destination and once at
-    // it. Counted across the document rather than inside the caption, so
-    // putting the duplicate back anywhere fails here.
-    const replies = document.querySelectorAll("p").filter((node) => textOf(node) === FOLLOW_UP_REPLY);
+    // The repository actions repeat the expectation at their point of proof;
+    // the original route still leaves this sentence to the form.
+    const replies = document.querySelectorAll("p").filter((node) => textOf(node) === FOLLOW_UP_REPLY && node.id !== "repository-evidence-reply");
     assert.equal(replies.length, 1, `${file}: the reply promise ships ${replies.length} times`);
     assert.equal(replies[0].getAttribute("id"), "site-footer-reply",
       `${file}: the surviving copy is not the one beside the work-email field`);

@@ -135,7 +135,7 @@ test("the release that decision links to lists the decision back", async (t) => 
 test("the Shiplog offer states the pricing status and points to its contact path", async (t) => {
   const home = await openHome(t);
   const offer = home.document.getElementById("shiplog-entry");
-  const contact = offer.querySelector(`a[href="${ASK_ABOUT_SHIPLOG_HREF}"]`);
+  const contact = offer.querySelector(`#${ASK_ABOUT_SHIPLOG_ID}`);
 
   assert.match(textOf(offer), /How a team gets Shiplog/);
   assert.match(textOf(offer), /no self-serve signup and no published price/i);
@@ -145,10 +145,10 @@ test("the Shiplog offer states the pricing status and points to its contact path
   // the offer and the topic line are read on arrival, not scrolled past.
   assert.equal(textOf(contact), "Request a Shiplog demonstration");
   assert.equal(contact.getAttribute("id"), ASK_ABOUT_SHIPLOG_ID);
-  // Two routes and still one destination, so the buyer picks a topic and never
+  // Both pairs share one destination, so the buyer picks a topic and never
   // a form: both land on the panel below, and tests/homepage-opening-actions.js
   // holds them to the same follow-up form and the same topic state.
-  assert.equal(offer.querySelectorAll(`a[href="${ASK_ABOUT_SHIPLOG_HREF}"]`).length, 2);
+  assert.equal(offer.querySelectorAll(`a[href="${ASK_ABOUT_SHIPLOG_HREF}"]`).length, 4);
   assert.equal(offer.querySelectorAll('a[href="#site-footer-email"]').length, 0);
   assert.ok(home.document.getElementById("site-footer-email"),
     "the offer must point to a rendered follow-up form that asks for a work email");

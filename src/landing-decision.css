@@ -172,6 +172,7 @@
 #repository-last-verified a { white-space:normal; }
 
 #hero-demonstration { max-width:100%; white-space:normal; overflow-wrap:anywhere; }
+#repository-evidence-actions .button-link { min-width:0; max-width:100%; white-space:normal; overflow-wrap:anywhere; padding:12px 17px; }
 #site-footer-form { scroll-margin-top:24px; }
 
 /* The blank framework is readable without scripts or expanded disclosures. */
