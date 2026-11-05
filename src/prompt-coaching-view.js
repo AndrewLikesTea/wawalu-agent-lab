@@ -415,6 +415,73 @@ export function markPromptCoachingPending(doc) {
   return REVISION_PENDING;
 }
 
+export const GRADING_STATUS = "Grading your prompt.";
+export const GRADING_FAILURE = "Your prompt could not be graded. Your prompt and model tier are still in the form, so you can retry.";
+export const RETRY_ID = "prompt-coaching-retry";
+export const EDIT_ID = "prompt-coaching-edit";
+
+/**
+ * Drop the previous result and the previous change before a new grade starts, so
+ * nothing on screen can be read as the answer to the question just asked. The
+ * polite status line is the one loading label: the body is emptied and hidden
+ * rather than given a second, unannounced copy of the same sentence.
+ */
+export function markPromptCoachingLoading(doc) {
+  const section = byId(doc, SECTION_ID);
+  if (!section) return;
+  const store = state(section);
+  store.result = null;
+  store.change = null;
+  section.dataset.state = "loading";
+  delete section.dataset.grade;
+  delete section.dataset.reason;
+  paintChange(doc, section);
+  const body = byId(doc, RESULT_ID);
+  if (body) {
+    body.replaceChildren();
+    body.hidden = true;
+    body.setAttribute("aria-busy", "true");
+  }
+  markField(doc, false);
+  announce(doc, GRADING_STATUS);
+}
+
+/**
+ * The grader threw or returned something that is not a result. The alert speaks
+ * for itself, so focus stays where the reader left it and the status line stands
+ * down rather than leaving "Grading your prompt." beside the failure. Retry is a
+ * sibling of the alert, so the failure is read as one sentence and the button is
+ * reached as a button.
+ */
+export function markPromptCoachingFailed(doc, onRetry) {
+  const section = byId(doc, SECTION_ID);
+  const body = byId(doc, RESULT_ID);
+  if (!section || !body) return;
+  const store = state(section);
+  store.result = null;
+  store.change = null;
+  section.dataset.state = "failed";
+  delete section.dataset.grade;
+  delete section.dataset.reason;
+  paintChange(doc, section);
+  const block = element(doc, "div", "prompt-coaching-recovery");
+  block.dataset.reason = "grading_failed";
+  const message = element(doc, "p", "prompt-coaching-recovery-title");
+  message.setAttribute("role", "alert");
+  message.append(shapeSpan(doc, "◆"),
+    element(doc, "span", "prompt-coaching-recovery-words", GRADING_FAILURE));
+  const retry = element(doc, "button", "secondary-button", "Retry grading");
+  retry.type = "button";
+  retry.id = RETRY_ID;
+  retry.addEventListener("click", onRetry);
+  block.append(element(doc, "h3", "eyebrow", "Grading failed"), message, retry);
+  body.replaceChildren(block);
+  body.hidden = false;
+  body.removeAttribute("aria-busy");
+  markField(doc, false);
+  announce(doc, "");
+}
+
 /** Back to the idle state: no result, no announcement, no invalid field. */
 export function clearPromptCoaching(doc) {
   const section = byId(doc, SECTION_ID);
@@ -433,6 +500,7 @@ export function clearPromptCoaching(doc) {
   if (result) {
     result.replaceChildren();
     result.hidden = true;
+    result.removeAttribute("aria-busy");
   }
   markField(doc, false);
   announce(doc, "");
@@ -444,6 +512,7 @@ function paint(doc, section) {
   const body = byId(doc, RESULT_ID);
   if (!result || !body) return;
   body.hidden = false;
+  body.removeAttribute("aria-busy");
   section.dataset.state = result.state;
   paintChange(doc, section);
 
@@ -766,12 +835,23 @@ function recoveryBlock(doc, result) {
   const guidance = element(doc, "p", "prompt-coaching-recovery-guidance",
     result.recovery.guidance);
   guidance.id = RECOVERY_TEXT_ID;
-  block.append(element(doc, "h3", "eyebrow", "Not graded"), title, guidance);
+  // An empty box and a paste the grader cannot read are different situations,
+  // so each is named for what it is and offers the move that fits it. The
+  // button only moves focus: grading again stays the reader's own decision.
+  const empty = result.reason === "empty_input";
+  const edit = element(doc, "button", "secondary-button",
+    empty ? "Write a prompt" : "Edit your prompt");
+  edit.type = "button";
+  edit.id = EDIT_ID;
+  edit.addEventListener("click", () => byId(doc, INPUT_ID)?.focus?.());
+  block.append(element(doc, "h3", "eyebrow", empty ? "Empty prompt" : "Not graded"),
+    title, guidance);
   // What was measured about the refusal, when there is anything to measure. A
   // ceiling a reader hit is a number, and naming it is how they know what to
   // trim to. Counts only: nothing here comes from what they pasted.
   const observed = observedLine(result);
   if (observed) block.append(element(doc, "p", "prompt-coaching-recovery-observed", observed));
+  block.append(edit);
   return block;
 }
 

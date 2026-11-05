@@ -133,8 +133,8 @@ export const COACHING_RECOVERY = Object.freeze({
     control: "prompt-coaching-input",
   }),
   [COACHING_REASON.noTurns]: Object.freeze({
-    title: "There is nothing to grade yet.",
-    guidance: "Paste the prompt you sent, or the exchange around it, into the box and grade it again.",
+    title: "That paste has no turn to grade.",
+    guidance: "Write the request after its “User:” label, or paste the prompt on its own with no labels at all.",
     control: "prompt-coaching-input",
   }),
   [COACHING_REASON.noScorableTurn]: Object.freeze({
