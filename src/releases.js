@@ -1299,7 +1299,7 @@ export function renderReleaseListStatus(node, state, options = {}) {
     return;
   }
   node.className = `list-state list-state-${state}`;
-  parts.glyph.textContent = LIST_STATE_GLYPHS[state] ?? "";
+  say(parts.glyph, LIST_STATE_GLYPHS[state] ?? "");
   say(parts.heading, heading);
   say(parts.body, body ?? "");
   // A state with nothing to add beyond its heading says only that; an empty
@@ -1314,7 +1314,7 @@ export function renderReleaseListStatus(node, state, options = {}) {
     if (kind) {
       const [className, label, controls] = LIST_STATE_ACTIONS[kind];
       parts.action.className = `empty-action ${className}`;
-      parts.action.textContent = label;
+      say(parts.action, label);
       parts.action.dataset.action = kind;
       parts.action.setAttribute("aria-controls", controls);
     }
@@ -1442,7 +1442,7 @@ export function mountReleaseList(container, data = {}, options = {}) {
     state = createReleaseListState(current.releases ?? [], state.expandedIds);
     const shown = filterReleases(current.releases ?? [], current.decisions ?? [], filters);
     drawn = shown;
-    const filtered = releaseFiltersActive(filters);
+    const filtered = (current.releases ?? []).length > 0 && releaseFiltersActive(filters);
     renderReleaseList(container, shown, {
       filtered,
       // Derived from the same filters the rows were drawn with, so the sentence

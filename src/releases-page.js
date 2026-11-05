@@ -502,7 +502,7 @@ export function initReleasesPage(root = document, storage = localStorage, option
     logState = listed.length === 0 ? "empty" : "ready";
     shown = view.render({ releases: listed, decisions, exampleIds: exampleReleaseIds }, filters);
     if (releaseFilterSearch("", filters) !== sharedSearch) sharedSearch = "";
-    showShared(Boolean(sharedSearch && listStatus) && shown.length === 0);
+    showShared(Boolean(sharedSearch && listStatus) && releases.length > 0 && shown.length === 0);
     summaryCopy.update();
     // One count, from the same computation that rendered the rows, and one
     // follow-up derived from exactly those rows — so the callout can never
@@ -518,6 +518,8 @@ export function initReleasesPage(root = document, storage = localStorage, option
     now: options.now,
     download: options.download,
   });
+  // Must be bound before bindReleaseFilterUrl: its click handler re-renders synchronously.
+  root.querySelector("#release-clear-filters")?.addEventListener("click", () => coverageGaps.clearFilter());
   sharedSearch = releaseFilterSearch("", readReleaseFilters(locationRef?.search ?? "", knownDecisionIds));
   const filtersChanged = bindReleaseFilterUrl({
     root, search, statusFilter, decisionFilter, decisionStatusInputs, unacceptedFilter, knownDecisionIds,
@@ -588,6 +590,7 @@ export function initReleasesPage(root = document, storage = localStorage, option
       if (decisionFilter) decisionFilter.value = ALL_DECISIONS_FILTER;
       for (const input of decisionStatusInputs) input.checked = input.value === "all";
       if (unacceptedFilter) unacceptedFilter.checked = false;
+      coverageGaps.clearFilter();
       leave();
       search?.focus?.();
     } else if (action.dataset.action === "record-release") {
@@ -604,7 +607,10 @@ export function initReleasesPage(root = document, storage = localStorage, option
         } else setTimeout(read, 0);
       });
       schedule(() => {
-        if (reload() && action.hidden) root.querySelector("#releases-title")?.focus?.();
+        // Only repair focus if this action still owns it. A visitor may have
+        // continued to filters, navigation, or the form during the wait.
+        const ownsFocus = (root.activeElement ?? root.ownerDocument?.activeElement) === action;
+        if (reload() && action.hidden && ownsFocus) root.querySelector("#releases-title")?.focus?.();
       });
     }
   });

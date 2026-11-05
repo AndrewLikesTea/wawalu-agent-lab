@@ -18,7 +18,7 @@ import { STORAGE_KEY } from "../src/app.js";
 import { RELEASE_STORAGE_KEY, releaseListStateCopy } from "../src/releases.js";
 import { LOG_UNREAD, initReleasesPage } from "../src/releases-page.js";
 import { prepareShiplogImport } from "../src/shiplog-import.js";
-import { DomEvent, loadPage, tabSequence, textOf, typeText } from "./support/browser.js";
+import { DomEvent, loadPage, tabSequence, textOf, typeText, pressEnter, pressSpace } from "./support/browser.js";
 
 const RELEASES_PAGE = new URL("../src/releases.html", import.meta.url);
 const NO_SEED = { decisions: [], releases: [] };
@@ -114,7 +114,7 @@ test("the log's one status region ships the loading text, and boot announces it 
   const markup = await readFile(RELEASES_PAGE, "utf8");
   // As shipped: one visible role="status" for the log, carrying the wait, and
   // the list below it is neither live nor holding a second copy of the state.
-  assert.match(markup, /<div class="list-state list-state-loading" id="release-list-status" role="status" aria-live="polite" aria-atomic="true">/);
+  assert.match(markup, /<div class="list-state list-state-loading" id="release-list-status" aria-label="Release log status" role="status" aria-live="polite" aria-atomic="true">/);
   assert.match(markup, /<div id="release-list" aria-busy="true" aria-describedby="release-count"><\/div>/);
   assert.doesNotMatch(markup, /id="release-list"[^>]*aria-live/);
   // The shape this replaced: a hidden announcer beside an aria-hidden panel.
@@ -540,4 +540,70 @@ test("retry guards repeated activation, and recovers to empty in place", async (
   assert.equal(textOf(retry), "Record a release");
   retry.click();
   assert.equal(activeId(page), "release-version");
+});
+
+
+test("an empty stored log stays empty even with active shared filters", async (t) => {
+  const { page } = await openPage(t, { releases: [], boot: false });
+  initReleasesPage(page.document, page.storage, {
+    seed: NO_SEED, location: { search: "?q=missing&status=planned" },
+  });
+  assert.equal(regionText(page), EMPTY);
+  assert.equal(region(page).getAttribute("aria-label"), "Release log status");
+  assert.equal(region(page).parentNode.getAttribute("role"), "region");
+  assert.equal(region(page).parentNode.getAttribute("aria-labelledby"), "releases-title");
+  const record = page.document.querySelector(".release-empty-action");
+  record.focus();
+  pressEnter(page.document);
+  assert.equal(activeId(page), "release-version");
+});
+
+test("keyboard Clear filters resets coverage, search, status, decision and unaccepted filters", async (t) => {
+  const { page } = await openPage(t);
+  byId(page, "coverage-gap-toggle").click();
+  assert.equal(rows(page), 1);
+  fill(page, "release-search", "missing");
+  change(byId(page, "release-status"), "planned");
+  change(byId(page, "release-decision"), "d-queue");
+  byId(page, "release-decision-status-superseded").click();
+  byId(page, "release-unaccepted-only").click();
+  const clear = page.document.querySelector(".release-reset-action");
+  clear.focus();
+  pressSpace(page.document);
+  assert.equal(rows(page), 2);
+  assert.equal(byId(page, "release-search").value, "");
+  assert.equal(byId(page, "release-status").value, "all");
+  assert.equal(byId(page, "release-decision").value, "all");
+  assert.equal(byId(page, "release-decision-status-all").checked, true);
+  assert.equal(byId(page, "release-unaccepted-only").checked, false);
+  assert.equal(byId(page, "coverage-gap-worklist").hidden, true);
+});
+
+test("keyboard Retry keeps navigation usable and does not steal departed focus", async (t) => {
+  const { page, control } = await openPage(t, { refuse: true, boot: false });
+  const pending = [];
+  initReleasesPage(page.document, page.storage, {
+    seed: NO_SEED, scheduleLogReload: (read) => pending.push(read),
+  });
+  const before = tabSequence(page.document).filter((node) => node.tagName === "A");
+  const retry = page.document.querySelector(".release-retry-action");
+  retry.focus();
+  pressEnter(page.document);
+  assert.equal(regionText(page), LOADING);
+  assert.equal(page.document.activeElement, retry);
+  assert.deepEqual(tabSequence(page.document).filter((node) => node.tagName === "A"), before);
+  byId(page, "record-release-link").focus();
+  control.refuse = false;
+  pending.shift()();
+  assert.equal(rows(page), 2);
+  assert.equal(activeId(page), "record-release-link");
+});
+
+test("the toolbar Clear filters also drops the uncovered-only reveal", async (t) => {
+  const { page } = await openPage(t);
+  byId(page, "coverage-gap-toggle").click();
+  assert.equal(rows(page), 1);
+  byId(page, "release-clear-filters").click();
+  assert.equal(rows(page), 2);
+  assert.equal(byId(page, "coverage-gap-worklist").hidden, true);
 });

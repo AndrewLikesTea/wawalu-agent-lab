@@ -86,7 +86,7 @@
            feed rather than beside it: in two columns the recorder is still the
            first thing on the widest screens, whichever column it sits in. -->
       <section class="workspace workspace-single release-workspace" aria-label="Release log and recorder">
-      <div class="list-panel" aria-labelledby="releases-title">
+      <div class="list-panel" role="region" aria-labelledby="releases-title">
         <div class="section-heading list-heading">
           <div>
             <!-- No ordering eyebrow, and no ordering in the heading. Both used
@@ -272,7 +272,7 @@
              heading, the sentence and the one action are permanent children, so
              the control a reader is standing on is relabelled rather than
              removed. The list below holds nothing but rows and is not live. -->
-        <div class="list-state list-state-loading" id="release-list-status" role="status" aria-live="polite" aria-atomic="true">
+        <div class="list-state list-state-loading" id="release-list-status" aria-label="Release log status" role="status" aria-live="polite" aria-atomic="true">
           <span class="list-state-glyph" aria-hidden="true"></span>
           <h3>Loading releases…</h3>
         </div>
