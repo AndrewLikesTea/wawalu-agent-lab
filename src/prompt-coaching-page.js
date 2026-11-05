@@ -24,6 +24,7 @@ import {
 } from "./prompt-coaching-entry-view.js";
 import {
   INPUT_HINT, applyPromptCoaching, buildRevisionChange, clearPromptCoaching,
+  markPromptCoachingFailed, markPromptCoachingLoading,
 } from "./prompt-coaching-view.js";
 import { applyCoachingPreview } from "./prompt-coaching-contract-view.js";
 import { applyCoachingSpecimen } from "./coaching-specimen-view.js";
@@ -150,6 +151,7 @@ function initBundledRegion(doc, { bodyId, sectionId, titleId, statusId, loadingC
 export function initPromptCoaching(doc = globalThis.document, {
   loadBundledExample = applyCoachingFirstRun,
   loadPossibleResults = applyCoachingSpecimen,
+  gradeSession = buildCoachingSession,
 } = {}) {
   // The front door is painted first and independently of the form: a visitor
   // deciding whether this page is worth their prompt reads what they get, what
@@ -247,10 +249,27 @@ export function initPromptCoaching(doc = globalThis.document, {
     refreshEntry();
   });
 
-  form.addEventListener("submit", (event) => {
-    event.preventDefault?.();
+  // Which grade is the current one. A grade that settles after it has been
+  // superseded — by Clear, or by a newer grade — is dropped, so a late answer
+  // can never stand over the state the reader is now in. While one is pending,
+  // Grade is marked aria-disabled and ignored rather than `disabled`, which
+  // would throw a keyboard reader's focus off the control they pressed.
+  let request = 0;
+  let pending = false;
+  const gradeButton = doc.getElementById("prompt-coaching-grade");
+  const setPending = (value) => {
+    pending = value;
+    if (value) gradeButton?.setAttribute("aria-disabled", "true");
+    else gradeButton?.removeAttribute("aria-disabled");
+  };
+
+  const grade = () => {
+    if (pending) return;
+    const attempt = (request += 1);
     graded += 1;
-    const session = buildCoachingSession({
+    // Read from the form on every attempt, Retry included, and never written
+    // back: the prompt and the tier are the reader's and stay as they left them.
+    const submission = {
       // Numbered, not derived from the text and not generated from a clock, so
       // the same two grades produce the same pair of identifiers every time.
       sessionId: `grade-${graded}`,
@@ -260,7 +279,47 @@ export function initPromptCoaching(doc = globalThis.document, {
       // downstream: a figure produced from the supplied example must never be
       // readable as a grade of the visitor's own work.
       source: fromExample ? COACHING_ENTRY_EXAMPLE.source : COACHING_INPUT_SOURCE.readerText,
-    });
+    };
+    const fail = () => {
+      if (attempt !== request) return;
+      setPending(false);
+      markPromptCoachingFailed(doc, () => {
+        // The Retry button is about to be replaced, so the caret goes back to
+        // Grade — the control Retry stands in for — rather than to the body.
+        gradeButton?.focus?.();
+        grade();
+      });
+    };
+    let outcome;
+    try {
+      outcome = gradeSession(submission);
+    } catch {
+      fail();
+      return;
+    }
+    // The shipped grader is synchronous and paints on this turn, as it always
+    // has. One that answers later gets the loading state while it does.
+    if (typeof outcome?.then !== "function") {
+      settle(outcome, fail);
+      return;
+    }
+    setPending(true);
+    markPromptCoachingLoading(doc);
+    outcome.then((session) => {
+      if (attempt !== request) return;
+      setPending(false);
+      settle(session, fail);
+    }, fail);
+  };
+
+  const settle = (session, fail) => {
+    // A payload that is not a result is a failure, not an empty panel.
+    const result = session?.result;
+    if (typeof result?.scored !== "boolean"
+      || (result.scored ? !result.benchmark : !result.recovery)) {
+      fail();
+      return;
+    }
     const change = baseline && session.result.scored
       ? buildRevisionChange({ comparisonId: `revision-${graded}`, baseline, revision: session })
       : null;
@@ -274,9 +333,17 @@ export function initPromptCoaching(doc = globalThis.document, {
     // A refusal is not a baseline: there is no grade in it to compare against,
     // so the last good one stands and the next grade still compares.
     if (session.result.scored) baseline = session;
+  };
+
+  form.addEventListener("submit", (event) => {
+    event.preventDefault?.();
+    grade();
   });
 
   clear?.addEventListener("click", () => {
+    // Clearing supersedes a grade still in flight.
+    request += 1;
+    setPending(false);
     if (input) input.value = "";
     baseline = null;
     graded = 0;
