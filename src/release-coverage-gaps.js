@@ -342,6 +342,7 @@ export function initReleaseCoverageGaps(root, options = {}) {
   });
   return {
     setState(state) { renderCoverageCountState(root, state); },
+    clearFilter() { uncoveredOnly = false; },
     uncoveredOnly: () => uncoveredOnly,
     // Ids the log is narrowed to while the reveal is pressed.
     uncoveredIds: () => view.gaps.map((gap) => gap.id),
