@@ -124,9 +124,11 @@ test("the first focusable in the log precedes the first focusable in AI FinOps",
   // The repository-to-deployment-check link adds one semantic Tab stop.
   // The existing coverage action remains present for this uncovered log.
   // The unavailable check's copy control remains withdrawn.
+  // The counted repository summary's source link adds one more (#3123): every
+  // existing stop there is a pinned route, so none could become the source.
   assert.equal(
     sequence.filter((element) => ancestorIds(element).includes("shiplog-entry")).length,
-    13,
+    14,
     "the log entry includes both the coverage action and repository deployment-check link",
   );
   assert.equal(sequence.filter((element) => element.getAttribute?.("id") === "reasoning-kept-review").length, 1);
