@@ -1453,7 +1453,7 @@ function syncSupersedesOptions(select, decisions) {
 // requirements are a filter rather than a fallback: an unparseable date makes
 // "newest" arbitrary, and an uncitable number is the single thing this block
 // exists to rule out, so a record missing either is dropped instead of shown.
-export function renderRepositoryEvidence(root, decisions = SEED_DECISIONS) {
+export function renderRepositoryEvidence(root, decisions = SEED_DECISIONS, stamp = BUILD_STAMP) {
   const target = root.querySelector("#repository-evidence-records");
   if (!target) return;
   const records = selectHistory(toHistoryRecords(decisions, []), {
@@ -1463,6 +1463,7 @@ export function renderRepositoryEvidence(root, decisions = SEED_DECISIONS) {
     && Number.isFinite(Date.parse(record.createdAt)));
   target.replaceChildren();
   target.dataset.state = "loaded";
+  renderRepositoryEvidenceSummary(root, summarizeRepositoryEvidence(records, repositoryReleases(stamp)));
   const record = records[0];
   if (!record) {
     const empty = root.createElement("p");
@@ -1480,7 +1481,42 @@ export function renderRepositoryEvidence(root, decisions = SEED_DECISIONS) {
   target.append(paragraph);
 }
 
-export const RELEASE_PAIR_LOADED = "Current result, confirmed by the live site: one repository decision and the running build that shipped it.";
+// THE TALLY A BUYER CAN REPEAT (#3123). Every figure is counted from the
+// records this section already shows: the citable repository decisions above
+// and the one real release, the recorded build. A decision counts as traced only
+// when a shown release's commit subject names the pull request it cites, the
+// rule repositoryReleasePair() uses, so a decision whose release is absent is
+// never counted. The paragraph ships hidden and stays hidden while loading, on
+// failure and at zero decisions, so no figure is shown before it is counted.
+export function repositoryReleases(stamp = BUILD_STAMP) {
+  const release = stamp?.schemaVersion === 1 ? deployedReleaseRecord(stamp) : null;
+  return release ? [release] : [];
+}
+
+export function summarizeRepositoryEvidence(decisions = [], releases = []) {
+  const shipped = new Set(releases.map((release) => parseShipReason(release?.commitSubject)?.pullNumber).filter(Boolean));
+  return {
+    decisions: decisions.length,
+    releases: releases.length,
+    linked: decisions.filter((decision) => shipped.has(decision?.repository?.pullRequest)).length,
+  };
+}
+
+const counted = (count, one, many) => `${count} ${count === 1 ? one : many}`;
+
+export function repositoryEvidenceSentence({ decisions, releases, linked }) {
+  return `From Shiplog's own public repository: ${counted(decisions, "decision", "decisions")}, ${counted(releases, "release", "releases")}, ${counted(linked, "decision", "decisions")} traced to the release that shipped ${linked === 1 ? "it" : "them"}.`;
+}
+
+function renderRepositoryEvidenceSummary(root, summary) {
+  const paragraph = root.querySelector("#repository-evidence-summary");
+  const counts = root.querySelector("#repository-evidence-counts");
+  if (!paragraph || !counts) return;
+  counts.textContent = summary.decisions ? repositoryEvidenceSentence(summary) : "";
+  paragraph.hidden = !summary.decisions;
+}
+
+export const RELEASE_PAIR_LOADED ="Current result, confirmed by the live site: one repository decision and the running build that shipped it.";
 export const RELEASE_PAIR_UNAVAILABLE = "Current verification did not complete: the live site did not confirm a running build that ships one of this repository’s decisions. The real decision at the top of this page is from a recorded build, not a live result.";
 
 // THE ONE LINK THE DATA PROVES (#2805). No record in this repository stores a
@@ -1590,7 +1626,7 @@ export async function initDecisionLog(root = document, storage = localStorage, o
   const readHealth = options.readHealth ?? healthEndpointReader();
   let healthReading;
   const readSharedHealth = () => healthReading ??= Promise.resolve().then(readHealth);
-  renderRepositoryEvidence(root);
+  renderRepositoryEvidence(root, SEED_DECISIONS, options.buildStamp ?? BUILD_STAMP);
   void verifyRepositoryReleasePair(root, { ...options, readHealth: readSharedHealth });
   initLeadCapture(root);
   // The log entry's route to the follow-up form. Guarded inside, so a page that

@@ -4,15 +4,20 @@ import { readFile } from "node:fs/promises";
 import {
   verifyRepositoryReleasePair, RELEASE_PAIR_LOADED, RELEASE_PAIR_UNAVAILABLE, initDecisionLog, renderRepositoryEvidence,
   renderRepositoryReleasePair, repositoryReleasePair, STORAGE_KEY,
+  summarizeRepositoryEvidence, repositoryEvidenceSentence, repositoryReleases,
 } from "../src/app.js";
 import { bootHomepage } from "../src/homepage-bootstrap.js";
 import { BUILD_STAMP } from "../src/build-stamp.js";
-import { REPOSITORY_DECISIONS, SEED_DECISIONS, pullRequestUrl } from "../src/seed-records.js";
+import { REPOSITORY_DECISIONS, REPOSITORY_URL, SEED_DECISIONS, pullRequestUrl } from "../src/seed-records.js";
 import { loadPage, textOf, tabSequence, pressEnter } from "./support/browser.js";
 
 const home = new URL(`../${process.env.SHIPLOG_E2E_BUILD_ROOT || "src"}/index.html`, import.meta.url);
 
-const disclaimer = "These decisions document this repository’s own development. This is neither an invented example nor a customer result.";
+// Under the site's one repository address, not a second bare copy of it: <main>
+// already links the repository once, from the deployment check.
+const MERGED_PULLS = `${REPOSITORY_URL}/pulls?q=is%3Apr+is%3Amerged`;
+
+const disclaimer ="These decisions document this repository’s own development. This is neither an invented example nor a customer result.";
 
 function assertDisclaimer(block) {
   const copy = block.querySelector("p");
@@ -46,10 +51,11 @@ test("failed app load gives the existing browse route; a successful retry remove
   const target = block.querySelector("#repository-evidence-records");
   assert.equal(textOf(target), "Repository-backed decisions could not be loaded. Use the ‘Browse all repository-backed Shiplog decisions’ link below to try again.");
   assert.doesNotMatch(textOf(target), /Loading repository-backed decisions/);
-  const browse = block.querySelector("a");
+  const browse = block.querySelector('a[href="/?source=repository#record-history"]');
   assert.equal(textOf(browse), "Browse all repository-backed Shiplog decisions");
-  assert.equal(browse.getAttribute("href"), "/?source=repository#record-history");
   assert.ok(tabSequence(page.document).includes(browse));
+  // The tally's source link stays hidden with it, so the failure offers no dead figure.
+  assert.ok(!tabSequence(page.document).includes(page.document.getElementById("repository-evidence-source")));
   assertDisclaimer(block);
   await bootHomepage(page.document, () => initDecisionLog(page.document, page.storage));
   assert.equal(target.querySelectorAll("a").length, 1);
@@ -80,8 +86,9 @@ test("homepage renders canonical repository evidence near the opening propositio
   const [newest] = [...REPOSITORY_DECISIONS].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
   assert.equal(textOf(links[0]), `${newest.title} — public pull request #${newest.repository.pullRequest}`);
   assert.equal(links[0].getAttribute("href"), pullRequestUrl(newest.repository.pullRequest));
-  assert.equal(textOf(links[1]), "Browse all repository-backed Shiplog decisions");
-  assert.equal(links[1].getAttribute("href"), "/?source=repository#record-history");
+  assert.equal(links[1].getAttribute("href"), MERGED_PULLS);
+  assert.equal(textOf(links[2]), "Browse all repository-backed Shiplog decisions");
+  assert.equal(links[2].getAttribute("href"), "/?source=repository#record-history");
   for (const link of links) assert.ok(tabSequence(page.document).includes(link));
   const html = await readFile(home, "utf8");
   assert.ok(html.indexOf('id="repository-evidence"') > html.indexOf('id="home-log-title"'));
@@ -116,6 +123,85 @@ test("evidence excludes unmarked examples and missing or malformed PR citations"
   assert.equal(target.querySelectorAll("a").length, 1);
   renderRepositoryEvidence(page.document, []);
   assert.equal(target.querySelectorAll("a").length, 0, "stale evidence is removed");
+});
+
+/* ------------- the counted summary (#3123) ------------- */
+
+const summaryText = (document) => textOf(document.getElementById("repository-evidence-summary"));
+const shipping = (pull) => ({ commitSubject: `Some merge (#${pull})` });
+const stampOf = (subject) => ({
+  schemaVersion: 1, commitSha: "0123456789abcdef0123456789abcdef01234567", commitSubject: subject, builtAt: "2026-10-12T09:00:00.000Z",
+});
+
+test("summarizeRepositoryEvidence counts only decisions whose release is shown", () => {
+  assert.deepEqual(summarizeRepositoryEvidence([], []), { decisions: 0, releases: 0, linked: 0 });
+  assert.deepEqual(summarizeRepositoryEvidence(REPOSITORY_DECISIONS, []), { decisions: 3, releases: 0, linked: 0 },
+    "a decision whose release is missing is not traced");
+  assert.deepEqual(summarizeRepositoryEvidence(REPOSITORY_DECISIONS, [shipping(9999)]), { decisions: 3, releases: 1, linked: 0 });
+  assert.deepEqual(summarizeRepositoryEvidence(REPOSITORY_DECISIONS, [shipping(2547)]), { decisions: 3, releases: 1, linked: 1 });
+  assert.deepEqual(summarizeRepositoryEvidence(REPOSITORY_DECISIONS, [shipping(2547), shipping(294), { commitSubject: null }]),
+    { decisions: 3, releases: 3, linked: 2 });
+  assert.equal(repositoryEvidenceSentence({ decisions: 1, releases: 1, linked: 1 }),
+    "From Shiplog's own public repository: 1 decision, 1 release, 1 decision traced to the release that shipped it.");
+  assert.equal(repositoryEvidenceSentence({ decisions: 3, releases: 2, linked: 0 }),
+    "From Shiplog's own public repository: 3 decisions, 2 releases, 0 decisions traced to the release that shipped them.");
+  assert.deepEqual(repositoryReleases(null), []);
+  assert.deepEqual(repositoryReleases({ ...stampOf("x (#1)"), schemaVersion: 2 }), []);
+  assert.equal(repositoryReleases(stampOf("x (#1)")).length, 1);
+});
+
+test("the summary is counted from the records the section renders, and follows them", async (t) => {
+  const page = await loadPage(home);
+  t.after(() => page.restore());
+  const decisions = REPOSITORY_DECISIONS.length;
+  const tally = (traced) => `Shiplog's own public development history. From Shiplog's own public repository: ${decisions} decisions, 1 release, ${traced} traced to the release that shipped ${traced.startsWith("1 ") ? "it" : "them"}. Open the merged pull requests these records cite, in the public repository`;
+  renderRepositoryEvidence(page.document, SEED_DECISIONS, stampOf("Unrelated work (#9999)"));
+  assert.equal(page.document.getElementById("repository-evidence-summary").hidden, false);
+  assert.equal(summaryText(page.document), tally("0 decisions"));
+  renderRepositoryEvidence(page.document, SEED_DECISIONS, stampOf("Mark every record row (#2547)"));
+  assert.equal(summaryText(page.document), tally("1 decision"));
+  renderRepositoryEvidence(page.document, REPOSITORY_DECISIONS.slice(0, 1), null);
+  assert.equal(summaryText(page.document).includes("1 decision, 0 releases, 0 decisions traced"), true);
+  renderRepositoryEvidence(page.document, [], BUILD_STAMP);
+  assert.equal(page.document.getElementById("repository-evidence-summary").hidden, true, "zero decisions shows no tally");
+  assert.equal(textOf(page.document.getElementById("repository-evidence-counts")), "");
+});
+
+test("the summary is labelled as Shiplog's own history, inline, with its source link", async (t) => {
+  const page = await loadPage(home);
+  t.after(() => page.restore());
+  await initDecisionLog(page.document, page.storage);
+  const summary = page.document.getElementById("repository-evidence-summary");
+  assert.equal(textOf(summary.querySelector("strong")), "Shiplog's own public development history.");
+  assert.doesNotMatch(summaryText(page.document), /customer|benchmark|testimonial|adopt|ROI|faster|saved/i);
+  const links = summary.querySelectorAll("a");
+  assert.equal(links.length, 1);
+  assert.equal(links[0].getAttribute("href"), MERGED_PULLS);
+  assert.ok(tabSequence(page.document).includes(links[0]));
+  // Inline on a narrow screen: inside the proof section, and in no details element.
+  let inside = false;
+  for (let node = summary.parentNode; node; node = node.parentNode) {
+    assert.notEqual(node.tagName, "DETAILS", "the tally must not be folded away");
+    if (node.getAttribute?.("id") === "repository-evidence") inside = true;
+  }
+  assert.ok(inside, "the tally sits in the repository-evidence section");
+  assert.equal(summary.getAttribute("class"), "release-followup-lead");
+});
+
+test("loading and a failed load show no counted figure", async (t) => {
+  const page = await loadPage(home);
+  t.after(() => page.restore());
+  const summary = page.document.getElementById("repository-evidence-summary");
+  assert.equal(summary.hidden, true, "authored hidden");
+  assert.equal(textOf(page.document.getElementById("repository-evidence-counts")), "");
+  let finish;
+  const pending = bootHomepage(page.document, () => new Promise((resolve) => { finish = resolve; }));
+  assert.equal(summary.hidden, true, "hidden while loading");
+  finish();
+  await pending;
+  await bootHomepage(page.document, () => Promise.reject(new Error("Module could not load")));
+  assert.equal(summary.hidden, true, "hidden after a failed load");
+  assert.doesNotMatch(textOf(page.document.getElementById("repository-evidence-counts")), /\d/);
 });
 
 // Wrapping, width and the focus ring come from `.release-followup-lead` and the
