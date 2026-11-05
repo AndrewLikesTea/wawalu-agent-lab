@@ -172,7 +172,10 @@ test("the homepage names the Decision log and explains browsing and recording", 
   assert.match(hero.textContent, /invented and use no customer or production data/);
   // Distinct labels distinguish the hero's demo invitation from the
   // explanation's record-and-search shortcut to the same workspace.
-  const buttons = document.querySelectorAll(".button-link").map(({ textContent }) => textContent.trim());
+  // The evidence repeats the demonstration invitation at its point of proof.
+  const buttons = document.querySelectorAll(".button-link")
+    .filter((link) => !link.closest("#repository-evidence-actions"))
+    .map(({ textContent }) => textContent.trim());
   assert.equal(new Set(buttons).size, buttons.length, `two calls to action read the same: ${buttons}`);
   const secondary = document.querySelector("#additional-capability");
   assert.match(secondary.textContent, /Runs on your own work/);

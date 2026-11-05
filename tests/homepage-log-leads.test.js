@@ -128,8 +128,8 @@ test("the first focusable in the log precedes the first focusable in AI FinOps",
   // existing stop there is a pinned route, so none could become the source.
   assert.equal(
     sequence.filter((element) => ancestorIds(element).includes("shiplog-entry")).length,
-    14,
-    "the log entry includes both the coverage action and repository deployment-check link",
+    16,
+    "the log entry includes coverage, repository sources, and both evidence follow-up actions",
   );
   assert.equal(sequence.filter((element) => element.getAttribute?.("id") === "reasoning-kept-review").length, 1);
   assert.equal(sequence.filter((element) => element.id === "repository-deployment-check").length, 1);

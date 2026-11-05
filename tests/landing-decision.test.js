@@ -486,7 +486,7 @@ test("every Shiplog workflow is still on the front door and still works", async 
   // The log's own entry names itself and lands on that list.
   const entry = document.getElementById("shiplog-entry");
   assert.ok(entry, "the log must keep a named entry of its own");
-  assert.equal(entry.querySelector("a.button-link").getAttribute("href"), "#record-history");
+  assert.equal(entry.querySelector('a.button-link[href="#record-history"]').getAttribute("href"), "#record-history");
 
   // Every nav destination is still offered, unchanged.
   const nav = document.querySelector(".site-nav").querySelectorAll("a");
