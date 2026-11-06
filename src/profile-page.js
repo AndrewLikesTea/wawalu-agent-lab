@@ -78,9 +78,7 @@ async function init() {
     // Nobody asked for this name, so the page says so above the picker rather
     // than presenting its own suggestion as the visitor's decision.
     preselected: !chosen,
-    // "loading" even with seeds in hand: seeded tiles still render (posts always
-    // outrank a pending refresh), and an author the seed does not cover gets a
-    // skeleton rather than an "empty profile" that the next second contradicts.
+    // Seeds stay in memory until the initial request settles.
     state: "loading",
     // A re-request, said out loud: the page returns to the loading state first,
     // so a second failure is visibly a second attempt rather than a button that
@@ -165,8 +163,7 @@ async function init() {
       // dropped later: either way nothing new arrives on its own, and reloading
       // is the answer, so the page says it once.
       profile.setStatus(profileConnectionLine("degraded"));
-      // Existing tiles remain readable; the error treatment sits beside them
-      // with retry. With no tiles it replaces the first-load skeleton instead.
+      // Failure replaces the collection; Retry can restore it from a fresh answer.
       profile.setState("error");
     }
   }

@@ -329,9 +329,8 @@ test("People keeps the same keyboard control through retry and recovery", async 
   assert.equal(document.querySelector("#profile-paint-route") === paint, true);
   resolve({ ok: true, json: async () => ({ posts: [apiPost("live-18", "Zed", "18", { withImage: true })] }) });
   await waitFor(() => drawnTiles(document).length === 1, "the retried request drew no tiles");
-  // A successful retry lands on the results heading (#3002); the same control
-  // stays, renamed, one Tab further on.
-  assert.equal(document.activeElement === document.querySelector("#grid-title"), true);
+  // Successful resolution keeps the same control focused, renamed Reload.
+  assert.equal(document.activeElement === retry, true);
   assert.equal(status.querySelector(".profile-retry") === retry, true);
   assert.equal(textOf(retry), "Reload image posts");
   retry.focus();
@@ -343,12 +342,12 @@ test("People keeps the same keyboard control through retry and recovery", async 
   pressKey(document, "Enter");
   assert.equal(requests, 2);
   assert.match(textOf(status), /Image posts are loading/);
-  assert.equal(drawnTiles(document).length, 1);
+  assert.equal(drawnTiles(document).length, 0);
   resolve({ ok: false, status: 503 });
   await waitFor(() => retry.getAttribute("aria-disabled") === "false", "refresh failure settles");
   assert.equal(document.activeElement === retry, true);
-  assert.equal(drawnTiles(document).length, 1);
-  assert.match(textOf(status), /Showing the image posts already loaded/);
+  assert.equal(drawnTiles(document).length, 0);
+  assert.match(textOf(status), /Image posts could not be loaded/);
   assert.equal(status.querySelector(".profile-load-message").hidden, false);
   assert.equal(textOf(status.querySelector(".field-error-mark")), "!");
 
@@ -461,10 +460,9 @@ test("People's Retry is a real button after the selected name, and fail, fail, r
   // The property, not the attribute: the harness does not reflect one into the other.
   assert.equal(retry.type, "button", "Retry would submit a form");
   assert.equal(textOf(retry), PEOPLE_FAILURE_COPY.retry);
-  // The selected display name stays on screen, and Retry is read after it.
-  assert.equal(name.hasAttribute("hidden"), false, "the failure hid the selected display name");
-  assert.match(textOf(name), /published as \S/, "the failure dropped the selected display name");
-  assert.ok(readingIndex(document, name) < readingIndex(document, retry), "Retry is read before the selected name");
+  // Failed data must not claim that a filtered result is being shown.
+  assert.equal(name, null);
+  assert.match(textOf(document.querySelector("#grid-title")), /image posts/);
   const toRetry = tabDistanceTo(document, isRetry(PROFILE_RETRY_LABEL));
   const toPaint = tabDistanceTo(document, (node) => node.getAttribute?.("id") === "profile-paint-route");
   assert.ok(toRetry >= 0 && toRetry < toPaint, "Retry is not reached by Tab before the publishing steps");
@@ -502,7 +500,7 @@ test("People's Retry is a real button after the selected name, and fail, fail, r
   assert.deepEqual(navigations, [], "Retry navigated instead of fetching in place");
   assert.ok(!textOf(status).includes(PEOPLE_FAILURE_COPY.failed));
   assert.equal(document.querySelector("#profile-grid").getAttribute("aria-busy"), "false");
-  assert.equal(focusedText(document), "Guest · 1 image post", "focus did not land on the results heading");
-  assert.equal(document.activeElement.getAttribute("tabindex"), "-1");
+  assert.equal(focusedText(document), "Reload image posts");
+  assert.equal(document.activeElement, retry);
   assert.ok(status.querySelectorAll(".profile-retry").length === 1);
 });

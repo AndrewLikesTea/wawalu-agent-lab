@@ -725,13 +725,9 @@ test("a page whose posts have not landed exposes no options and one availability
     assert.equal(textOf(document.querySelector("#profile-filter-hint")),
       "This filter becomes available once the image posts finish loading.");
     assert.equal(textOf(document.querySelector("#profile-picker-note")), "");
-    // The results heading waits with them. It names the display name that is
-    // showing, and the posts under it, and stops: the seed's tiles are on screen
-    // but the feed has not answered, so a number here — a zero above all — would
-    // be a count the page cannot yet stand behind, and would contradict the
-    // "Counting…" on the chip for the very same name.
+    // Seeds stay in memory until the request settles; no results are claimed.
     const heading = resultsHeading(document);
-    assert.equal(heading, "Zed · image posts");
+    assert.equal(heading, "Image posts");
     assert.doesNotMatch(heading, /\d/, `the heading numbered an uncounted feed: ${heading}`);
   } finally {
     globalThis.setInterval = savedInterval;
