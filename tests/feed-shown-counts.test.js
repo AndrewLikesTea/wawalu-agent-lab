@@ -27,7 +27,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { loadPage, textOf } from "./support/browser.js";
 import { mountSocialFeed, shownPostsCount } from "../src/social.js";
-import { COUNTING_LABEL, mountProfile, profileSummary } from "../src/profile.js";
+import { mountProfile, profileSummary } from "../src/profile.js";
 
 const SOCIAL_PAGE = new URL("../src/social.html", import.meta.url);
 const PEOPLE_PAGE = new URL("../src/profile.html", import.meta.url);
@@ -298,21 +298,14 @@ test("People's caption under the heading carries the count in both states a read
   t.after(() => page.restore());
   const { document } = page;
   const profile = mountProfile(document, { posts: FEED, author: "Zed", state: "loading" });
-  const caption = document.querySelector("#profile-name");
-
-  // One element and one class across both states: the count arrives in the
-  // caption role the line already had, not in a second line under it.
-  assert.equal(caption.getAttribute("class"), "profile-active-filter");
-
-  // Loading. A wait may not claim a figure, so it says what the picker's chips
-  // say in the same frame — the site's one word for a count it does not have —
-  // rather than leaving the caption looking like a filter with no effect.
-  assert.equal(textOf(caption), `Showing image posts published as Zed · ${COUNTING_LABEL}`);
-  assert.doesNotMatch(textOf(caption), /\d/, "a wait must not print a number");
+  // Loading exposes no cached name/count caption or stale results.
+  assert.equal(document.querySelector("#profile-name"), null);
+  assert.equal(document.querySelectorAll(".profile-tile-skeleton").length, 6);
   assert.equal(textOf(document.querySelector("#profile-order")), "Newest first");
 
-  // Loaded, and the figure is the tiles actually drawn in that paint.
   profile.setState("ready");
+  const caption = document.querySelector("#profile-name");
+  assert.equal(caption.getAttribute("class"), "profile-active-filter");
   const drawn = loadedTiles(document);
   assert.equal(drawn, 2);
   assert.equal(textOf(caption), `Showing ${drawn} image posts published as Zed, all example posts.`);

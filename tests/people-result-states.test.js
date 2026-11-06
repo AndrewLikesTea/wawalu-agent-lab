@@ -108,7 +108,7 @@ test("populated keeps its post actions after the picker, and no state is a posit
   }
 });
 
-test("Retry announces loading in place, stays on Retry after a repeated failure, then lands on the results heading", async (t) => {
+test("Retry announces loading in place, stays on Retry after a repeated failure, keeps focus after success", async (t) => {
   const { document, routes } = await people(t, { seed: { posts: [] }, live: null });
   const status = document.querySelector("#profile-feed-status");
   assert.match(textOf(status), /Image posts could not be loaded\./);
@@ -128,7 +128,7 @@ test("Retry announces loading in place, stays on Retry after a repeated failure,
   assert.equal(document.activeElement, retry, "a repeated failure lost focus");
   assert.equal(retry.getAttribute("aria-disabled"), "false");
 
-  // Success: focus moves to the heading that now names and counts the results.
+  // Success: the same control remains focused and becomes Reload.
   routes[LIVE_ROUTE] = { posts: [{
     id: "live-image", author: "Mina", content: "Recovered.", timestamp: "2026-07-18T12:00:00.000Z",
     image_url: "/media/Mina.svg", image_alt: "A drawing signed Mina", image_width: 1200, image_height: 900,
@@ -136,8 +136,9 @@ test("Retry announces loading in place, stays on Retry after a repeated failure,
   retry.click();
   await waitFor(() => tiles(document).length === 1, "the retry draws the recovered post");
   const heading = document.querySelector("#grid-title");
-  assert.equal(document.activeElement, heading, "a successful retry left focus on a stale control");
-  assert.equal(heading.getAttribute("tabindex"), "-1", "the heading became a tab stop");
+  assert.equal(document.activeElement, retry, "resolution moved keyboard focus");
+  assert.equal(textOf(retry), "Reload image posts");
+  assert.equal(heading.getAttribute("tabindex"), null);
   assert.equal(textOf(heading), "Mina · 1 image post");
 });
 
@@ -234,3 +235,73 @@ test("every state wraps at narrow widths and the new focus target has the site's
   assert.match(css, /\.profile-identity-text h2[,\s]/, "the heading a retry focuses does not wrap long names");
   assert.match(base, /\.empty-actions\s*\{[^}]*flex-wrap:wrap/);
 });
+
+test("loading keeps the disabled filter in reading order, then enables it", async (t) => {
+    const page = await loadPage(PAGE_URL, { routes: { [SEED_ROUTE]: FEED } });
+    const { document } = page;
+    const fieldset = document.querySelector("#profile-name-picker");
+    const assertUnavailable = () => {
+      assert.equal(fieldset.hasAttribute("disabled"), true);
+      assert.equal(fieldset.getAttribute("aria-disabled"), "true");
+      assert.equal(fieldset.hasAttribute("hidden"), false);
+      assert.equal(fieldset.hasAttribute("inert"), false);
+      assert.notEqual(fieldset.getAttribute("aria-hidden"), "true");
+      assert.match(textOf(fieldset), /Filter image posts by display name/);
+      assert.match(fieldset.getAttribute("aria-describedby"), /profile-filter-hint/);
+      assert.equal(tiles(document).length, 0);
+      assert.equal(panel(document), null);
+    };
+    assertUnavailable();
+    const savedInterval = globalThis.setInterval;
+    const routed = globalThis.fetch;
+    let answer;
+    globalThis.setInterval = () => 0;
+    globalThis.fetch = (url, init) => url === LIVE_ROUTE
+      ? new Promise((resolve) => { answer = resolve; }) : routed(url, init);
+    t.after(() => { globalThis.fetch = routed; globalThis.setInterval = savedInterval; page.restore(); });
+    await importPageModule("/profile-page.js");
+    await waitFor(() => Boolean(answer), "initial live request starts");
+    assertUnavailable();
+    assert.equal(announcer(document), "Image posts are loading.");
+    const elsewhere = document.querySelector("#profile-publish-route");
+    elsewhere.focus();
+    answer({ ok: true, json: async () => ({ posts: [] }) });
+    await waitFor(() => tiles(document).length === 2, "seeded results become ready");
+    assert.equal(fieldset.disabled, false);
+    assert.equal(fieldset.getAttribute("aria-disabled"), "false");
+    assert.equal(document.querySelector("#profile-filter-hint"), null);
+    assert.equal(document.activeElement, elsewhere, "resolution must not move focus");
+    assert.equal(document.querySelector("#profile-announcer").getAttribute("role"), "status");
+});
+
+for (const [name, seed, search, expected] of [
+  ["global empty", { posts: [] }, "", "No one has published an image post on Social yet."],
+  ["filtered empty", FEED, "?author=Nova", "The display name “Nova” has no image posts yet."],
+]) {
+  test(`failure → Retry → ${name} → failure clears obsolete states`, async (t) => {
+    let answer;
+    let fail = true;
+    const { document } = await people(t, { seed, search, liveFetch: () => fail
+      ? Promise.reject(new Error("offline"))
+      : new Promise((resolve) => { answer = resolve; }) });
+    assert.equal(tiles(document).length, 0);
+    const status = document.querySelector("#profile-feed-status");
+    const retry = status.querySelector(".profile-retry");
+    fail = false;
+    retry.focus();
+    retry.click();
+    assert.doesNotMatch(textOf(status), /could not be loaded|has no image posts|No one has published/);
+    assert.equal(panel(document), null);
+    assert.equal(tiles(document).length, 0);
+    answer({ ok: true, json: async () => ({ posts: [] }) });
+    await waitFor(() => announcer(document) === expected, "empty answer settles");
+    assert.equal(textOf(panel(document).querySelector("h3")), expected);
+    assert.equal(document.activeElement, retry);
+    fail = true;
+    retry.click();
+    assert.equal(panel(document), null);
+    await waitFor(() => /could not be loaded/.test(announcer(document)), "reload fails");
+    assert.doesNotMatch(textOf(status), /No one has published|has no image posts yet/);
+    assert.equal(tiles(document).length, 0);
+  });
+}

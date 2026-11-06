@@ -125,7 +125,7 @@
                fact as the sentence before it, said again, and the fourth place
                above the first picture to say that this list follows the
                selection. -->
-          <fieldset class="filter-group" id="profile-name-picker" tabindex="-1" aria-describedby="profile-author-hint">
+          <fieldset class="filter-group" id="profile-name-picker" tabindex="-1" disabled aria-disabled="true" aria-describedby="profile-author-hint profile-filter-hint">
             <legend id="profile-author-label">Filter image posts by display name</legend>
             <p class="hint profile-toolbar-hint" id="profile-author-hint">
               The list below shows only the image posts published under the selected display name.
@@ -311,7 +311,7 @@
                then disappears is back at the top of the document — the exact
                loss this is here to prevent. Parked here they are instead
                standing on the node that narrates the rest of the load. -->
-          <p class="visually-hidden" id="profile-announcer" aria-live="polite" aria-atomic="true" tabindex="-1"></p>
+          <p class="visually-hidden" id="profile-announcer" role="status" aria-live="polite" aria-atomic="true" tabindex="-1"></p>
 
           <!-- The grid container itself carries aria-busy while the first load is
                in flight; the tiles inside are ordinary links, so Tab, Enter, and

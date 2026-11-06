@@ -91,5 +91,11 @@
 #profile-feed-status .field-error-mark { order:-1; border:2px solid currentColor; border-radius:50%; width:24px; height:24px; text-align:center; }
 #profile-feed-status .profile-retry { max-width:100%; min-height:44px; margin-bottom:12px; white-space:normal; overflow-wrap:anywhere; }
 #profile-feed-status .profile-retry[aria-disabled="true"] { cursor:wait; }
-/* A successful Retry lands focus on the results heading (#3002). */
+/* Programmatic heading targets retain the shared focus indicator. */
 #grid-title:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+
+/* Preserve readable filter guidance while the native fieldset is disabled. */
+#profile-name-picker { min-width:0; max-width:100%; }
+#profile-name-picker[aria-disabled="true"] { opacity:1; }
+/* Example is a static classification, not a dynamic collection state. */
+.profile-tile .badge-example { background:transparent; color:inherit; border:1px solid currentColor; }

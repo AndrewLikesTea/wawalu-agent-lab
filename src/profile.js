@@ -842,28 +842,17 @@ function renderError(container, onRetry) {
 }
 
 // `state` keeps three situations apart that must never share one empty state:
-// still loading, loaded and genuinely empty, and failed. Posts already on screen
-// always win over a pending or failed refresh — stale content beats a spinner
-// over content the reader could already see.
+// still loading, loaded and genuinely empty, and failed. Only a successful
+// answer can expose results; cached data must not obscure loading or failure.
 export function renderProfileGrid(container, posts, options = {}) {
   const {
     state = "ready", onRetry = null, author = DEFAULT_AUTHOR, statusRegion = container, onReport = null, onClear = null,
     anyImages = true,
   } = options;
-  const ordered = sortNewestFirst(posts ?? []);
+  const ordered = state === "ready" ? sortNewestFirst(posts ?? []) : [];
   container.replaceChildren();
   container.setAttribute("aria-busy", state === "loading" && ordered.length === 0 ? "true" : "false");
-  if (statusRegion !== container && state === "error") {
-    const failed = renderFeedStatus(statusRegion, {
-      state: "error", label: "People feed update failed",
-      text: "Showing the image posts already loaded.",
-      detail: "The selected display-name filter is unchanged. Retry loading newer image posts.",
-      actionLabel: PROFILE_RETRY_LABEL, onAction: onRetry,
-    });
-    const mark = el("span", "field-error-mark", "!");
-    mark.setAttribute("aria-hidden", "true");
-    failed.append(mark);
-  } else if (statusRegion !== container) {
+  if (statusRegion !== container) {
     statusRegion.replaceChildren();
     statusRegion.hidden = false;
   }
@@ -1035,6 +1024,13 @@ export function renderAuthorPicker(container, entries, { author, counted = true,
     hintText: PROFILE_FILTERS_UNAVAILABLE_HINT,
     hintClass: "hint profile-toolbar-hint",
   });
+  const fieldset = container.parentNode;
+  if (fieldset?.tagName === "FIELDSET") {
+    fieldset.disabled = disabled;
+    fieldset.setAttribute("aria-disabled", String(disabled));
+    fieldset.setAttribute("aria-describedby", disabled
+      ? "profile-author-hint profile-filter-hint" : "profile-author-hint");
+  }
   // `disabled` is the caller's one input for "is there a feed behind this
   // region?", and it is what the link follows — not `available`, whose `alone`
   // escape hatch is about a lone chip being replaced by a sentence rather than
@@ -1147,27 +1143,11 @@ export function mountProfile(root, options = {}) {
   const message = elements.feedStatus ? el("div", "profile-load-message") : grid;
   if (elements.feedStatus) elements.feedStatus.replaceChildren(message);
   let retryButton = null;
-  // Set when Retry is pressed (#3002). Focus stays on the aria-disabled button
-  // through the wait; when the retry settles it moves once — to the results
-  // heading on success, back onto Retry on a repeated failure — and only if the
-  // reader has not moved it elsewhere in the meantime.
-  let retrying = false;
+  // Keep Retry mounted through resolution so data never moves keyboard focus.
   const retryLoad = options.onRetry ? () => {
     if (state === "loading") return;
-    retrying = true;
     return options.onRetry();
   } : null;
-  const settleRetryFocus = () => {
-    if (!retrying || state === "loading") return;
-    retrying = false;
-    const active = root.activeElement ?? null;
-    if (active && active !== retryButton && active !== root.body) return;
-    if (state === "error" && retryButton) retryButton.focus();
-    else if (elements.heading) {
-      elements.heading.setAttribute("tabindex", "-1");
-      elements.heading.focus();
-    }
-  };
 
   let posts = options.posts ?? [];
   let state = options.state ?? "ready";
@@ -1180,28 +1160,16 @@ export function mountProfile(root, options = {}) {
   const report = mountPostReport(root, { send: options.sendReport });
 
   const render = () => {
-    const mine = selectProfilePosts(posts, author);
+    const mine = state === "ready" ? selectProfilePosts(posts, author) : [];
     const summary = profileSummary(posts, author);
     // The heading and the identity line are both written from `mine`, the same
     // array the tiles are rendered from further down, in this one update — so the
     // name they state and the number they state are the name and the number on
     // screen, and neither can move without the tiles.
     //
-    // A number only where the page has a settled answer behind it: a finished
-    // load, or, after a failed refresh, the tiles still on screen from the last
-    // one. While the first load is in flight there is nothing to count, so the
-    // identity line says so in the picker's own word for it rather than claiming
-    // a figure — the two are in the same frame and now agree. A failed load with
-    // an empty grid states no zero it cannot support, and is not counting.
-    const counted = state === "ready" || (state === "error" && mine.length > 0);
-    // A first load with nothing drawn: the one state in which this region may
-    // not name a display name at all. Posts on screen — seeded tiles under an
-    // open refresh included — are a result the heading and the line can be true
-    // about, and they say so; an empty grid waiting on its first answer is not,
-    // and the header says nothing rather than something it cannot support. This
-    // is feedPhase()'s "loading" outcome by the same two inputs, computed here
-    // because the header is written before the grid it describes.
-    const pending = state === "loading" && mine.length === 0;
+    // Counts and identity only describe a successfully loaded collection.
+    const counted = state === "ready";
+    const pending = state === "loading";
     renderProfileHeader(elements, author, summary,
       { count: counted ? mine.length : null, counting: !counted && state === "loading", pending,
         // Counted off `mine`, the array the tiles are drawn from, so the figure
@@ -1270,7 +1238,7 @@ export function mountProfile(root, options = {}) {
     const phase = feedPhase({
       state, total: filtered ? posts.length : mine.length, visible: mine.length, filtering: filtered,
     });
-    for (const line of waiting) line.present(phase !== "loading");
+    for (const line of waiting) line.present(state === "ready");
     // The promise speaks only where there is a grid for new image posts to
     // arrive in: one with tiles, and one waiting for its first. "New image posts
     // will appear here on their own." over a grid the picker has emptied gives
@@ -1294,16 +1262,13 @@ export function mountProfile(root, options = {}) {
 
   const renderPicker = ({ refocus = false } = {}) => {
     if (!elements.picker) return;
-    // Seed data can paint useful posts while the durable feed is pending, but
-    // it must not become a stale chooser. Until that request settles there are
-    // no valid options to expose; the availability helper is the whole control
-    // state.
+    // Pending and failed requests expose the labelled fieldset but no choices.
     const entries = state === "loading" || state === "error" ? [] : pickerEntries(posts, author);
     renderAuthorPicker(elements.picker, entries, {
       author,
       // "loading" is the store not having answered yet, which is a different
-      // fact from its answer being zero. Seeded posts are already on screen in
-      // that state, so the chips must not turn a partial feed into a count.
+      // fact from its answer being zero. Seeded posts remain in
+      // memory, so the chips must not turn a partial feed into a count.
       counted: state !== "loading",
       // Nothing to filter until the feed holds something: a chooser offered over
       // a pending, empty, or failed feed is a row of controls that cannot change
@@ -1323,7 +1288,7 @@ export function mountProfile(root, options = {}) {
   function choose(next) {
     // A suggested landing name becomes an explicit URL selection; re-pressing
     // the current filter must not stack a duplicate history entry.
-    if (next === author && !preselected) return;
+    if (state !== "ready" || (next === author && !preselected)) return;
     author = next;
     preselected = false;
     options.onAuthorChange?.(next);
@@ -1341,13 +1306,13 @@ export function mountProfile(root, options = {}) {
       author = next; preselected = suggested; renderPicker(); render();
     },
     seed(next, nextAuthor = author) {
-      posts = next ?? []; author = nextAuthor; state = "ready"; renderPicker(); render(); settleRetryFocus();
+      posts = next ?? []; author = nextAuthor; state = "ready"; renderPicker(); render();
     },
     // Loading and error are display states only: they never discard posts
-    // already on screen, so a failed refresh degrades to "stale but readable".
+    // in memory; only a ready collection renders them.
     // The picker re-renders too, because leaving "loading" is exactly what
     // turns "Counting…" into a number.
-    setState(next) { state = next; renderPicker(); render(); settleRetryFocus(); },
+    setState(next) { state = next; renderPicker(); render(); },
     setStatus(text) { if (elements.status) elements.status.textContent = text; },
     getPosts() { return [...posts]; },
   };

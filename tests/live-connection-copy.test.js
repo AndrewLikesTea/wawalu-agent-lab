@@ -304,7 +304,9 @@ test("People's failed first load names the consequence and the action", async (t
   await importPageModule("/profile-page.js");
   await waitFor(() => document.documentElement.dataset.shiplogProfile === "ready", "the failed first load settled");
 
-  const status = document.querySelector("#profile-status");
-  assert.equal(textOf(status), "New image posts will not appear here, so reload the page to see the latest.");
-  assert.equal(connectionLineCount(document, STATES.map((state) => profileConnectionLine(state))), 1);
+  const status = document.querySelector("#profile-feed-status");
+  assert.match(textOf(status), /Image posts could not be loaded/);
+  assert.match(textOf(status), /Retry loading image posts/);
+  assert.equal(connectionLineCount(document, STATES.map((state) => profileConnectionLine(state))), 0);
+
 });

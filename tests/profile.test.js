@@ -524,12 +524,13 @@ test("the first load reserves a skeleton grid instead of a blank panel", () => {
   assert.equal(byClass(container, "empty-state").length, 0);
 });
 
-test("posts already on screen outrank a pending or failed refresh", () => {
+test("pending and failed requests never expose stale posts", () => {
   for (const state of ["loading", "error"]) {
     const container = createElement("div");
     renderProfileGrid(container, [imagePost], { state, author: "Mina" });
-    assert.equal(container.getAttribute("aria-busy"), "false");
-    assert.equal(byClass(container, "profile-tile").length, 1, `${state} keeps the tiles`);
+    assert.equal(container.getAttribute("aria-busy"), String(state === "loading"));
+    assert.equal(tags(container, "A").length, 0, `${state} exposes no stale post links`);
+    assert.equal(byClass(container, "profile-tile-skeleton").length, state === "loading" ? 6 : 0);
   }
 });
 
@@ -602,7 +603,7 @@ test("the profile and post pages are wired, labelled, and reachable", async () =
   // The group is what the hint describes, and the container profile.js fills is
   // inside it, so the instruction is attached to the controls rather than to one
   // of them.
-  assert.match(profile, /<fieldset class="filter-group"[^>]*aria-describedby="profile-author-hint">/);
+  assert.match(profile, /<fieldset class="filter-group"[^>]*aria-describedby="profile-author-hint profile-filter-hint">/);
   // And the hint says what the grid below holds — once. It used to define the
   // term instead — "The display name is the name shown on each post." — and
   // after that it defined the filter as itself, which a reader could take in
