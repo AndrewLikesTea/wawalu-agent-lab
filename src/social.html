@@ -450,7 +450,7 @@
              The two live regions this panel holds (#post-counter and
              #post-image-alt-counter) ship with it and are never re-created, so
              an announcement fires into a region the reader can already see. -->
-        <div class="form-panel" id="post-compose-panel" aria-labelledby="post-form-title" hidden>
+        <dialog class="form-panel" id="post-compose-panel" aria-modal="true" aria-labelledby="post-form-title" hidden>
           <div class="section-heading">
             <h2 id="post-form-title" tabindex="-1">Write a post</h2>
           </div>
@@ -809,7 +809,7 @@
             <!-- Ships empty. src/social.js writes the one step Publish post is
                  still waiting for here while a chosen image has no description,
                  and names it on the button's aria-describedby only then (#2294). -->
-            <p class="hint" id="post-publish-reason" hidden></p>
+            <p class="hint" id="post-publish-reason" role="status" aria-atomic="true" hidden></p>
             <!-- The only control on this page that makes a post public, and the
                  one name the rest of the site already gives that act: People's
                  empty-state action and this form's own image-description
@@ -849,7 +849,7 @@
             <p class="hint" id="post-keyboard-hint">Escape or Close hides the composer. Your draft stays in this Social tab, even with the composer closed or while you draw in Paint in another tab. Closing this tab or leaving the page discards it.</p>
             <p class="notice submit-feedback" id="social-notice" role="status" aria-live="polite" aria-atomic="true" hidden></p>
           </form>
-        </div>
+        </dialog>
       </section>
       <!-- What reporting does and does not do, said before anyone presses the
            button, and the only place on this page that says it (#2471). It

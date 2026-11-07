@@ -1,5 +1,4 @@
-/* In-flow composer: allow long content to shrink and wrap without clipping
-   focus rings or creating a nested viewport when the mobile keyboard opens. */
+/* Allow long composer content to shrink and wrap without clipping rings. */
 #post-compose-panel, #post-form, #post-form .field { min-width:0; }
 #post-compose-panel { overflow-wrap:anywhere; }
 #post-form .secondary-button { max-width:100%; flex-wrap:wrap; }
@@ -69,3 +68,22 @@
 #post-form .compose-preview-frame p { overflow:auto; max-height:100%; }
 #post-form .compose-media-head { gap:12px; }
 #post-form .compose-preview figcaption { overflow-wrap:anywhere; }
+
+/* The native top layer makes the obscured feed inert. Keep the existing form
+   spacing, with room inside the scrollport for each control's focus ring. */
+dialog#post-compose-panel {
+  position:fixed; inset:0; margin:auto; box-sizing:border-box;
+  width:min(760px, calc(100% - 24px)); max-height:calc(100dvh - 24px);
+  overflow:auto; scroll-padding-block:24px;
+  background:#faf9f6; color:#20201d;
+}
+dialog#post-compose-panel::backdrop { background:rgba(0,0,0,.55); }
+#post-compose-panel a, #post-compose-panel [tabindex] { scroll-margin-block:24px; }
+@media (prefers-color-scheme:dark) {
+  dialog#post-compose-panel { background:#1a1a19; color:#fff; color-scheme:dark; --focus-ring:#8bc2ff; }
+  #post-compose-panel :is(.hint, .field-help, legend, label, figcaption) { color:#c3c2b7; }
+  #post-compose-panel :is(input, textarea) { background:#272726; color:#fff; border-color:#898781; }
+  #post-compose-panel :is(.text-button, .secondary-button) { background:#272726; color:#8bc2ff; }
+  #post-compose-panel a { color:#8bc2ff; }
+  #post-compose-panel .field-error { color:#ffb4ab; border-color:currentColor; }
+}

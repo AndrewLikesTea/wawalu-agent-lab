@@ -23,13 +23,20 @@ test("composer contains complete images at desktop and 390px and keeps Tab in th
   let browser;
   try {
     browser = await chromium.launch();
-    for (const width of [390, 1280]) {
-      const page = await browser.newPage({ viewport: { width, height: 900 } });
+    for (const colorScheme of ["light", "dark"]) for (const width of [390, 1280]) {
+      const page = await browser.newPage({ viewport: { width, height: 900 }, colorScheme });
       await page.route("**/api/social-posts?*", route => route.fulfill({ json: { posts: [] } }));
       await page.goto(`http://127.0.0.1:${server.address().port}/social.html`);
       await page.waitForFunction(() => document.documentElement.dataset.shiplogSocial === 'ready');
       await page.locator('#post-compose-open').click();
       assert.equal(await page.locator('#post-form-title').evaluate(el => el === document.activeElement), true);
+      assert.equal(await page.getByRole('dialog', { name: 'Write a post', exact: true }).count(), 1);
+      assert.equal(await page.locator('#post-compose-panel').evaluate(el => el.matches(':modal')), true);
+      await page.locator('#post-compose-open').evaluate(el => el.focus());
+      assert.equal(await page.locator('#post-form-title').evaluate(el => el === document.activeElement), true);
+      await page.keyboard.press('Shift+Tab');
+      assert.equal(await page.locator('#post-compose-cancel').evaluate(el => el === document.activeElement), true);
+      await page.locator('#post-body').fill('A draft kept through both dismissal routes.');
       for (const [w, h] of [[300, 1800], [800, 800], [12000, 40]]) {
         const png = await page.evaluate(([w, h]) => {
           const canvas = document.createElement("canvas");
@@ -58,12 +65,55 @@ test("composer contains complete images at desktop and 390px and keeps Tab in th
         await page.keyboard.press('Tab');
         assert.equal(await page.locator('#post-image-alt').evaluate(el => el === document.activeElement), true);
       }
+      await page.locator('#post-image-alt').fill('A blue rectangle.');
+      const stops = await page.evaluate(async () => {
+        const { composerFocusables } = await import('/social.js');
+        return composerFocusables(document.getElementById('post-compose-panel')).map(el => el.id || el.className);
+      });
+      assert.ok(stops.includes('post-submit'));
+      assert.ok(stops.includes('remove-image'));
+      await page.locator('#post-form-title').focus();
+      for (const expected of stops) {
+        await page.keyboard.press('Tab');
+        const focused = await page.evaluate(() => {
+          const el = document.activeElement;
+          const visible = el.id === 'post-image' ? el.closest('.file-button') : el;
+          visible.scrollIntoView({ block: "center", behavior: "instant" });
+          const rect = visible.getBoundingClientRect();
+          const panel = document.getElementById('post-compose-panel');
+          const bounds = panel.getBoundingClientRect();
+          const style = getComputedStyle(visible);
+          return { name: el.id || el.className, ring: style.outlineStyle,
+            ringWidth: parseFloat(style.outlineWidth),
+            fits: rect.left >= bounds.left + 5 && rect.right <= bounds.right - 5 &&
+              rect.top >= bounds.top + 5 && rect.bottom <= bounds.bottom - 5,
+            overflow: panel.scrollWidth > panel.clientWidth };
+        });
+        assert.equal(focused.name, expected);
+        assert.notEqual(focused.ring, 'none', `${expected}: ${colorScheme}/${width}`);
+        assert.ok(focused.ringWidth >= 3, expected);
+        assert.equal(focused.fits, true, expected);
+        assert.equal(focused.overflow, false);
+      }
+      for (const expected of [...stops].reverse().slice(1)) {
+        await page.keyboard.press('Shift+Tab');
+        assert.equal(await page.evaluate(() => document.activeElement.id || document.activeElement.className), expected);
+      }
       await page.locator('#post-compose-cancel').focus();
       await page.keyboard.press('Tab');
       assert.equal(await page.locator('#post-body').evaluate(el => el === document.activeElement), true);
       await page.locator('#post-body').focus();
       await page.keyboard.press('Escape');
       assert.equal(await page.locator('#post-compose-open').evaluate(el => el === document.activeElement), true);
+      await page.locator('#post-compose-open').click();
+      assert.equal(await page.locator('#post-body').inputValue(), 'A draft kept through both dismissal routes.');
+      await page.getByRole('button', { name: 'Close', exact: true }).click();
+      assert.equal(await page.locator('#post-compose-open').evaluate(el => el === document.activeElement), true);
+      // The empty-feed invitation is a distinct trigger, including mouse clicks.
+      const other = page.locator('#feed-state button').filter({ hasText: 'Write a post' });
+      await other.click();
+      await page.keyboard.press('Escape');
+      assert.equal(await other.evaluate(el => el === document.activeElement), true);
       await page.close();
     }
   } finally {

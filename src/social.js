@@ -1119,7 +1119,8 @@ export function mountImageDescription(root) {
   const updateReason = () => {
     if (!submit || !reason) return;
     const waiting = attached && !String(input?.value ?? "").trim();
-    reason.textContent = waiting ? PUBLISH_REASON : "";
+    const message = waiting ? PUBLISH_REASON : "";
+    if (reason.textContent !== message) reason.textContent = message;
     reason.hidden = !waiting;
     const others = (submit.getAttribute("aria-describedby") ?? "").split(/\s+/)
       .filter((token) => token && token !== PUBLISH_REASON_ID);
@@ -1170,9 +1171,9 @@ export function mountImageDescription(root) {
   };
 }
 
-// The composer as a disclosure, wired the way this site already wires its other
-// one (src/site-footer.js): a trigger that carries `aria-expanded`, a panel that
-// carries `hidden`, Escape from inside the panel, and focus that returns to the
+// The composer uses a native modal dialog, retaining the disclosure API:
+// a trigger carries `aria-expanded`, the closed panel carries `hidden`,
+// Escape dismisses the panel, and focus returns to the
 // actual opener on close. Closing during an in-flight publish is allowed: the
 // publish is settled against a snapshot of the draft (mountSocialFeed), so the
 // panel no longer has to be held open for the completion to land safely.
@@ -1311,17 +1312,25 @@ export function mountComposerDisclosure(root) {
       opener = origin ?? (active && active !== panel && !isWithin(active, panel) &&
         active.tagName !== "BODY" ? active : trigger);
     }
+    if (panel.isConnected === false) return;
     panel.hidden = false;
+    if (typeof panel.showModal === "function" && !panel.open) panel.showModal();
     trigger.setAttribute("aria-expanded", "true");
     if (focus) title?.focus();
   };
   const close = () => {
     if (panel.hidden) return;
+    if (typeof panel.close === "function" && panel.open) panel.close();
     panel.hidden = true;
     trigger.setAttribute("aria-expanded", "false");
     if (opener && isWithin(opener, root.ownerDocument ?? root)) opener.focus();
-    else trigger.focus();
+    else if (isWithin(trigger, root.ownerDocument ?? root)) trigger.focus();
   };
+
+  panel.addEventListener("cancel", (event) => {
+    event.preventDefault();
+    close();
+  });
 
   trigger.addEventListener("click", () => (panel.hidden ? open({ opener: trigger }) : close()));
   cancel?.addEventListener("click", close);
@@ -1345,10 +1354,8 @@ export function mountComposerDisclosure(root) {
     // the receipt's permalink appears inside the panel after a publish lands —
     // so a list taken once at open would be wrong by the second field.
     //
-    // Containment here is a decision about a panel that is NOT modal: the feed
-    // behind it stays live and readable. What makes it navigable rather than a
-    // trap is the exit this disclosure already documents in #post-keyboard-hint
-    // — Escape, and the Close control that is the last stop in the ring.
+    // Native showModal makes the background inert; retain explicit wrapping
+    // for the heading, summary, and dynamically appearing image/receipt controls.
     if (event.key !== "Tab" || panel.hidden) return;
     const doc = root.ownerDocument ?? root;
     const next = nextContainedStop(composerFocusables(panel), doc.activeElement, event.shiftKey);
@@ -1476,7 +1483,7 @@ export function mountSocialFeed(root, options = {}) {
       : null;
     renderPosts(feed, visible, {
       state, noMatch, statusRegion: feedState ?? feed, onRetry: retryFeed,
-      onPublish: () => composer.open(),
+      onPublish: (event) => composer.open({ opener: event?.currentTarget }),
       onReport: report ? (post, button) => report.open(post, button) : null,
     });
     // The same machine renderPosts just branched on, so the count, the filters
