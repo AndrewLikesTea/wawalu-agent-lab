@@ -2875,7 +2875,7 @@ test("the stated count and the dead end's total are what the wire actually yield
 // operates Shiplog", on a page whose identity line says Social is not part of
 // Shiplog. It names the team alone now; only the Shiplog follow-up form keeps
 // the longer name, because that form is about Shiplog.
-const STORAGE_SCOPE = "Publishing stores this post with the Wawalu team."
+const STORAGE_SCOPE = "Publishing stores this post on the Wawalu team’s server, not in this browser."
   + ` ${PUBLISHED_POST_REACH}`;
 // The wordings this replaced, which may not come back beside it.
 const RETIRED_SCOPE = [
@@ -2904,7 +2904,7 @@ test("the composer says where a published post is stored before anything is type
   // rendered text, so a second copy pasted beside the feed fails here too.
   const main = textOf(document.querySelector("#main-content"));
   for (const fact of [
-    "stores this post with the Wawalu team.",
+    "stores this post on the Wawalu team’s server, not in this browser.",
     PUBLISHED_POST_REACH,
   ]) {
     assert.equal(main.split(fact).length - 1, 1, `Social does not state this exactly once: ${fact}`);

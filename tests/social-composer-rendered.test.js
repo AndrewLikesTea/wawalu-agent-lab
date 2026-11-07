@@ -32,6 +32,23 @@ test("composer contains complete images at desktop and 390px and keeps Tab in th
       assert.equal(await page.locator('#post-form-title').evaluate(el => el === document.activeElement), true);
       assert.equal(await page.getByRole('dialog', { name: 'Write a post', exact: true }).count(), 1);
       assert.equal(await page.locator('#post-compose-panel').evaluate(el => el.matches(':modal')), true);
+      // Publishing terms stay readable together beside the action at both widths.
+      await page.locator('#post-submit').scrollIntoViewIfNeeded();
+      assert.equal(await page.locator('#post-storage-scope').innerText(),
+        'Publishing stores this post on the Wawalu team’s server, not in this browser. Anyone can read a published post, on any device or browser.');
+      assert.equal(await page.locator('#post-consequence').innerText(),
+        'A published post is public and cannot be edited or deleted by the person who published it. To ask the Wawalu team to remove your own post, select Report post on it and choose “Mistaken or posted in error”. Anyone can select Report post on it. Do not include customer or production data.');
+      const termsFit = await page.evaluate(() => {
+        const panel = document.getElementById('post-compose-panel');
+        const bounds = panel.getBoundingClientRect();
+        const boxes = ['post-storage-scope', 'post-consequence', 'post-submit']
+          .map(id => document.getElementById(id).getBoundingClientRect());
+        return panel.scrollWidth <= panel.clientWidth && boxes.every(box =>
+          box.width > 0 && box.height > 0 && box.left >= bounds.left && box.right <= bounds.right &&
+          box.top >= Math.max(0, bounds.top) && box.bottom <= Math.min(innerHeight, bounds.bottom)) &&
+          boxes[0].bottom <= boxes[1].top && boxes[1].bottom <= boxes[2].top;
+      });
+      assert.equal(termsFit, true, `publishing terms and action: ${colorScheme}/${width}`);
       await page.locator('#post-compose-open').evaluate(el => el.focus());
       assert.equal(await page.locator('#post-form-title').evaluate(el => el === document.activeElement), true);
       await page.keyboard.press('Shift+Tab');
