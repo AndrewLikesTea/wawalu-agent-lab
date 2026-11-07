@@ -254,3 +254,54 @@ test("the composer's focus indicators come from the shared token and survive a 3
   assert.match(composerCss, /#post-compose-panel, #post-form, #post-form \.field\s*\{ min-width:0;/);
   assert.match(composerCss, /#post-form input, #post-form textarea, #post-form button \{ scroll-margin-block:24px;/);
 });
+
+test("the shipped dialog enters the native top layer and native cancel preserves the draft", async (t) => {
+  const { id, feed, document } = await setup(t);
+  const panel = id("post-compose-panel");
+  assert.equal(panel.tagName, "DIALOG");
+  assert.equal(panel.getAttribute("aria-modal"), "true");
+  assert.equal(panel.getAttribute("aria-labelledby"), "post-form-title");
+  let shown = 0;
+  let closed = 0;
+  panel.showModal = () => { panel.open = true; shown++; };
+  panel.close = () => { panel.open = false; closed++; };
+  id("post-body").value = "Keep this draft";
+  feed.composer.open({ opener: id("post-compose-open") });
+  feed.composer.open();
+  assert.equal(shown, 1, "an open dialog is not shown twice");
+  const cancel = new DomEvent("cancel", { cancelable: true });
+  panel.dispatchEvent(cancel);
+  assert.equal(cancel.defaultPrevented, true);
+  assert.equal(closed, 1);
+  assert.equal(panel.hidden, true);
+  assert.equal(id("post-body").value, "Keep this draft");
+  assert.equal(document.activeElement.id, "post-compose-open");
+});
+
+test("removed openers fall back safely and a removed panel cannot reopen", async (t) => {
+  const { id, feed, document } = await setup(t);
+  const origin = id("post-filter-clear");
+  feed.composer.open({ opener: origin });
+  origin.remove();
+  feed.composer.close();
+  assert.equal(document.activeElement.id, "post-compose-open");
+  feed.composer.open();
+  id("post-compose-open").remove();
+  assert.doesNotThrow(() => feed.composer.close());
+  const panel = id("post-compose-panel");
+  panel.remove();
+  panel.isConnected = false;
+  assert.doesNotThrow(() => feed.composer.open());
+  assert.equal(panel.hidden, true);
+});
+
+test("the empty-feed mouse invitation restores its exact trigger even without click focus", async (t) => {
+  const { id, document } = await setup(t);
+  const invitation = id("feed-state").querySelector("button");
+  assert.ok(invitation);
+  id("post-compose-open").focus();
+  invitation.click();
+  assert.equal(document.activeElement.id, "post-form-title");
+  id("post-compose-cancel").click();
+  assert.equal(document.activeElement === invitation, true);
+});

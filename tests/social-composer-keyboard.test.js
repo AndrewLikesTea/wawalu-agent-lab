@@ -254,6 +254,11 @@ test("an image with no description names the missing step on Publish post, once,
   assert.equal(describedBy().includes(PUBLISH_REASON_ID), true,
     `Publish post is not described by the missing step: ${describedBy().join(" ")}`);
   assert.equal(reason.hidden, false);
+  assert.equal(reason.getAttribute("role"), "status");
+  assert.equal(reason.getAttribute("aria-atomic"), "true");
+  const announcement = reason.children[0];
+  type(id("post-image-alt"), " ");
+  assert.equal(reason.children[0] === announcement, true, "unchanged requirements must not repeat live announcements");
   assert.match(textOf(reason), /Fill in the required image description/);
   assert.equal(carriers(document.querySelector("body"), "Fill in the required image description"), 1);
   // Beside the control it is about: the element immediately before it.

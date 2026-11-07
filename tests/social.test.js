@@ -2622,11 +2622,16 @@ test("the composer tells a publisher what to write, at the post field", async (t
     if (cursor.getAttribute?.("id") === "post-compose-panel") break;
   }
   // Read on narrow and wide screens alike: nothing folds or hides it, and no
-  // media query in either stylesheet touches the hint style.
+  // viewport query in either stylesheet touches the hint style. Theme queries
+  // may change contrast, but never typography, spacing, or visibility.
   assert.equal(foldedAway(guide), false, "the guide renders only inside something collapsed");
   for (const sheet of ["styles.css", "social-composer.css"]) {
     const css = await readFile(new URL(`../src/${sheet}`, import.meta.url), "utf8");
     for (const rule of css.match(/@media[^{]*\{(?:[^{}]*\{[^{}]*\})*[^{}]*\}/g) ?? []) {
+      if (rule.includes("prefers-color-scheme")) {
+        assert.doesNotMatch(rule, /(?:display|visibility|font-size|line-height|padding|margin)\s*:/);
+        continue;
+      }
       assert.doesNotMatch(rule, /\.hint\b|post-body-guide/, `${sheet} restyles the hint at a breakpoint: ${rule}`);
     }
   }
