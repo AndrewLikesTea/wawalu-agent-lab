@@ -611,7 +611,9 @@ test("the profile and post pages are wired, labelled, and reachable", async () =
   // one sentence attached to the control explained nothing about the control.
   // Then it said the useful thing and said it again in the imperative, which is
   // the restatement #2657 took out: one sentence, no second copy of it.
-  assert.match(profile, /<p class="hint profile-toolbar-hint" id="profile-author-hint">\s*The list below shows only the image posts published under the selected display name\.\s*<\/p>/);
+  // What follows it is a different fact (#3144): a display name is a label,
+  // not a profile, said beside the label rather than only under the grid.
+  assert.match(profile, /<p class="hint profile-toolbar-hint" id="profile-author-hint">\s*The list below shows only the image posts published under the selected display name\. A display name is a label on a post, not a profile or account\. Display names are not verified, and more than one publisher can use the same one\.\s*<\/p>/);
   assert.doesNotMatch(profile, /Choose another display name to update the image-(post|page) list/,
     "the picker hint restates itself in the imperative again");
   assert.doesNotMatch(profile, /The display name is the name shown on each post\./);
@@ -655,11 +657,16 @@ test("the People picker and the page's own description use one term for what is 
     ["picker hint", between(/<p class="hint profile-toolbar-hint" id="profile-author-hint">([\s\S]*?)<\/p>/)],
   ];
 
+  // The picker hint names two rivals once, to deny them (#3144): a display name
+  // is not a profile or account. Only that exact denial is exempt; any other
+  // "profile" or "account" in the hint still fails below.
+  const DENIAL = "A display name is a label on a post, not a profile or account.";
+  assert.equal(surfaces[2][1].split(DENIAL).length - 1, 1, "the picker hint must say once that a display name is not a profile");
   for (const [surface, copy] of surfaces) {
     assert.notEqual(copy, "", `the ${surface} must still be on the page`);
     assert.ok(copy.includes(TERM), `the ${surface} must call the selected thing a "${TERM}": ${copy.trim()}`);
     for (const rival of RIVALS)
-      assert.doesNotMatch(copy, rival, `the ${surface} must not name the same thing a second way`);
+      assert.doesNotMatch(copy.replace(DENIAL, ""), rival, `the ${surface} must not name the same thing a second way`);
   }
 
   // The intro is still there, and it may not reintroduce a second word for what
