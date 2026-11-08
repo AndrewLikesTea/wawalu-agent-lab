@@ -693,13 +693,16 @@ function appendCount(value, count) {
  * fallbacks, where a reader most needs to check the source by hand.
  */
 export function renderMergedFigure(root = document, state = "loading",
-  { count = 0, total = 0, asOf = null, takenAt = null, reason = null } = {}) {
+  { count = null, total = 0, asOf = null, takenAt = null, reason = null, provenance = null } = {}) {
   // A count with no response time behind it cannot be sourced, and an unsourced
   // number is not one this slot may show — so it falls to the empty state rather
   // than rendering a figure the line beneath it could not account for. A record
   // is held to the same rule, plus a whole count: a half-written record is not a
   // number either. Anything unrecognised falls the same way, never to a number.
-  const sourced = asOf instanceof Date && !Number.isNaN(asOf.getTime());
+  const sourced = asOf instanceof Date && !Number.isNaN(asOf.getTime())
+    && Number.isInteger(count) && count >= 0 && provenance?.complete === true
+    && provenance.checkedAt instanceof Date && !Number.isNaN(provenance.checkedAt.getTime())
+    && provenance.sources?.length > 0 && Boolean(provenance.coverage);
   const dated = takenAt instanceof Date && !Number.isNaN(takenAt.getTime())
     && Number.isInteger(count) && count >= 0;
   const name = state === "loading" ? "loading"
@@ -731,10 +734,12 @@ export function renderMergedFigure(root = document, state = "loading",
     // here — that it is the merges in that one response rather than everything
     // these repositories have ever merged.
     appendText(source, "span", "", `Counted from ${total} public GitHub ${total === 1 ? "event" : "events"} `
-      + `returned for ${SOURCE_REPOSITORIES.join(" and ")}, as of `);
+      + `returned for ${provenance.sources.map((source) => source.repository).join(" and ")}, as of `);
     const time = appendText(source, "time", "merged-figure-time", formatRetrievedAt(asOf));
     time.dateTime = asOf.toISOString();
-    appendText(source, "span", "", ". Merged pull requests in that returned activity, not an all-time total.");
+    appendText(source, "span", "", `. ${provenance.coverage} Checked `);
+    const checked = appendText(source, "time", "merged-figure-time", formatRetrievedAt(provenance.checkedAt));
+    checked.dateTime = provenance.checkedAt.toISOString();
   } else if (name === "recorded") {
     appendCount(value, count);
     appendText(source, "span", "", RETAINED_LEAD);
@@ -743,7 +748,7 @@ export function renderMergedFigure(root = document, state = "loading",
     // The clock as well as the calendar day: a count retained ten minutes ago
     // and one recorded three weeks ago are both dated, and a reader can tell
     // which is which without opening anything.
-    appendText(source, "span", "", ` at ${formatRetainedClock(takenAt)}.`);
+    appendText(source, "span", "", ` at ${formatRetainedClock(takenAt)}. Historical snapshot only; not verified by this request. Coverage was not retained with this record; this is not an all-time total.`);
   } else {
     const copy = name === "unavailable" && reason ? unavailableCopy(reason) : MERGED_FIGURE_COPY[name];
     value.textContent = copy.value;
@@ -855,10 +860,10 @@ export async function loadActivity(root = document, fetcher = fetch, storage = b
     // Only the live records are countable, and a response that carried none of
     // them is not a zero — it is nothing to count from, which is the empty
     // headline, not a figure a reader could mistake for a real one.
-    const { events, countable, asOf } = await readPublicEvents(fetcher, SYNTHETIC_RECORDS);
+    const { events, countable, asOf, provenance } = await readPublicEvents(fetcher, SYNTHETIC_RECORDS);
     if (countable.length) {
       const count = countMergedPullRequests(countable);
-      renderMergedFigure(root, "live", { count, total: countable.length, asOf });
+      renderMergedFigure(root, "live", { count, total: countable.length, asOf, provenance });
       // Remembered only once GitHub has actually answered, and only with the
       // moment its response arrived: this is the write the retained figure above
       // is read back from on the next visit, so it may hold nothing else.

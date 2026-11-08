@@ -127,17 +127,29 @@ export async function readPublicEvents(fetcher = fetch, excluded = NOTHING_EXCLU
   ));
   // The moment this response arrived, taken once here rather than at render.
   const receivedAt = new Date();
-  if (!responses.some((response) => response.ok)) {
-    const failure = new Error(`GitHub returned ${responses[0].status}`);
-    failure.status = responses[0].status;
+  if (!responses.every((response) => response.ok)) {
+    const failed = responses.find((response) => !response.ok);
+    const failure = new Error(`GitHub returned ${failed.status}`);
+    failure.status = failed.status;
     throw failure;
   }
   const payloads = await Promise.all(responses.map((response) => (response.ok ? response.json() : [])));
+  if (payloads.some((payload) => !Array.isArray(payload))) {
+    throw new SyntaxError("GitHub returned an incomplete event feed");
+  }
   const events = payloads
     .flatMap((payload) => (Array.isArray(payload) ? payload : []))
     .sort((a, b) => new Date(b.created_at ?? 0) - new Date(a.created_at ?? 0))
     .slice(0, 30);
-  return { events, countable: liveGithubEvents(events, excluded), asOf: responseTimestamp(responses, receivedAt) };
+  const asOf = responseTimestamp(responses, receivedAt);
+  const provenance = {
+    // Complete for the declared returned window, never for repository history.
+    complete: true,
+    checkedAt: receivedAt,
+    sources: EVENTS_URLS.map((url, index) => ({ repository: SOURCE_REPOSITORIES[index], url })),
+    coverage: "At most the 30 most recent events combined from the first page of each repository’s public GitHub event feed (up to 30 events per repository). GitHub lists only events from the past 90 days, and a new event can take up to six hours to appear. This is a rolling activity window, not an all-time total or a fixed date range.",
+  };
+  return { events, countable: liveGithubEvents(events, excluded), asOf, provenance };
 }
 
 // Why a request produced no count, in the reader's terms rather than the
@@ -191,12 +203,12 @@ export const unavailableSentences = (reason = UNAVAILABLE_REASONS.unreachable) =
  */
 export async function loadMergedCount(fetcher = fetch, excluded = NOTHING_EXCLUDED) {
   try {
-    const { countable, asOf } = await readPublicEvents(fetcher, excluded);
+    const { countable, asOf, provenance } = await readPublicEvents(fetcher, excluded);
     if (!countable.length) return { ok: false, reason: UNAVAILABLE_REASONS.empty };
     if (!(asOf instanceof Date) || Number.isNaN(asOf.getTime())) {
       return { ok: false, reason: UNAVAILABLE_REASONS.undated };
     }
-    return { ok: true, count: countMergedPullRequests(countable, excluded), asOf };
+    return { ok: true, count: countMergedPullRequests(countable, excluded), asOf, provenance };
   } catch (error) {
     return { ok: false, reason: unavailableReason(error) };
   }

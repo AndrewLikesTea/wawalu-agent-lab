@@ -163,7 +163,9 @@ test("GitHub did not answer: the stored count, its time, and that it is not a li
   // A whole sentence, not a badge: that GitHub did not answer, that this is the
   // last count taken, from where, and the date and clock it was taken at.
   const source = textOf(document.querySelector(".merged-figure-source"));
-  assert.equal(source, `${RETAINED_LEAD}2026-07-14 at 09:15 UTC.`.replace(/\s+/g, " "));
+  assert.ok(source.startsWith(`${RETAINED_LEAD}2026-07-14 at 09:15 UTC.`.replace(/\s+/g, " ")));
+  assert.match(source, /Historical snapshot only; not verified by this request/);
+  assert.match(source, /Coverage was not retained/);
   assert.match(source, /did not answer just now/);
   assert.equal(textOf(document.querySelector(".merged-figure-recorded-date")), "2026-07-14");
   assert.equal(document.querySelector(".merged-figure-recorded-date").dateTime, TAKEN_AT);
@@ -272,7 +274,7 @@ test("the observatory turns the never-counted outcome into buyer-readable unavai
     "the observatory intentionally replaces transport-specific detail with one buyer-readable state");
 });
 
-test("the stored-count outcome reads the same on the home page and in the observatory", async () => {
+test("the observatory qualifies the shared stored count with its missing coverage", async () => {
   const observatory = await observatoryReadout(storedCount());
   const home = await homeReadout(storedCount());
 
@@ -283,10 +285,10 @@ test("the stored-count outcome reads the same on the home page and in the observ
   // the last one taken, from where, and when.
   const [observatorySource] = observatory.said.slice(-1);
   const [homeSource] = home.said.slice(-1);
-  assert.equal(observatorySource, homeSource,
-    "the two pages say different things about the same stored count");
+  assert.ok(observatorySource.startsWith(homeSource));
+  assert.match(observatorySource, /Historical snapshot only; not verified by this request/);
   assert.match(observatorySource, /^Public GitHub activity did not answer just now/);
-  assert.ok(observatorySource.endsWith("2026-07-14 at 09:15 UTC."), observatorySource);
+  assert.ok(observatorySource.includes("2026-07-14 at 09:15 UTC."), observatorySource);
   // The digit is the same one on both, read out of one stored record.
   assert.ok(observatory.said[0].startsWith("412"), observatory.said[0]);
   assert.ok(home.said[0].startsWith("412"), home.said[0]);

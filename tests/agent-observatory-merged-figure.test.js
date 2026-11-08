@@ -18,7 +18,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { UNAVAILABLE_REASONS, feedLinkText } from "../src/public-merges.js";
+import { UNAVAILABLE_REASONS, feedLinkText, readPublicEvents } from "../src/public-merges.js";
 import {
   EVENTS_URLS,
   MERGED_FIGURE_COPY,
@@ -177,7 +177,7 @@ test("the synthetic rows the page falls back to never reach the headline slot", 
 
   // The four representative rows are on screen — and the figure is still empty.
   assert.equal(root.nodes["#activity-list"].textContent.includes("Scope the observatory fallback"), true);
-  assert.equal(first(root.nodes["#merged-figure-readout"], "merged-figure-count"), null);
+  assert.equal(tags(root.nodes["#merged-figure-readout"], "STRONG").length, 0);
 });
 
 test("no number survives a GitHub failure, whatever the failure is", async () => {
@@ -240,7 +240,7 @@ test("a count that cannot be sourced is not rendered as a number", () => {
     renderMergedFigure(root, "live", options);
 
     assert.equal(root.nodes["#merged-figure"].dataset.state, "unavailable");
-    assert.equal(first(root.nodes["#merged-figure-readout"], "merged-figure-count"), null);
+    assert.equal(tags(root.nodes["#merged-figure-readout"], "STRONG").length, 0);
   }
   // An unrecognised state falls the same way: to the empty slot, never a number.
   const root = observatoryRoot();
@@ -369,4 +369,51 @@ test("a live response paints the figure on the shipped page without disturbing i
   assert.match(textOf(document.querySelector(".merged-figure-source")), /public GitHub/);
   const sequence = tabSequence(document);
   for (const link of links) assert.ok(sequence.includes(link), "the verification links survive the render");
+});
+
+test("successful provenance describes the actual combined rolling window and check time", async () => {
+  const root = observatoryRoot();
+  const before = Date.now();
+  await loadActivity(root, githubFetcher(LIVE_EVENTS), null);
+  const readout = root.nodes["#merged-figure-readout"];
+  assert.match(readout.textContent, /30 most recent events combined from the first page of each repository/);
+  assert.match(readout.textContent, /not an all-time total or a fixed date range/);
+  // The source's own limits: GitHub drops events after 90 days and lists new ones late.
+  assert.match(readout.textContent, /past 90 days, and a new event can take up to six hours/);
+  const checked = tags(readout, "TIME")[1];
+  assert.ok(Date.parse(checked.dateTime) >= before);
+  assert.ok(Date.parse(checked.dateTime) <= Date.now());
+});
+
+for (const failure of [
+  { ok: false, status: 403 },
+  okResponse({ message: "not an event array" }),
+]) {
+  test(`one unusable repository cannot produce a complete count (${failure.status ?? 'malformed'})`, async () => {
+    const root = observatoryRoot();
+    await loadActivity(root, async (url) => url.includes("paint-lab") ? okResponse(LIVE_EVENTS) : failure, null);
+    assert.equal(root.nodes["#merged-figure"].dataset.state, "unavailable");
+    assert.equal(tags(root.nodes["#merged-figure-readout"], "STRONG").length, 0);
+  });
+}
+
+test("a purported live count with partial or missing provenance renders no number", () => {
+  for (const provenance of [null, { complete: false }]) {
+    const root = observatoryRoot();
+    renderMergedFigure(root, "live", { count: 12, asOf: new Date(), provenance });
+    assert.equal(root.nodes["#merged-figure"].dataset.state, "unavailable");
+    assert.doesNotMatch(root.nodes["#merged-figure-readout"].textContent, /12/);
+  }
+});
+
+
+test("provenance travels with the capped count and identifies each requested feed", async () => {
+  const result = await readPublicEvents(async () => okResponse(Array.from({ length: 30 }, (_, number) =>
+    pullRequestEvent({ number, merged: true }))));
+  assert.equal(result.countable.length, 30);
+  assert.equal(countMergedPullRequests(result.countable), 30);
+  assert.equal(result.provenance.complete, true);
+  assert.deepEqual(result.provenance.sources, EVENTS_URLS.map((url, index) => ({
+    url, repository: SOURCE_REPOSITORIES[index],
+  })));
 });

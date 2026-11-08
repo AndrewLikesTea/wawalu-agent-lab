@@ -121,7 +121,7 @@ test("a loaded count says what it counted, in what, and for which repositories",
   for (const repository of SOURCE_REPOSITORIES) {
     assert.ok(source.includes(repository), `${repository} is not named beside the figure`);
   }
-  assert.match(source, /Merged pull requests in that returned activity, not an all-time total\./,
+  assert.match(source, /rolling activity window, not an all-time total or a fixed date range\./,
     "the label lets the figure be read as an all-time delivery total");
 
   // And it is one readable block of text, not a tooltip, a title, or a second
