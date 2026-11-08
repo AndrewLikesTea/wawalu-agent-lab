@@ -1,25 +1,5 @@
-// What the observatory's "Merged pull requests" block says once it has stopped
-// waiting — issue #1774.
-//
-// The block used to have a fourth outcome nobody chose: a reader arrives, the
-// unauthenticated cross-origin request to public GitHub is slow or silent, and
-// the slot reads "Loading…" for as long as anyone is willing to look at it. The
-// home page's counted-figure block had already been through this and come out
-// with three honest states, so the rule here is not merely that this page also
-// has three — it is that they are the SAME three, in the same words, out of one
-// module. What is pinned:
-//
-//   a settled attempt lands on exactly one of live / stored / never-counted;
-//   no outcome leaves "Loading…" anywhere in the block;
-//   both "Count the merged pull requests yourself" links survive all three;
-//   and a GitHub that never answers at all still reaches one of the three.
-//
-// The wording pins compare the two pages' rendered text directly rather than
-// either page against a literal, so a reworded sentence on one surface reds this
-// file instead of shipping two descriptions of one outcome.
-//
-// Every fetcher here is a stub, and loadPage's own fetch throws on any route a
-// test did not declare: nothing in this file reaches GitHub.
+// #3139: settled requests show current evidence or an unavailable metric.
+// A silent request has a deadline; saved counts never replace its status.
 
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -141,7 +121,7 @@ test("GitHub answered: the block shows the count and the time it was taken", asy
   const stamp = document.querySelector(".merged-figure-time");
   assert.equal(stamp.dateTime, new Date(RESPONSE_DATE).toISOString());
   const source = textOf(document.querySelector(".merged-figure-source"));
-  assert.match(source, /as of/);
+  assert.match(source, /Checked/);
   assert.ok(source.includes(textOf(stamp)), "the time it was taken is not in the sentence a reader reads");
 
   assertSettledShape(document, "a live count");
@@ -149,7 +129,7 @@ test("GitHub answered: the block shows the count and the time it was taken", asy
 
 /* ------------------- (b) no answer, a stored count here ------------------- */
 
-test("GitHub did not answer: the stored count, its time, and that it is not a live one", async (t) => {
+test("GitHub did not answer: a stored count cannot supply the metric", async (t) => {
   const page = await loadPage(OBSERVATORY_URL, { storage: storedCount() });
   t.after(() => page.restore());
   const { document } = page;
@@ -157,16 +137,9 @@ test("GitHub did not answer: the stored count, its time, and that it is not a li
   await loadActivity(document, rateLimited, page.storage);
   await settle();
 
-  assert.equal(document.querySelector("#merged-figure").dataset.state, "recorded");
-  assert.equal(textOf(document.querySelector(".merged-figure-count")), "412");
-
-  // A whole sentence, not a badge: that GitHub did not answer, that this is the
-  // last count taken, from where, and the date and clock it was taken at.
-  const source = textOf(document.querySelector(".merged-figure-source"));
-  assert.equal(source, `${RETAINED_LEAD}2026-07-14 at 09:15 UTC.`.replace(/\s+/g, " "));
-  assert.match(source, /did not answer just now/);
-  assert.equal(textOf(document.querySelector(".merged-figure-recorded-date")), "2026-07-14");
-  assert.equal(document.querySelector(".merged-figure-recorded-date").dateTime, TAKEN_AT);
+  assert.equal(document.querySelector("#merged-figure").dataset.state, "unavailable");
+  assert.equal(document.querySelector(".merged-figure-count"), null);
+  assert.doesNotMatch(textOf(document.querySelector("#merged-figure-readout")), /412|Checked/);
 
   assertSettledShape(document, "a stored count");
 });
@@ -197,7 +170,7 @@ test("GitHub did not answer and nothing was ever counted: the home page's wordin
 
 for (const [what, storage, expected] of [
   ["nothing stored", {}, "unavailable"],
-  ["a stored count", storedCount(), "recorded"],
+  ["a stored count", storedCount(), "unavailable"],
 ]) {
   test(`a GitHub that never answers still settles the block, with ${what}`, async (t) => {
     const page = await loadPage(OBSERVATORY_URL, { storage });
@@ -272,22 +245,10 @@ test("the observatory turns the never-counted outcome into buyer-readable unavai
     "the observatory intentionally replaces transport-specific detail with one buyer-readable state");
 });
 
-test("the stored-count outcome reads the same on the home page and in the observatory", async () => {
+test("the observatory requires current evidence even when the home page retains a count", async () => {
   const observatory = await observatoryReadout(storedCount());
   const home = await homeReadout(storedCount());
-
-  assert.equal(observatory.state, "recorded");
+  assert.equal(observatory.state, "unavailable");
+  assert.doesNotMatch(observatory.said.join(" "), /412|Checked/);
   assert.equal(home.state, "retained");
-  // Each page composes the figure to its own layout, so what is compared is the
-  // sentence that qualifies it: that GitHub did not answer, that this number is
-  // the last one taken, from where, and when.
-  const [observatorySource] = observatory.said.slice(-1);
-  const [homeSource] = home.said.slice(-1);
-  assert.equal(observatorySource, homeSource,
-    "the two pages say different things about the same stored count");
-  assert.match(observatorySource, /^Public GitHub activity did not answer just now/);
-  assert.ok(observatorySource.endsWith("2026-07-14 at 09:15 UTC."), observatorySource);
-  // The digit is the same one on both, read out of one stored record.
-  assert.ok(observatory.said[0].startsWith("412"), observatory.said[0]);
-  assert.ok(home.said[0].startsWith("412"), home.said[0]);
 });

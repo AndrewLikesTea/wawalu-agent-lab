@@ -116,23 +116,33 @@ export function responseTimestamp(responses = [], receivedAt) {
 
 /**
  * Request both feeds and return what GitHub actually said.
+ * requireComplete refuses partial or malformed repository evidence for the
+ * observatory. Legacy consumers retain their existing fallback behavior.
  *
  * Throws when GitHub did not answer, carrying the response status when there was
  * one, because "no answer" is a state both surfaces have to render rather than a
  * failure either of them may swallow into a number.
  */
-export async function readPublicEvents(fetcher = fetch, excluded = NOTHING_EXCLUDED) {
+export async function readPublicEvents(fetcher = fetch, excluded = NOTHING_EXCLUDED, { requireComplete = false } = {}) {
   const responses = await Promise.all(EVENTS_URLS.map(
     (url) => fetcher(url, { headers: { Accept: "application/vnd.github+json" } }),
   ));
   // The moment this response arrived, taken once here rather than at render.
   const receivedAt = new Date();
+  if (requireComplete && !responses.every((response) => response?.ok)) {
+    throw new Error("Incomplete repository responses");
+  }
   if (!responses.some((response) => response.ok)) {
     const failure = new Error(`GitHub returned ${responses[0].status}`);
     failure.status = responses[0].status;
     throw failure;
   }
   const payloads = await Promise.all(responses.map((response) => (response.ok ? response.json() : [])));
+  if (requireComplete && !payloads.every((payload) => Array.isArray(payload)
+    && payload.every((event) => event && typeof event === "object"
+      && typeof event.type === "string" && Number.isFinite(Date.parse(event.created_at))))) {
+    throw new SyntaxError("Incomplete repository event data");
+  }
   const events = payloads
     .flatMap((payload) => (Array.isArray(payload) ? payload : []))
     .sort((a, b) => new Date(b.created_at ?? 0) - new Date(a.created_at ?? 0))
