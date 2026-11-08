@@ -168,6 +168,48 @@ test("the picker is read and reached before the name, the count, and the results
   }
 });
 
+// What the grid holds, then what a display name is (#3144): a label on a post,
+// not a profile or account, unverified and shareable. A page called People reads
+// as a directory of profiles, so this is said beside the filter label, not only
+// in the caveat under the grid.
+const NOT_A_PROFILE = "A display name is a label on a post, not a profile or account.";
+const NOT_VERIFIED = "Display names are not verified, and more than one publisher can use the same one.";
+const PICKER_HINT = "The list below shows only the image posts published under the selected display name. " +
+  `${NOT_A_PROFILE} ${NOT_VERIFIED}`;
+
+// Read off the hydrated page, after real tiles: the authored markup pre-renders
+// the hint, so a text wait would return before anything drew.
+test("a first-time visitor learns a display name is not a profile before any post or result", async () => {
+  const page = await people();
+  try {
+    const { document } = page;
+    await waitFor(() => drawnTiles(document).length > 0, "the grid drew real tiles");
+    const text = textOf(document.querySelector("#main-content"));
+    const firstTile = textOf(drawnTiles(document)[0]);
+    for (const claim of [NOT_A_PROFILE, NOT_VERIFIED]) {
+      assert.equal(text.split(claim).length - 1, 1, `the page does not say once: ${claim}`);
+      const at = text.indexOf(claim);
+      assert.ok(at > text.indexOf("Filter image posts by display name"), `${claim} is read before the filter it explains`);
+      assert.ok(at < text.indexOf(textOf(document.querySelector("#profile-name"))), `${claim} is read after the result line`);
+      assert.ok(at < text.indexOf(firstTile), `${claim} is read after the first post`);
+    }
+    // In markup order too: the hint sits inside the filter group, ahead of the
+    // results, and it is the group's first description.
+    const order = documentOrder(document);
+    const at = (selector) => order.indexOf(document.querySelector(selector));
+    assert.ok(at("#profile-author-hint") < at("#profile-grid"));
+    assert.ok(at("#profile-author-hint") < at("#profile-author"));
+    assert.equal(document.querySelector("#profile-name-picker").getAttribute("aria-describedby").split(" ")[0],
+      "profile-author-hint");
+    // The hint is read, not reached: no tab stop of its own, and no new word for
+    // the concept.
+    assert.equal(document.querySelector("#profile-author-hint").getAttribute("tabindex"), null);
+    assert.doesNotMatch(textOf(document.querySelector("#profile-author-hint")), /username|handle|\bauthor\b|published as/i);
+  } finally {
+    page.restore();
+  }
+});
+
 // The reported defect, both halves of it: the sentence attached to the picker
 // defined "display name" instead of saying what pressing an entry does, and the
 // line over the grid reported the page's own state — "People is filtered to
@@ -183,8 +225,7 @@ test("the picker says what choosing a name does, and the line over the grid says
     // One sentence (#2657): the imperative restatement that followed it said
     // the same fact a second time, beside a control whose own label had already
     // said it.
-    assert.equal(textOf(document.querySelector("#profile-author-hint")),
-      "The list below shows only the image posts published under the selected display name.");
+    assert.equal(textOf(document.querySelector("#profile-author-hint")), PICKER_HINT);
 
     // Zed is the landing name and has two pictures. The number is the tiles on
     // screen, not the size of the feed behind them: four posts are loaded here.
@@ -220,8 +261,7 @@ test("the picker says what choosing a name does, and the line over the grid says
       // restatement back (#2657). The empty state's own "Choose another display
       // name" link is a different thing: it is an action, at the point where a
       // reader has nothing to read.
-      assert.equal(textOf(document.querySelector("#profile-author-hint")),
-        "The list below shows only the image posts published under the selected display name.",
+      assert.equal(textOf(document.querySelector("#profile-author-hint")), PICKER_HINT,
         `the picker hint lost its explanation under ${name}`);
       assert.doesNotMatch(main, /Choose another display name to update the image-(post|page) list/,
         `the picker hint restates itself under ${name}`);
