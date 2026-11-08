@@ -52,8 +52,8 @@ const TEXT_POST = {
 const STATE_HEADLINES = {
   loading: "Loading this Social post…",
   loaded: "Post published as Mina Okafor",
-  "not-found": "Post unavailable",
-  error: "Post could not be opened",
+  "not-found": "Social post unavailable",
+  error: "Social post could not be opened",
 };
 
 const seedResponse = (posts) => ({ ok: true, status: 200, json: async () => ({ posts }) });
@@ -108,7 +108,7 @@ test("a post id that does not exist is headed as not found, with no wait left be
   const page = await openPostPage("?id=p-never-existed", seedOnly([IMAGE_POST, TEXT_POST]));
   try {
     const heading = page.panel.querySelector(".empty-title");
-    assert.equal(textOf(heading), "Post unavailable");
+    assert.equal(textOf(heading), "Social post unavailable");
     assert.match(textOf(page.panel), /No Social post exists at this link\./);
     assert.doesNotMatch(textOf(page.panel), /removed|private|signed-in|your post/i);
 
@@ -153,7 +153,7 @@ test("the wait and the not-found answer are one slot, so they can never both sta
 
     // While it runs: the wait, and nothing else claiming to be a state.
     assert.equal(panel.querySelectorAll("[data-post-state-panel]").length, 1);
-    assert.equal(textOf(panel).includes("Post unavailable"), false, "the answer must not be pre-rendered behind the wait");
+    assert.equal(textOf(panel).includes("Social post unavailable"), false, "the answer must not be pre-rendered behind the wait");
     assert.match(textOf(panel), /Loading this Social post…/, "the wait names what is coming");
 
     release();
@@ -226,7 +226,7 @@ test("a link with no id, or a truncated one, lands in the same not-found state a
     try {
       // The same named state, heading, and plain-text outcome.
       assertOneState(page, "not-found", route);
-      assert.equal(textOf(page.panel.querySelector(".empty-title")), "Post unavailable", `${route}: the heading names what happened`);
+      assert.equal(textOf(page.panel.querySelector(".empty-title")), "Social post unavailable", `${route}: the heading names what happened`);
       assert.equal(textOf(page.panel.querySelector(".detail-state-label")), "Not found", `${route}: the outcome is visible text`);
       assert.match(textOf(page.panel), sentence, `${route}: the sentence says no post is here`);
       assert.doesNotMatch(textOf(page.panel), /deleted|removed|expired|moved/i, `${route}: no guess at why`);
@@ -322,7 +322,7 @@ test("an unreachable feed is named as such, with a keyboard-reachable retry afte
     assert.match(textOf(page.panel), /This Social post could not be loaded\./);
     assert.equal(textOf(page.panel.querySelector(".detail-retry")), "Try again");
     assert.equal(page.panel.querySelector(".detail-state-feed").getAttribute("href"), "/social.html");
-    assert.equal(textOf(page.panel.querySelector(".empty-title")), "Post could not be opened");
+    assert.equal(textOf(page.panel.querySelector(".empty-title")), "Social post could not be opened");
     assert.equal(textOf(page.panel.querySelector(".detail-state-feed")), "Open the Social feed");
     // A word, not just colour: the state reads with the stylesheet gone.
     assert.equal(textOf(page.panel.querySelector(".detail-state-label")), "Unreachable");
@@ -1129,8 +1129,8 @@ test("all four states carry a visible text label, not colour alone", async () =>
   const labels = {
     loading: /Loading this Social post…/,
     loaded: /Rowan Diaz/,
-    "not-found": /Post unavailable/,
-    error: /Post could not be opened/,
+    "not-found": /Social post unavailable/,
+    error: /Social post could not be opened/,
   };
 
   const settledCases = [
@@ -1614,7 +1614,7 @@ test("the lead stands once, in the same place, through loading, a loaded post, a
       // The lead is not repeated by the state's own panel, and the state's
       // words are not swallowed by it either.
       assert.equal(textOf(page.panel).includes(LEAD_SENTENCE), false, `${state}: the panel must not repeat the lead`);
-      assert.match(textOf(page.panel.querySelector(".empty-title")), /Post unavailable|Post could not be opened/);
+      assert.match(textOf(page.panel.querySelector(".empty-title")), /Social post unavailable|Social post could not be opened/);
     } finally {
       page.restore();
     }
