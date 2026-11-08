@@ -168,6 +168,12 @@ test("the picker is read and reached before the name, the count, and the results
   }
 });
 
+// What the grid holds, then what a display name is (#3144): a label on a post,
+// not a profile or account. People's own name reads as a directory of profiles,
+// so this is said beside the filter label, not only under the grid.
+const PICKER_HINT = "The list below shows only the image posts published under the selected display name. " +
+  "A display name is a label on a post, not a profile or account: nobody verifies it, and more than one person can publish under the same one.";
+
 // The reported defect, both halves of it: the sentence attached to the picker
 // defined "display name" instead of saying what pressing an entry does, and the
 // line over the grid reported the page's own state — "People is filtered to
@@ -183,8 +189,11 @@ test("the picker says what choosing a name does, and the line over the grid says
     // One sentence (#2657): the imperative restatement that followed it said
     // the same fact a second time, beside a control whose own label had already
     // said it.
-    assert.equal(textOf(document.querySelector("#profile-author-hint")),
-      "The list below shows only the image posts published under the selected display name.");
+    assert.equal(textOf(document.querySelector("#profile-author-hint")), PICKER_HINT);
+    // The label the hint explains still says "display name".
+    assert.equal(textOf(document.querySelector("#profile-author-label")), "Filter image posts by display name");
+    assert.equal(document.querySelector("#profile-name-picker").getAttribute("aria-describedby").split(" ")[0],
+      "profile-author-hint", "the denial must stay attached to the filter group");
 
     // Zed is the landing name and has two pictures. The number is the tiles on
     // screen, not the size of the feed behind them: four posts are loaded here.
@@ -220,8 +229,7 @@ test("the picker says what choosing a name does, and the line over the grid says
       // restatement back (#2657). The empty state's own "Choose another display
       // name" link is a different thing: it is an action, at the point where a
       // reader has nothing to read.
-      assert.equal(textOf(document.querySelector("#profile-author-hint")),
-        "The list below shows only the image posts published under the selected display name.",
+      assert.equal(textOf(document.querySelector("#profile-author-hint")), PICKER_HINT,
         `the picker hint lost its explanation under ${name}`);
       assert.doesNotMatch(main, /Choose another display name to update the image-(post|page) list/,
         `the picker hint restates itself under ${name}`);
