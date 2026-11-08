@@ -1,16 +1,5 @@
-// The observatory's merged count when GitHub does not answer.
-//
-// The page requests the public GitHub events feed unauthenticated, so being
-// rate-limited is the ordinary case, not the edge one. What is pinned here is
-// that a rate-limited visitor still reads a number and can still tell which
-// number it is: the live count is undated, the recorded count always carries
-// the date it was taken, and "nothing has ever been recorded" is one sentence
-// with no digit in it. All three keep the verification links beside them.
-//
-// The recorder is pinned to one rule: it writes only what GitHub actually
-// returned. Every failure path leaves the previous record byte-for-byte intact.
-//
-// Every GitHub call in this file is a mock. Nothing here opens a socket.
+// #3139: saved records cannot replace current repository evidence.
+// Recorder behavior remains independently covered for its other consumers.
 
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -131,7 +120,7 @@ test("a live response shows the live count and no recorded date, even with a rec
   assert.doesNotMatch(readout.textContent, /412/, "the recorded count is not shown beside a live one");
 });
 
-test("a rate-limited response shows the recorded count and the date it was taken", async () => {
+test("failed and empty responses never show a saved count", async () => {
   for (const [name, github] of Object.entries({
     "rate limiting": () => RATE_LIMITED,
     "a non-OK status": () => ({ ok: false, status: 503 }),
@@ -143,21 +132,13 @@ test("a rate-limited response shows the recorded count and the date it was taken
     await flush();
     const readout = root.nodes["#merged-figure-readout"];
 
-    assert.equal(root.nodes["#merged-figure"].dataset.state, "recorded", name);
-    assert.equal(first(readout, "merged-figure-count").textContent, "412", name);
-    assert.equal(first(readout, "merged-figure-unit").textContent, "merged pull requests", name);
-    // Visible text, not a title, a tooltip, or a disclosure: the date is read
-    // off the page as it stands.
-    const date = first(readout, "merged-figure-recorded-date");
-    assert.equal(date.textContent, "2026-07-14", name);
-    assert.equal(date.dateTime, RECORDED.takenAt, name);
-    assert.match(readout.textContent, /as of/, name);
-    assert.match(readout.textContent, /2026-07-14/, `${name}: the date is part of what is rendered`);
-    assert.doesNotMatch(readout.textContent, /Counting/, `${name}: a failed request is not still loading`);
+    assert.equal(root.nodes["#merged-figure"].dataset.state, "unavailable", name);
+    assert.equal(first(readout, "merged-figure-count"), null, name);
+    assert.doesNotMatch(readout.textContent, /412|Checked/);
   }
 });
 
-test("the recorded count keeps the GitHub feed links beside it on the shipped page", async (t) => {
+test("unavailable counts keep the GitHub evidence links on the shipped page", async (t) => {
   const page = await loadPage(PAGE_URL);
   t.after(() => page.restore());
   const { document } = page;
@@ -169,10 +150,8 @@ test("the recorded count keeps the GitHub feed links beside it on the shipped pa
   await flush();
 
   const figure = document.querySelector("#merged-figure");
-  assert.equal(figure.dataset.state, "recorded");
-  assert.equal(textOf(document.querySelector(".merged-figure-count")), "412");
-  assert.equal(textOf(document.querySelector(".merged-figure-unit")), "merged pull requests");
-  assert.match(textOf(figure), /as of 2026-07-14/);
+  assert.equal(figure.dataset.state, "unavailable");
+  assert.equal(document.querySelector(".merged-figure-count"), null);
   assert.deepEqual(figure.querySelector(".merged-figure-sources").querySelectorAll("a").map((link) => link.href),
     EVENTS_URLS, "a reader can still check the count at the source it came from");
 });
@@ -244,7 +223,7 @@ test("a garbled record file falls through to the sentence rather than throwing",
   assert.doesNotMatch(root.nodes["#merged-figure-readout"].textContent, /\d/);
 });
 
-test("the record is read before the live request resolves, so a spinner is never the answer", async () => {
+test("a published record cannot replace loading before GitHub resolves", async () => {
   const root = observatoryRoot();
   let answer;
   const pending = new Promise((resolve_) => { answer = resolve_; });
@@ -253,11 +232,10 @@ test("the record is read before the live request resolves, so a spinner is never
     github: (url) => (url.includes("paint-lab") ? pending : okResponse([])),
   }));
 
-  // The record has answered and GitHub has not: the reader is already looking at
-  // a dated number rather than "Counting…".
+  // A published record must not put a stale number into the pending metric.
   await new Promise((tick) => setImmediate(tick));
-  assert.equal(root.nodes["#merged-figure"].dataset.state, "recorded");
-  assert.equal(first(root.nodes["#merged-figure-readout"], "merged-figure-count").textContent, "412");
+  assert.equal(root.nodes["#merged-figure"].dataset.state, "loading");
+  assert.equal(first(root.nodes["#merged-figure-readout"], "merged-figure-count"), null);
 
   // And GitHub answering upgrades it to the live count.
   answer(okResponse(LIVE_EVENTS));

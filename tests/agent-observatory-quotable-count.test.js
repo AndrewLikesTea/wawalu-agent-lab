@@ -85,7 +85,7 @@ const figureOf = (document) => ({
 function assertEvidenceAdjacent(document, what) {
   const { figure, readout, sources } = figureOf(document);
   assert.equal(sources.parentNode.id, "merged-figure", `${what}: the feed links left the figure's block`);
-  assert.equal(readout.querySelectorAll("a").length, 0, `${what}: the feed links moved inside the readout`);
+  assert.equal(readout.querySelectorAll("a").filter((link) => EVENTS_URLS.includes(link.href)).length, 0, `${what}: the feed links moved inside the readout`);
   assert.equal(figure.querySelectorAll("details").length, 0, `${what}: the block grew a disclosure`);
 
   const links = sources.querySelectorAll("a");
@@ -116,12 +116,12 @@ test("a loaded count says what it counted, in what, and for which repositories",
   // a quoted number invites — that this is everything these repositories have
   // ever merged. All of it is beside the figure, in the block's own words.
   const source = textOf(document.querySelector(".merged-figure-source"));
-  assert.match(source, /Counted from 3 public GitHub events returned for/,
+  assert.match(source, /Counted from 3 public GitHub events remaining after exclusions/,
     "the label does not say how much activity the count was taken out of");
   for (const repository of SOURCE_REPOSITORIES) {
     assert.ok(source.includes(repository), `${repository} is not named beside the figure`);
   }
-  assert.match(source, /Merged pull requests in that returned activity, not an all-time total\./,
+  assert.match(source, /not an all-time total\./,
     "the label lets the figure be read as an all-time delivery total");
 
   // And it is one readable block of text, not a tooltip, a title, or a second
@@ -212,10 +212,9 @@ test("a failed refresh takes the previous count and its window off the page toge
 
   const { figure } = figureOf(document);
   const source = textOf(document.querySelector(".merged-figure-source"));
-  assert.equal(figure.dataset.state, "recorded", "a stored count is what a rate-limited reload has to show");
-  assert.doesNotMatch(source, /Counted from/,
-    "the previous response's observation window outlived the response");
-  assert.match(source, /did not answer just now/, "a stored count is not labelled as a live one");
+  assert.equal(figure.dataset.state, "unavailable");
+  assert.equal(document.querySelector(".merged-figure-count"), null);
+  assert.match(source, /could not fetch/);
   assert.ok(SOURCE_REPOSITORIES.every((repository) => source.includes(repository)),
     "the stored count names neither repository it was counted from");
   assertEvidenceAdjacent(document, "a stored count");

@@ -1,4 +1,5 @@
 import { renderState } from "./state-ui.js";
+import { BUILD_STAMP } from "./build-stamp.js";
 // The count, the feeds it comes from, and what a merge is live in one module
 // because the home page shows this same number and the two may not disagree.
 // This page's own exports are unchanged: they are that module's, re-exported.
@@ -24,13 +25,9 @@ import {
 // What a browser remembers of that number between visits, shared with the home
 // page so one response cannot be remembered two ways.
 import {
-  RETAINED_LEAD,
   browserCountStorage,
-  formatRetainedClock,
   formatRetainedDate,
-  mostRecentRecord,
   parseCountRecord,
-  readRetainedCount,
   writeRetainedCount,
 } from "./merged-count-retention.js";
 
@@ -503,36 +500,8 @@ export const CONNECTION_LABELS = Object.freeze({
 
 // --- The one real number on this page --------------------------------------
 //
-// Everything else this observatory shows about "the team" is a labelled
-// synthetic example. This figure is not: every number this slot can show was
-// counted from a public GitHub events response, from nothing else. There is no
-// estimate, no extrapolation, and no zero standing in for a failed request.
-//
-// What changed, and why: the page requests that response unauthenticated, so a
-// prospect is routinely rate-limited, and the slot used to answer that with
-// "Loading…" or a sentence — a spinner where the one repeatable proof number
-// belongs. It now has three states, each readable from the rendered page alone:
-//
-//   live         GitHub answered. This response's count, and no recorded date.
-//   recorded     GitHub did not answer. The last count that was taken from it,
-//                with the date and time it was taken shown as text beside the
-//                number, and the words saying it is not a live one.
-//   unavailable  GitHub did not answer and no count has ever been recorded. One
-//                sentence, no digit.
-//
-// A recorded count comes from one of two places, and is a response either way,
-// never a remembered render: the published record at RECORDED_COUNT_URL, which
-// only scripts/record-merged-count.mjs writes and only from a response GitHub
-// returned, and this browser's own retained count, which merged-count-retention
-// .js writes and only from a response this browser received. Whichever was taken
-// later is the one shown. A stale number is therefore always dated, and an
-// undated number can only ever be a live one.
-//
-// It says "merged pull requests" because the response can actually tell a merge
-// apart: a PullRequestEvent closed with `pull_request.merged === true` is a
-// merge, and a close without it is not. The scope the number is counted over is
-// stated with it rather than implied, because the events endpoint returns a
-// window of recent events and not the repository's whole history.
+// Only a complete current response may supply the metric. Saved counts lack
+// the repository-level provenance needed to audit this aggregate.
 
 // Every synthetic record this page can reach, named here so excluding them is a
 // decision in the code and not an accident of where the count happens to be
@@ -623,11 +592,8 @@ export const MERGED_FIGURE_COPY = Object.freeze({
   unavailable: Object.freeze(unavailableCopy(UNAVAILABLE_REASONS.unreachable)),
 });
 
-// The states a second request could still fix: the slot settled and it is not
-// holding a count this response returned. `recorded` is one of them — the number
-// beside it is dated and says in words that it is not live, so a reader looking
-// at it is still a reader GitHub did not answer for.
-const RETRIABLE_FIGURE_STATES = new Set(["unavailable", "recorded"]);
+// A failed metric offers a retry without showing a saved number.
+const RETRIABLE_FIGURE_STATES = new Set(["unavailable"]);
 
 /**
  * The words on this block's control, in one place because it only ever says one
@@ -677,35 +643,18 @@ function appendCount(value, count) {
   appendText(value, "span", "merged-figure-unit", mergedCountUnit(count));
 }
 
-/**
- * Paint the headline figure.
- *
- * `live` and `recorded` render a digit, each beside the words for exactly what
- * that count is and where it came from. They are told apart by text, not by
- * styling: only `recorded` carries a date, and it always carries one, so "this
- * number is from today's response" and "this number is from the 14th" are two
- * different sentences rather than the same sentence in two colours. `loading`
- * and `unavailable` are sentences with no number in them at all.
- *
- * Only the readout is replaced. It is the live region, so one load makes one
- * announcement, and the heading and the verification links above and below it
- * stay put and stay keyboard-reachable through every state — including both
- * fallbacks, where a reader most needs to check the source by hand.
- */
+/** Paint loading, unavailable, or a complete current count with its audit trail. */
 export function renderMergedFigure(root = document, state = "loading",
-  { count = 0, total = 0, asOf = null, takenAt = null, reason = null } = {}) {
+  { count = 0, total = 0, asOf = null, reason = null } = {}) {
   // A count with no response time behind it cannot be sourced, and an unsourced
   // number is not one this slot may show — so it falls to the empty state rather
   // than rendering a figure the line beneath it could not account for. A record
   // is held to the same rule, plus a whole count: a half-written record is not a
   // number either. Anything unrecognised falls the same way, never to a number.
   const sourced = asOf instanceof Date && !Number.isNaN(asOf.getTime());
-  const dated = takenAt instanceof Date && !Number.isNaN(takenAt.getTime())
-    && Number.isInteger(count) && count >= 0;
   const name = state === "loading" ? "loading"
-    : state === "live" && sourced ? "live"
-      : state === "recorded" && dated ? "recorded"
-        : "unavailable";
+    : state === "live" && sourced && Number.isInteger(count) && count >= 0 ? "live"
+      : "unavailable";
   const section = root.querySelector("#merged-figure");
   const readout = root.querySelector("#merged-figure-readout");
   if (!section || !readout) return null;
@@ -730,20 +679,18 @@ export function renderMergedFigure(root = document, state = "loading",
     // retrieved, and — because this is the number a reader will quote out of
     // here — that it is the merges in that one response rather than everything
     // these repositories have ever merged.
-    appendText(source, "span", "", `Counted from ${total} public GitHub ${total === 1 ? "event" : "events"} `
-      + `returned for ${SOURCE_REPOSITORIES.join(" and ")}, as of `);
+    appendText(source, "span", "", `Counted from ${total} public GitHub events remaining after exclusions, from ${SOURCE_REPOSITORIES.join(" and ")}. Checked `);
     const time = appendText(source, "time", "merged-figure-time", formatRetrievedAt(asOf));
     time.dateTime = asOf.toISOString();
-    appendText(source, "span", "", ". Merged pull requests in that returned activity, not an all-time total.");
-  } else if (name === "recorded") {
-    appendCount(value, count);
-    appendText(source, "span", "", RETAINED_LEAD);
-    const date = appendText(source, "time", "merged-figure-recorded-date", formatRecordedDate(takenAt));
-    date.dateTime = takenAt.toISOString();
-    // The clock as well as the calendar day: a count retained ten minutes ago
-    // and one recorded three weeks ago are both dated, and a reader can tell
-    // which is which without opening anything.
-    appendText(source, "span", "", ` at ${formatRetainedClock(takenAt)}.`);
+    appendText(source, "span", "", ". GitHub’s repository Events API exposes at most the preceding 90 days of events and may provide less complete history. This is not an all-time total. We request up to 30 events per repository and use the 30 most recent combined events. Before calculating the total, the application excludes specific hard-coded synthetic records (representative activity, fallback personas and runs), plus records with synthetic persona or prompt fields. ");
+    // The rules as deployed, not as main reads by the time a reader checks them.
+    const rules = `https://github.com/AndrewLikesTea/wawalu-agent-lab/blob/${BUILD_STAMP.commitSha ?? "main"}/src/`;
+    const exclusions = appendText(source, "a", "", "Read the synthetic exclusion definitions and liveGithubEvents filter");
+    exclusions.href = `${rules}agents.js`;
+    appendText(source, "span", "", " and ");
+    const filter = appendText(source, "a", "", "read the shared event filtering rules (public-merges.js)");
+    filter.href = `${rules}public-merges.js`;
+    appendText(source, "span", "", ". Apply these rules to the repository event evidence linked below.");
   } else {
     const copy = name === "unavailable" && reason ? unavailableCopy(reason) : MERGED_FIGURE_COPY[name];
     value.textContent = copy.value;
@@ -759,33 +706,6 @@ export function renderMergedFigure(root = document, state = "loading",
   // paragraph, so what is on screen is one sentence and not a sentence and a gap.
   readout.replaceChildren(...painted);
   return section;
-}
-
-/**
- * The figure when GitHub did not answer: the recorded count if one exists, and
- * otherwise the one sentence saying none does. Both keep the verification links
- * beside them, and neither of them is a spinner.
- */
-function renderFallbackFigure(root, recorded, reason = null) {
-  return recorded
-    ? renderMergedFigure(root, "recorded", recorded)
-    : renderMergedFigure(root, "unavailable", { reason });
-}
-
-/**
- * Paint a record that has just arrived, if it is still the best thing to show.
- *
- * The two no-number states are what it may replace: `loading`, which is the
- * whole point — a rate-limited reader gets the dated count while the live
- * request is still in flight, instead of a spinner — and `unavailable`, which is
- * what a live request that failed before the record arrived leaves behind. It
- * never replaces a live count, and never replaces a record with itself.
- */
-function paintRecordedFigure(root, record) {
-  if (!record) return null;
-  const state = root.querySelector("#merged-figure")?.dataset.state;
-  if (state !== "loading" && state !== "unavailable") return null;
-  return renderMergedFigure(root, "recorded", record);
 }
 
 // How long the headline figure will sit on its loading line before it says something
@@ -807,7 +727,7 @@ export async function loadActivity(root = document, fetcher = fetch, storage = b
   // the previous count belongs to the previous response, and holding it there
   // while a new request is in flight would make a stale number look current. It
   // is the state's only undated number, so it may not outlive its response —
-  // what replaces it below is either the next response's count or a dated one.
+  // only a complete new response may replace the loading text with a number.
   renderMergedFigure(root, "loading");
   label.textContent = CONNECTION_LABELS.loading;
   if (!hasLiveEvents) {
@@ -815,37 +735,11 @@ export async function loadActivity(root = document, fetcher = fetch, storage = b
     updated.textContent = "";
     updated.hidden = true;
   }
-  // The record is requested first and awaited by nothing on this path. It is a
-  // static same-origin file that cannot be rate-limited, so it normally lands
-  // long before GitHub's unauthenticated feed and the reader gets the dated
-  // count while the live request is still in flight, rather than a spinner that
-  // is about to fail. Not awaiting it is deliberate in the other direction too:
-  // this one file must never be able to hold up the live count, the activity
-  // rows, or the status card, however slowly it answers. `recorded` is therefore
-  // read as "the record, if it is here yet", and the paint below catches up the
-  // case where it was not.
-  // This browser's own retained count needs no request at all, so it is read
-  // first and painted first: a reader who has been here before meets a dated
-  // number immediately rather than a spinner. The published file may still beat
-  // it — whichever was taken later is the one a reader is shown.
-  let recorded = readRetainedCount(storage);
-  paintRecordedFigure(root, recorded);
-  readRecordedCount(fetcher).then((record) => {
-    recorded = mostRecentRecord(recorded, record);
-    paintRecordedFigure(root, recorded);
-  });
-  // A request that is merely slow is indistinguishable from one that will never
-  // answer, and both used to leave this slot reading "Loading…" for as long as a
-  // reader was willing to look at it. So the figure keeps its own deadline: once
-  // it passes, the slot settles onto the dated count this browser already has,
-  // or onto the sentence saying there is none. It touches nothing else on the
-  // page — the panels below keep their own loading states and their own retries
-  // — and a response that lands afterwards still replaces whatever it left.
   const deadline = setTimeout(() => {
     // Only a slot that is still waiting, so a count that did arrive is never
     // taken back off the page by a clock.
     if (root.querySelector("#merged-figure")?.dataset.state !== "loading") return;
-    renderFallbackFigure(root, recorded, UNAVAILABLE_REASONS.pending);
+    renderMergedFigure(root, "unavailable", { reason: UNAVAILABLE_REASONS.pending });
   }, settleAfterMs);
   // Never the reason a Node process or a test run stays alive.
   deadline?.unref?.();
@@ -855,18 +749,18 @@ export async function loadActivity(root = document, fetcher = fetch, storage = b
     // Only the live records are countable, and a response that carried none of
     // them is not a zero — it is nothing to count from, which is the empty
     // headline, not a figure a reader could mistake for a real one.
-    const { events, countable, asOf } = await readPublicEvents(fetcher, SYNTHETIC_RECORDS);
+    const { events, countable, asOf } = await readPublicEvents(fetcher, SYNTHETIC_RECORDS, { requireComplete: true });
     if (countable.length) {
       const count = countMergedPullRequests(countable);
       renderMergedFigure(root, "live", { count, total: countable.length, asOf });
       // Remembered only once GitHub has actually answered, and only with the
-      // moment its response arrived: this is the write the retained figure above
-      // is read back from on the next visit, so it may hold nothing else.
+      // moment its response arrived. The home page can use this retained record;
+      // the observatory requires current repository evidence.
       writeRetainedCount(storage, { count, asOf });
     } else {
       // A response that carried nothing countable is not a live count, so the
       // slot falls back rather than showing a zero this response did not say.
-      renderFallbackFigure(root, recorded, UNAVAILABLE_REASONS.empty);
+      renderMergedFigure(root, "unavailable", { reason: UNAVAILABLE_REASONS.empty });
     }
     const count = renderEvents(list, events);
     if (count) {
@@ -892,7 +786,7 @@ export async function loadActivity(root = document, fetcher = fetch, storage = b
     // read off what actually failed — the same clause on the same failure the
     // home page's block would show, because it is the same function reading the
     // same error from the same request.
-    renderFallbackFigure(root, recorded, unavailableReason(error));
+    renderMergedFigure(root, "unavailable", { reason: unavailableReason(error) });
     signal.dataset.connected = "false";
     label.textContent = CONNECTION_LABELS.error;
     updated.textContent = "Not updated";

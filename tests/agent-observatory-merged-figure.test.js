@@ -108,9 +108,9 @@ test("a public GitHub response produces the headline count, its unit, and its so
 
   const source = first(readout, "merged-figure-source").textContent;
   assert.match(source, /public GitHub/, "the source line names public GitHub activity");
-  assert.match(source, /Counted from 6 public GitHub events/, "the scope counted over is stated, not implied");
+  assert.match(source, /Counted from 6 public GitHub events remaining after exclusions/, "the scope counted over is stated, not implied");
   for (const repository of SOURCE_REPOSITORIES) assert.ok(source.includes(repository), `${repository} is named`);
-  assert.match(source, /as of/);
+  assert.match(source, /Checked/);
 
   const [time] = tags(readout, "TIME");
   assert.equal(time.dateTime, new Date(RESPONSE_DATE).toISOString(), "the as-of time is this response's own");

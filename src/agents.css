@@ -233,3 +233,9 @@ button:focus-visible,.brand:focus-visible { outline:3px solid #155f9e; outline-o
 /* Author display rules must never expose hidden retry controls or receipts. */
 .site-footer [hidden] { display:none !important; }
 .site-footer-form[data-state="submitting"] .site-footer-status { border-radius:9px; padding:11px 13px; background:#eef5fc; color:#2c2c28; }
+
+/* Audit text stays beside the metric at every width, including long source names. */
+.merged-figure { min-width:0; overflow-wrap:anywhere; }
+.merged-figure-source { color:#55554f; }
+.merged-figure-source a { color:#285f8f; }
+.merged-figure a:focus-visible { outline:3px solid #155f9e; outline-offset:3px; }

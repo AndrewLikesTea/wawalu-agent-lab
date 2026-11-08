@@ -191,7 +191,7 @@ test("the retry issues a fresh request and can reach the count", async (t) => {
   const source = textOf(document.querySelector(".merged-figure-source"));
   // Four events came back and three of them merged, so the scope line counts the
   // response and the figure counts the merges in it.
-  assert.match(source, /Counted from 4 public GitHub events returned for/);
+  assert.match(source, /Counted from 4 public GitHub events remaining after exclusions/);
   for (const repository of SOURCE_REPOSITORIES) {
     assert.ok(source.includes(repository), `${repository} is not named beside the count`);
   }
@@ -273,7 +273,7 @@ test("the retry is announced through the block's one live region, from outside i
   assert.equal(figure.querySelectorAll("details").length, 0);
 });
 
-test("a retry that fails after a count shows the earlier one dated, never an undated digit", async (t) => {
+test("a retry that fails clears the earlier count and offers recovery", async (t) => {
   const { page, document, github, load } = await observatory("ok");
   t.after(() => page.restore());
 
@@ -283,15 +283,10 @@ test("a retry that fails after a count shows the earlier one dated, never an und
   github.state.mode = "unreachable";
   await pressRetry(document);
 
-  // The decision: the count this response did not return is not held over as if
-  // it were live. This browser's retained count is shown instead, in the state
-  // that says in words that GitHub did not answer and prints the date it was
-  // taken — so the digit on screen is never one without a time attached to it.
   const { figure, readout, actions } = figureOf(document);
-  assert.equal(figure.dataset.state, "recorded");
-  assert.match(textOf(readout), new RegExp(RETAINED_LEAD.trim()));
-  assert.equal(readout.querySelectorAll("time").length, 1, "a kept number with no date on it");
-  assert.equal(textOf(document.querySelector(".merged-figure-count")), "3");
+  assert.equal(figure.dataset.state, "unavailable");
+  assert.equal(document.querySelector(".merged-figure-count"), null);
+  assert.equal(readout.querySelectorAll("time").length, 0);
 
   // It is still a request that failed, so the way to ask again is still offered.
   assert.equal(actions.hidden, false);

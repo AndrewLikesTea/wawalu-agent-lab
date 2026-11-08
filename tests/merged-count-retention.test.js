@@ -262,7 +262,7 @@ test("of two dated counts, the later one is the one a reader is shown", () => {
 
 // --- the Agent observatory -------------------------------------------------
 
-test("the observatory writes the live count and reads it back when GitHub stops answering", async (t) => {
+test("the observatory remembers a count but never shows it after GitHub fails", async (t) => {
   const first_ = await loadPage(OBSERVATORY_URL, {});
   t.after(() => first_.restore());
   await loadActivity(first_.document, answering, first_.storage);
@@ -280,12 +280,9 @@ test("the observatory writes the live count and reads it back when GitHub stops 
 
   const figure = later.document.querySelector("#merged-figure");
   const readout = later.document.querySelector("#merged-figure-readout");
-  assert.equal(figure.dataset.state, "recorded");
-  assert.equal(textOf(later.document.querySelector(".merged-figure-count")), "3");
-  assert.match(textOf(readout), /did not answer just now, so this is the last count taken from/);
-  assert.match(textOf(readout), /as of 2025-07-30 at 14:32 UTC\./);
-  const [stamp] = readout.querySelectorAll("time");
-  assert.equal(stamp.dateTime, RESPONSE_ISO);
+  assert.equal(figure.dataset.state, "unavailable");
+  assert.equal(later.document.querySelector(".merged-figure-count"), null);
+  assert.equal(readout.querySelectorAll("time").length, 0);
   assert.equal(figure.querySelectorAll("details").length, 0);
   assert.equal(readout.getAttribute("aria-live"), "polite");
   // The feeds a reader checks it against are still beside it.
@@ -313,7 +310,7 @@ test("the observatory with an unusable stored value states that nothing was ever
     .map((link) => link.href), EVENTS_URLS);
 });
 
-test("the retained figure is on screen before GitHub has answered at all", async (t) => {
+test("a retained figure stays off screen while GitHub is pending", async (t) => {
   const page = await loadPage(OBSERVATORY_URL, { storage: stored(retainedJson()) });
   t.after(() => page.restore());
   let answer;
@@ -323,11 +320,10 @@ test("the retained figure is on screen before GitHub has answered at all", async
     return url.includes("api.github.com") ? okResponse([]) : { ok: false, status: 404 };
   }, page.storage);
 
-  // No request has resolved, and the block is already a dated number rather
-  // than a spinner — which is the whole point of remembering.
+  // Pending repository evidence cannot be replaced by a saved number.
   await flush();
-  assert.equal(page.document.querySelector("#merged-figure").dataset.state, "recorded");
-  assert.equal(textOf(page.document.querySelector(".merged-figure-count")), "412");
+  assert.equal(page.document.querySelector("#merged-figure").dataset.state, "loading");
+  assert.equal(page.document.querySelector(".merged-figure-count"), null);
 
   answer(okResponse(LIVE_EVENTS));
   await load;
