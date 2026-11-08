@@ -65,7 +65,12 @@ test("standalone post: rendered states, keyboard recovery and media at phone and
       assert.equal(await page.locator(".detail-loading-text").innerText(), "Loading this Social post…");
       await answer(503);
       await state("error");
-      assert.equal(await page.locator(".detail-retry").count(), 1);
+      assert.equal(await page.locator(".empty-title").innerText(), "Social post could not be opened");
+      assert.match(await page.locator("#post-detail").innerText(), /This Social post could not be loaded\./);
+      assert.ok(await page.locator(".detail-retry").isVisible());
+      assert.equal(await page.locator(".detail-retry").innerText(), "Try again");
+      assert.ok(await page.locator(".detail-state-feed").isVisible());
+      assert.equal(await page.locator(".detail-state-feed").getAttribute("href"), "/social.html");
       await page.locator(".detail-retry").focus();
       await page.keyboard.press("Tab");
       await focusRing(".detail-state-feed");
@@ -143,7 +148,12 @@ test("standalone post: rendered states, keyboard recovery and media at phone and
       await page.reload();
       await answer(200);
       await state("not-found");
-      assert.match(await page.locator("#post-detail").innerText(), /Post unavailable/);
+      assert.equal(await page.locator(".empty-title").innerText(), "Social post unavailable");
+      assert.match(await page.locator("#post-detail").innerText(), /No Social post exists at this link\./);
+      assert.doesNotMatch(await page.locator("#post-detail").innerText(), /loading|could not be loaded/i);
+      assert.ok(await page.locator(".detail-state-feed").isVisible());
+      assert.equal(await page.locator(".detail-state-feed").innerText(), "Open the Social feed");
+      assert.equal(await page.locator(".detail-state-feed").getAttribute("href"), "/social.html");
       assert.equal(await page.locator(".detail-retry,.post-report-button").count(), 0);
       await page.locator(".detail-state-feed").focus();
       await page.keyboard.press("Enter");

@@ -115,7 +115,7 @@ function formatDateTime(iso) {
 // "Choose a post": a neutral chip and an instruction, which named neither what
 // happened nor what this page is. A link arriving with no id, a truncated id,
 // or an id nobody ever posted under are one answer as far as a reader is
-// concerned — the link did not reach a post — so all three are headed "Post
+// concerned — the link did not reach a post — so all three are headed "Social post
 // unavailable" and chipped with the same live word.
 //
 // They share one sentence too (#2920). The page cannot tell a
@@ -128,14 +128,14 @@ const POST_STATE_COPY = {
     state: "not-found",
     className: "detail-state-not-found",
     label: "Not found",
-    title: "Post unavailable",
+    title: "Social post unavailable",
     description: POST_NOT_FOUND_DESCRIPTION,
   },
   "not-found": {
     state: "not-found",
     className: "detail-state-not-found",
     label: "Not found",
-    title: "Post unavailable",
+    title: "Social post unavailable",
     description: POST_NOT_FOUND_DESCRIPTION,
   },
   // The error state says the load failed and nothing about the post itself:
@@ -145,7 +145,7 @@ const POST_STATE_COPY = {
     state: "error",
     className: "empty-state-error detail-state-unavailable",
     label: "Unreachable",
-    title: "Post could not be opened",
+    title: "Social post could not be opened",
     description: POST_ERROR_DESCRIPTION,
   },
 };

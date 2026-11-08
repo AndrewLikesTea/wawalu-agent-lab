@@ -650,13 +650,14 @@ test("arriving from a profile narrows the People link, and changes no words", as
 test("an unknown id is named as a missing post, with the feed still the way out", async () => {
   const page = await openPostPage("?id=p-gone", seedOnly([SEED_POST]));
   try {
-    assert.match(textOf(page.panel), /Post unavailable/);
+    assert.match(textOf(page.panel), /Social post unavailable/);
     assert.match(textOf(page.panel), /No Social post exists at this link\./);
     assert.doesNotMatch(textOf(page.panel), /deleted|removed|expired|moved|private|signed-in|your post/i);
     assert.doesNotMatch(textOf(page.panel), /Display names on posts labelled/);
     // No post, no author: the h1 keeps the generic label it shipped with.
     assert.equal(textOf(page.document.querySelector("#page-title")), "Social post");
-    assert.doesNotMatch(textOf(page.panel), /Try again/);
+    assert.doesNotMatch(textOf(page.panel), /Try again|loading|could not be loaded/i);
+    assert.ok(tabSequence(page.document).includes(page.panel.querySelector(".detail-state-feed")));
     assert.equal(page.panel.getAttribute("role"), "status");
     assert.equal(page.panel.getAttribute("aria-live"), "polite");
     assert.equal(page.panel.querySelector(".detail-state-message").getAttribute("role"), null);
@@ -713,7 +714,7 @@ test("a failed lookup names the feed it could not reach, and retry can recover",
     return seedOnly([SEED_POST])(url);
   });
   try {
-    assert.match(textOf(page.panel), /Post could not be opened/);
+    assert.match(textOf(page.panel), /Social post could not be opened/);
     assert.match(textOf(page.panel), /This Social post could not be loaded\./);
     assert.equal(textOf(page.panel.querySelector(".detail-state-feed")), "Open the Social feed");
     // Whole-page, not just the panel: the error state's action and the standing
@@ -733,11 +734,16 @@ test("a failed lookup names the feed it could not reach, and retry can recover",
     // A button, not a link: retrying re-runs the fetch in place rather than
     // reloading the page and losing everything already on screen.
     assert.equal(retry.type, "button");
+    assert.ok(tabSequence(page.document).includes(retry));
+    assert.ok(tabSequence(page.document).includes(page.panel.querySelector(".detail-state-feed")));
+    assert.doesNotMatch(textOf(page.panel), /Loading this Social post|Social post unavailable/);
     assert.equal(retry.querySelectorAll("a").length, 0);
 
     const before = page.requests.length;
     failing = false;
     retry.click();
+    assert.equal(textOf(page.panel.querySelector(".detail-loading-text")), "Loading this Social post…");
+    assert.equal(page.panel.querySelector(".detail-retry"), null);
     await waitFor(page.settled, "the retry finished");
 
     assert.ok(page.requests.length > before, "the retry must actually re-run the fetch");
@@ -822,7 +828,7 @@ test("a visit with no id is told what the page needs, and still has one way out"
     // The same words as any other link that failed to reach a post: a reader
     // who was handed a truncated URL is not in a different situation from one
     // handed a stale id, and should not have to work out that they are.
-    assert.match(textOf(page.panel), /Post unavailable/);
+    assert.match(textOf(page.panel), /Social post unavailable/);
     assert.match(textOf(page.panel), /No Social post exists at this link\./);
     assert.equal(page.requests.length, 0);
     assertExits(page, null, "no id");
@@ -1354,7 +1360,7 @@ for (const status of [400, 404, 410]) {
     t.after(() => page.restore());
     assert.deepEqual(page.requests, [`/api/social-posts/${SHARED_UUID}`]);
     assert.equal(page.panel.dataset.postState, "not-found");
-    assert.match(textOf(page.panel), /Post unavailable/);
+    assert.match(textOf(page.panel), /Social post unavailable/);
     assert.match(textOf(page.panel), /No Social post exists at this link\./);
     assert.doesNotMatch(textOf(page.panel), /deleted|removed|expired|moved|Try again/i);
     assert.equal(page.panel.querySelector(".detail-retry"), null);

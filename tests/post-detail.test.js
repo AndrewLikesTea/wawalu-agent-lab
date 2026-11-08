@@ -237,7 +237,7 @@ test("a missing post is named in plain language, with no id or code echoed back"
   const missing = createElement("div");
   renderPostDetail(missing, null, { id: "p-gone", author: "Mina" });
   assert.equal(first(missing, "detail-state-label").textContent, "Not found");
-  assert.equal(first(missing, "empty-title").textContent, "Post unavailable");
+  assert.equal(first(missing, "empty-title").textContent, "Social post unavailable");
   assert.match(missing.textContent, /No Social post exists at this link\./);
   // It never guesses why the post is missing (#2920).
   assert.doesNotMatch(missing.textContent, /deleted|removed|expired|moved|private|signed-in|your post/i);
@@ -258,7 +258,7 @@ test("a failed load says what happened once, offers a retry, and leaks no error 
   let retried = 0;
   renderPostDetail(failed, null, { state: "error", id: "p-gone", author: "Mina", onRetry: () => { retried += 1; } });
   assert.equal(first(failed, "detail-state-label").textContent, "Unreachable");
-  assert.equal(first(failed, "empty-title").textContent, "Post could not be opened");
+  assert.equal(first(failed, "empty-title").textContent, "Social post could not be opened");
   assert.match(failed.textContent, /This Social post could not be loaded\./);
   // The load failed; nothing was learned about the post, so no verdict on it.
   assert.doesNotMatch(failed.textContent, /deleted|removed|expired|moved|No Social post exists/i);
@@ -288,7 +288,7 @@ test("an id-less visit is headed by the same not-found words, and offers the fee
   // One state, one heading, one chip word. A link with no id, a truncated id
   // and an id nobody posted under are one answer to a reader — the link did not
   // reach a post — so they are not headed three different ways.
-  assert.equal(first(container, "empty-title").textContent, "Post unavailable");
+  assert.equal(first(container, "empty-title").textContent, "Social post unavailable");
   assert.equal(first(container, "detail-state-label").textContent, "Not found");
   assert.equal(first(container, "detail-state-panel").getAttribute("data-post-state-panel"), "not-found");
   // And the same sentence: the page cannot tell why the link reached no post.
@@ -631,7 +631,7 @@ test("the shipped markup opens in the loading state, saying so in words", async 
   assert.doesNotMatch(region, /<a |<button|tabindex/);
   // Nothing about the resolved states ships in the markup: they are what the
   // script writes *instead of* this, never alongside it.
-  assert.doesNotMatch(region, /Post not found|Post could not be opened|Choose a post|Return to the Social feed/);
+  assert.doesNotMatch(region, /Post not found|Social post could not be opened|Choose a post|Return to the Social feed/);
 });
 
 // One value, not two toggled nodes. Two nodes is how a wait survives underneath
@@ -754,7 +754,7 @@ test("loading and unavailable states say what happened in words", () => {
   assert.equal(first(loading, "detail-loading-text").textContent, POST_LOADING_STATUS);
   assert.deepEqual(
     [first(missing, "empty-title").textContent, first(failed, "empty-title").textContent],
-    ["Post unavailable", "Post could not be opened"],
+    ["Social post unavailable", "Social post could not be opened"],
   );
 
   // The difference has to survive with colour, icons and badges removed, so it
