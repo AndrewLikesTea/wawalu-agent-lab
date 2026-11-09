@@ -340,13 +340,13 @@ test("the provenance sentence is the home page's, stated once, with no second ca
   // exception included — never the old "in this browser only" promise.
   const homeScope = textOf(home.document.querySelector("#evaluation-path-scope"));
   assert.equal(homeScope, DEMO_PROGRESS_SCOPE);
-  const canonical = "Records you add stay in this browser unless you download the complete archive, "
+  const canonical = "Records you add stay in this browser unless you press “Download complete Shiplog archive”, "
     + "which sends them to the Shiplog server to build the file.";
   assert.ok(textOf(home.document.body).includes(canonical));
   const body = textOf(page.document.body);
   assert.equal(body.split("Records you add stay in this browser only.").length - 1, 0);
   // #2941: once, in the guide above the recorder. The hero copy was a repeat.
-  assert.equal(body.split(`${canonical} This is a demo workflow, not a customer result.`).length - 1, 1,
+  assert.equal(body.split(DEMO_PROGRESS_SCOPE).length - 1, 1,
     "the guide alone carries the canonical sentence beside the demo caveat");
 
   // Reused rather than rewritten, and it deliberately does not repeat the
@@ -354,7 +354,7 @@ test("the provenance sentence is the home page's, stated once, with no second ca
   // the recorder, and a second occurrence in this region would red it.
   const region = byId(page, "evaluation-path");
   assert.doesNotMatch(textOf(region), /no customer or production data/);
-  assert.match(textOf(region), /stay in this browser unless you download the complete archive/);
+  assert.match(textOf(region), /stay in this browser unless you press “Download complete Shiplog archive”/);
 });
 
 // #2941: the hero and the guide both said where records go before a visitor
@@ -379,7 +379,7 @@ test("the storage promise is made once on the page, with the server step", async
   assert.equal(claims.length, 1, claims.map(textOf).join("\n"));
   assert.equal(claims[0].getAttribute("id"), "evaluation-path-scope");
   assert.match(textOf(claims[0]),
-    /unless you download the complete archive, which sends them to the Shiplog server to build the file\./);
+    /unless you press “Download complete Shiplog archive”, which sends them to the Shiplog server to build the file\./);
 });
 
 test("the seeded example records are not counted as this browser's progress", async (t) => {

@@ -524,7 +524,7 @@ test("the hero's first step records a decision before its release, in the direct
   assert.match(step, /use no customer or production data/);
   assert.doesNotMatch(step, /stay in this browser/);
   assert.match(textOf(document.getElementById("evaluation-path-scope")),
-    /Records you add stay in this browser unless you download the complete archive/);
+    /Records you add stay in this browser unless you press “Download complete Shiplog archive”/);
 
   // The link now opens the interactive workspace on this page.
   const demo = document.getElementById("core-demo-link");
