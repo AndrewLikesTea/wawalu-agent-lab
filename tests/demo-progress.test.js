@@ -551,7 +551,7 @@ test("the finished demo offers a handoff button that names the import control", 
   const help = textOf(byId(page, "demo-handoff-help"));
   const importLabel = textOf(page.document.querySelector('label[for="import-shiplog-file"]')).trim();
   assert.equal(importLabel, "Choose JSON file");
-  assert.ok(help.includes(`“${importLabel}”`), "the help does not name the import control by its label");
+  assert.ok(help.includes(`“${importLabel}” under “Import history”`), "the help does not name the import control by its label and panel");
   assert.match(help, /The file stays on this device unless you send it\./);
   assert.doesNotMatch(help, /customer|result|outcome/i);
   assert.match(textOf(byId(page, "evaluation-path-scope")), /This is a demo workflow, not a customer result\./);
