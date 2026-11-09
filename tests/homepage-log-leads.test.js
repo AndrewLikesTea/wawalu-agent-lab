@@ -229,8 +229,9 @@ test("the painted front door leads with the promise, then names the log", async 
   // #3082: records are browser-local, so the late teammate gets them through
   // the same file export and import the Team handoff criterion evaluates. The
   // stays-in-this-browser claim itself is made once, by the recorder (#2941).
+  // #3148: the export is named by its panel, as Releases names it.
   assert.match(textOf(blocks[1]),
-    /In this build, you export the log as a file, and a teammate who arrives six months later imports it in their own browser and reads that reasoning in one place\./);
+    /In this build, you download every record as a JSON file with “Export history”, and a teammate who arrives six months later imports it in their own browser and reads that reasoning in one place\./);
   assert.doesNotMatch(textOf(hero), /opens the release/);
   assert.ok(!ancestorIds(document.getElementById("decision-form")).includes("top"),
     "the buyer and trigger sit in the hero, which the decision form follows");
@@ -262,10 +263,13 @@ test("the painted front door leads with the promise, then names the log", async 
   assert.ok(!ancestorIds(sequence[demoAt - 1]).includes("main-content"), "a stop was added above the demo link");
   assert.ok(ancestorIds(sequence[sequence.indexOf(heroStops.at(-1)) + 1]).includes("record-history"), "the recorder follows the evidence links");
 
-  // The directional sentence that is still true keeps its wording: the
-  // recorder, filters, export, and import still follow the opening section.
+  // The directional sentence: the recorder, filters, export, and import still
+  // follow the opening section, and the two file panels go by their own names.
   assert.match(textOf(hero),
-    /Recording, searching, filtering, exporting, and importing the log are all further down this page\./);
+    /The decision form, search, filters, “Export history”, and “Import history” are all further down this page\./);
+  const panelNames = document.querySelectorAll(".export-panel")
+    .flatMap((panel) => panel.querySelectorAll(".eyebrow").map(textOf));
+  for (const label of ["Export history", "Import history"]) assert.ok(panelNames.includes(label), label);
 });
 
 // The second half of #2394. The scorecard named both controls correctly and

@@ -233,7 +233,8 @@ test("the success state says the record is browser-only and names the way out", 
     "This release is stored in this browser only — a demo record, not a customer result."
       + " “Export shown releases as JSON” above writes only the releases your search and filters have shown;"
       + " press “Clear filters” first to be sure this one is in the file."
-      + " For the full record, use “Export history” on the Home page and choose “Everything stored in this browser”.",
+      + " To download every record as a JSON file, choose “Everything stored in this browser”"
+      + " under “Export history” on the Home page and press “Download JSON”.",
   );
   // The export sentence agrees with the export's own scope line: neither may
   // promise that pressing the button takes this release along, because the
@@ -274,7 +275,7 @@ test("the success state says the record is browser-only and names the way out", 
   // words that page paints: the section it names and the scope it tells them to
   // pick. A route named in a synonym is a route a first-time visitor cannot find.
   const home = await readFile(new URL("../src/index.html", import.meta.url), "utf8");
-  for (const label of ["Export history", "Everything stored in this browser"]) {
+  for (const label of ["Export history", "Everything stored in this browser", "Download JSON"]) {
     assert.ok(textOf(kept).includes(`“${label}”`), `the success state does not name “${label}”`);
     assert.ok(home.includes(`>${label}<`), `the home page shows no “${label}”`);
   }

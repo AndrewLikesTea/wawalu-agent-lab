@@ -54,7 +54,7 @@ const DEFERRALS = [
 // page file, the storage note that page keeps, and the phrase it uses to say a
 // record does not leave this browser.
 const RECORDERS = [
-  ["index.html", "evaluation-path-scope", "stay in this browser unless you download the complete archive"],
+  ["index.html", "evaluation-path-scope", "stay in this browser unless you press “Download complete Shiplog archive”"],
   ["releases.html", "release-record-scope", "kept in this browser, on this device"],
 ];
 

@@ -15,7 +15,7 @@ import { initDecisionLog } from "../src/app.js";
 
 const document = parseHtml(await readFile(new URL("../src/index.html", import.meta.url), "utf8"));
 const STAYS = /\bstays? in this browser\b/;
-const EXCEPTION = /unless you download the complete archive, which sends them to the Shiplog server to build the file\./;
+const EXCEPTION = /unless you press “Download complete Shiplog archive”, which sends them to the Shiplog server to build the file\./;
 
 // Element nodes in document order. The harness rejects `*`, so walk children,
 // and skip text nodes by the attribute API they lack.
@@ -81,5 +81,5 @@ test("the JSON download and the storage link say where records go", () => {
   const hints = document.querySelector(".export-panel").querySelectorAll("p").map(textOf);
   assert.ok(hints.some((text) => text.startsWith("Download JSON builds its file in this browser and sends nothing.")));
   assert.ok(hints.some((text) => text.startsWith("See what's stored in this browser")
-    && text.endsWith("The complete archive download is the only control that sends records to a server.")));
+    && text.endsWith("“Download complete Shiplog archive” is the only control that sends records to a server.")));
 });
