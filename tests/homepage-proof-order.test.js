@@ -241,7 +241,7 @@ test("evaluation kit previews the canonical blank criteria without interaction",
   const descriptions = [
     "Time how long your team takes to find a release’s linked decision, its context, and the alternatives considered.",
     "Count sampled decisions with context, alternatives, owner, and status, and releases with expected decision links. Record counts and sample sizes.",
-    "Export a record and have a teammate import the file in their own browser. Count unanswered questions about why the work shipped and who owns it.",
+    "Use “Export history” to download every record, and have a teammate load the file with “Import history” in their own browser. Count unanswered questions about why the work shipped and who owns it.",
     "Compare browser-local storage, retention controls, and export behavior with your team’s requirements. Record what you checked and any gaps.",
   ];
   assert.deepEqual(rows.map((row) => textOf(row.querySelector("p"))), descriptions);
