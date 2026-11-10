@@ -129,7 +129,7 @@ test("the record-count summary counts the three classes separately", async (t) =
 
   assert.equal(
     split,
-    `· ${SEED_EXAMPLE_COUNT} example records · ${REPOSITORY_COUNT} from this repository · none you added`,
+    `· ${SEED_EXAMPLE_COUNT} example records · ${REPOSITORY_COUNT} from Shiplog's repository · none you added`,
   );
   // The three numbers are the rows on screen, not a written-down constant.
   assert.equal(rows(page).length, SEED_RECORD_COUNT);
@@ -158,7 +158,7 @@ test("the repository class is named only when the counted set holds one", () => 
   );
   assert.equal(
     provenanceSplitLine([{ example: true }, { repository: { pullRequest: 1 } }]),
-    "· 1 example record · 1 from this repository · none you added",
+    "· 1 example record · 1 from Shiplog's repository · none you added",
   );
   assert.equal(provenanceSplitLine([]), "");
 });
@@ -282,7 +282,7 @@ const visibleRows = (page) =>
 const exampleRows = (page) =>
   visibleRows(page).filter((row) => row.querySelectorAll(".badge-repository").length === 0);
 const occurrences = (text, phrase) => text.split(phrase).length - 1;
-const COLD_SPLIT = `· ${SEED_EXAMPLE_COUNT} example records · ${REPOSITORY_COUNT} from this repository · none you added`;
+const COLD_SPLIT = `· ${SEED_EXAMPLE_COUNT} example records · ${REPOSITORY_COUNT} from Shiplog's repository · none you added`;
 
 test("the toggle ships as a named, keyboard-operable control with its state exposed", async () => {
   const parsed = parseHtml(await readFile(HOME_PAGE, "utf8"));
@@ -376,7 +376,7 @@ test("the count line still names all three classes and the whole log's total", a
   // number it was on the unfiltered view.
   const halves = splitText(page).replace(/^· /, "").split(" · ");
   assert.equal(halves.length, 3, "the split stopped naming all three kinds of record");
-  assert.equal(halves[1], `${REPOSITORY_COUNT} from this repository`);
+  assert.equal(halves[1], `${REPOSITORY_COUNT} from Shiplog's repository`);
   assert.equal(halves[0], "no example records");
   assert.equal(halves[2], "none you added");
   // The classes add up to the rows on screen, which is the arithmetic the line
@@ -497,7 +497,7 @@ test("the view is reached and operated with the keyboard alone", async (t) => {
 //
 // The "Real decision from Shiplog's repository" card in the hero says how many
 // of the log's decisions are Shiplog's own and opens exactly those. Its number
-// is the record count line's "from this repository" figure, read off the page.
+// is the record count line's "from Shiplog's repository" figure, read off the page.
 
 const own = (page) => page.document.querySelector("#repository-own-decisions");
 const ownCount = (page) => textOf(page.document.querySelector("#repository-own-count"));
@@ -507,7 +507,7 @@ const CAVEAT = "It comes from Shiplog's own public development history: not a cu
 
 test("the card's count is the record count line's repository figure, and claims no outcome", async (t) => {
   const page = await openHome(t);
-  const figure = Number(/· (\d+) from this repository/.exec(splitText(page))?.[1]);
+  const figure = Number(/· (\d+) from Shiplog's repository/.exec(splitText(page))?.[1]);
   assert.equal(figure, REPOSITORY_COUNT);
   assert.equal(own(page).hidden, false);
   assert.equal(ownCount(page),
