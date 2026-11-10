@@ -377,7 +377,8 @@ test("a failed save leaves no success state to open a record that was not writte
 // else, which the harness enforces by throwing on any undeclared request.
 const RECORD_SCOPE = "A release you record here is kept in this browser, on this device:"
   + " it is not sent to the Wawalu team, and a teammate on another browser or device"
-  + " will not see it. Use “Export shown releases as JSON” above to take your releases elsewhere.";
+  + " will not see it. To download every record as a JSON file, choose “Everything stored in this browser”"
+  + " under “Export history” on the Home page and press “Download JSON”.";
 
 test("the recorder says where a recorded release is kept, above the button that records it", async (t) => {
   const page = await openReleases(t, { decisions: [QUEUE_DECISION] });
@@ -398,19 +399,19 @@ test("the recorder says where a recorded release is kept, above the button that 
   assert.ok(submitIndex >= 0, "the recorder has no “Record release” button");
   assert.ok(scopeIndex >= 0 && scopeIndex < submitIndex, "the storage line is painted below the button it is about");
 
-  // The way out is the control the log actually offers, named in the words on
-  // its face — not a synonym this sentence invented for it.
+  // The way out is the whole-log export on Home, in the same words the success
+  // state uses after recording — not this page's filtered export, which the
+  // success state warns may leave the new release out (issue #3152).
   const exportButton = page.document.querySelector("#release-export");
   assert.equal(textOf(exportButton), RELEASE_EXPORT_BUTTON_LABEL);
   assert.ok(
-    textOf(scope).includes(`“${textOf(exportButton)}”`),
-    "the sentence names the export control by a label the page does not show",
+    !textOf(scope).includes(`“${textOf(exportButton)}”`),
+    "the storage line recommends the filtered export the success state warns against",
   );
-  // And that control is above the recorder, where the sentence says it is.
-  const buttons = page.document.querySelectorAll("button");
+  const wayOut = textOf(scope).slice(textOf(scope).indexOf("To download every record"));
   assert.ok(
-    buttons.indexOf(exportButton) < buttons.indexOf(order[submitIndex]),
-    "the export control is not above the recorder the sentence points up at",
+    textOf(page.document.querySelector("#release-record-kept")).endsWith(wayOut),
+    "the storage line and the success state name different ways to take every record",
   );
 
   // No claim beyond the storage: nothing about accounts, sync, backup, or how
