@@ -17,7 +17,7 @@ const home = new URL(`../${process.env.SHIPLOG_E2E_BUILD_ROOT || "src"}/index.ht
 // already links the repository once, from the deployment check.
 const MERGED_PULLS = `${REPOSITORY_URL}/pulls?q=is%3Apr+is%3Amerged`;
 
-const disclaimer ="These decisions document this repository’s own development. This is neither an invented example nor a customer result.";
+const disclaimer ="These decisions document the development of Shiplog's repository. This is neither an invented example nor a customer result.";
 
 function assertDisclaimer(block) {
   const copy = block.querySelector("p");
@@ -274,7 +274,7 @@ test("the pair is labelled as a real repository record, apart from the invented 
   const heading = page.document.getElementById("repository-release-pair-title");
   assert.equal(heading.tagName, "H3");
   assert.equal(page.document.getElementById("repository-release-pair").getAttribute("aria-labelledby"), heading.id);
-  assert.match(textOf(block), /Real repository record\. Read from this repository’s recorded builds, unlike the invented example below\./);
+  assert.match(textOf(block), /Real repository record\. Read from the recorded builds of Shiplog's repository, unlike the invented example below\./);
   // Before the script runs there is no current result; historical proof is separate.
   assert.equal(textOf(page.document.getElementById("repository-release-pair")), "");
   assert.doesNotMatch(textOf(page.document.getElementById("repository-release-pair-status")), /shipped in|accepted|#\d/i);

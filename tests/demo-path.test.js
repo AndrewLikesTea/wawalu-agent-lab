@@ -35,7 +35,7 @@ const REPOSITORY_COUNT = REPOSITORY_DECISIONS.length;
 // The split a cold visitor reads, as the page writes it: the third class is
 // named only because the log contains one.
 const COLD_SPLIT =
-  `· ${SEED_EXAMPLE_COUNT} example records · ${REPOSITORY_COUNT} from this repository · none you added`;
+  `· ${SEED_EXAMPLE_COUNT} example records · ${REPOSITORY_COUNT} from Shiplog's repository · none you added`;
 import { loadPage, tabSequence, textOf, typeText } from "./support/browser.js";
 
 const HOME_PAGE = new URL("../src/index.html", import.meta.url);
@@ -310,7 +310,7 @@ test("a stored record is marked as one the visitor added, and the split counts i
   assert.equal(
     countLine(page),
     `${SEED_RECORD_COUNT + 1} records · ${SEED_EXAMPLE_COUNT} example records`
-    + ` · ${REPOSITORY_COUNT} from this repository · 1 you added`,
+    + ` · ${REPOSITORY_COUNT} from Shiplog's repository · 1 you added`,
   );
   const own = rows(page).find((row) => textOf(row.querySelector("h3")) === OWN_DECISION.title);
   const badge = own.querySelectorAll(".badge-added");
@@ -336,7 +336,7 @@ test("the split follows the search, the filters, and Current only", async (t) =>
   assert.equal(
     countLine(page),
     `${SEED_RECORD_COUNT + 1} records · ${SEED_EXAMPLE_COUNT} example records`
-    + ` · ${REPOSITORY_COUNT} from this repository · 1 you added`,
+    + ` · ${REPOSITORY_COUNT} from Shiplog's repository · 1 you added`,
     "clearing the filters did not restore every class",
   );
   // The headline above the list is the same figure and carries the same split.
@@ -381,7 +381,7 @@ test("recording a decision grows the you-added half and paints the row marked, w
   assert.equal(
     countLine(page),
     `${SEED_RECORD_COUNT + 1} records · ${SEED_EXAMPLE_COUNT} example records`
-    + ` · ${REPOSITORY_COUNT} from this repository · 1 you added`,
+    + ` · ${REPOSITORY_COUNT} from Shiplog's repository · 1 you added`,
   );
   const recorded = rows(page).find((row) => textOf(row.querySelector("h3")) === NEW_DECISION.title);
   assert.ok(recorded, "the recorded decision is not in the list");

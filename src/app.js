@@ -598,10 +598,10 @@ function addedHalf(added) {
 // deliberate: the example/added split is a property of every log, so a reader
 // has to be told both numbers to read either. A repository record is a kind of
 // record some sets simply do not contain — a set of releases never contains one
-// — and "none from this repository" on a list of releases would answer a
+// — and "none from Shiplog's repository" on a list of releases would answer a
 // question the reader did not ask and imply the class could appear there.
 function repositoryHalf(repository) {
-  return `${repository} from this repository`;
+  return `${repository} from Shiplog's repository`;
 }
 
 /**
@@ -635,7 +635,7 @@ export const REPOSITORY_VIEW_NOTE = "These are Shiplog's own decisions, recorded
 
 // The dogfooding count in the hero's "Real decision from Shiplog's repository" card (#3054). The
 // number is countRecordProvenance's `repository` over the whole loaded log —
-// the figure the record count line names "from this repository" — and the
+// the figure the record count line names "from Shiplog's repository" — and the
 // sentence claims nothing about customers, usage or outcomes. Empty at zero,
 // so the card never shows a "0".
 export function repositoryOwnSentence(count) {
@@ -1517,7 +1517,7 @@ function renderRepositoryEvidenceSummary(root, summary) {
 }
 
 export const RELEASE_PAIR_LOADED ="Current result, confirmed by the live site: one repository decision and the running build that shipped it.";
-export const RELEASE_PAIR_UNAVAILABLE = "Current verification did not complete: the live site did not confirm a running build that ships one of this repository’s decisions. The real decision at the top of this page is from a recorded build, not a live result.";
+export const RELEASE_PAIR_UNAVAILABLE = "Current verification did not complete: the live site did not confirm a running build that ships one of the decisions from Shiplog's repository. The real decision at the top of this page is from a recorded build, not a live result.";
 
 // THE ONE LINK THE DATA PROVES (#2805). No record in this repository stores a
 // decision-to-release link: every repository decision sets releaseInLog false,
