@@ -53,7 +53,7 @@ const RETIRED_FEED_VARIANT = "Every display name below is invented for this demo
 // The composer's display-name hint. The name is fixed on the one post it is
 // published with (#2270) — not a rule about a profile or account, which a bare
 // "cannot be changed after publishing" let a first-time publisher read into it.
-const AUTHOR_HINT = "Your display name appears with this post in the Social feed, on the post's own page and, for an image post, on People. Leave it blank and your post is published under “Guest”. Everyone who leaves it blank shares “Guest”, so People lists all their image posts together. You cannot change it on this post after you publish.";
+const AUTHOR_HINT = "Your display name appears with this post in the Social feed, on the post's own page and, for an image post, on People. Leave it blank and your post is published under “Guest”. Everyone who leaves it blank shares “Guest”, so People lists all their image posts together. Display names are not verified, and more than one publisher can use the same one. You cannot change it on this post after you publish.";
 
 // Tag-balance check for the hand-authored SVG assets. A mismatched or unclosed
 // tag makes a browser drop the image, which would silently demote every seeded
@@ -1178,7 +1178,8 @@ test("the display name field explains where the name appears and that it cannot 
   for (const part of ["post's own page", "People", "Guest", "published under", "display name"])
     assert.ok(text.includes(part), `the hint no longer says "${part}"`);
   assert.doesNotMatch(text, /published as/i);
-  assert.ok(text.split(/[.!?]”?\s/).length <= 4, "the hint runs past four sentences");
+  // Five since #3171 added People's not-verified sentence, word for word.
+  assert.ok(text.split(/[.!?]”?\s/).length <= 5, "the hint runs past five sentences");
   // What a display name is not is the feed note's sentence, said once on the
   // page. Repeating it here would put the definition in two wordings again, and
   // the second copy would sit behind a panel a reader has to open.
@@ -2294,8 +2295,12 @@ test("once Social has loaded, the display name hint fixes the name on this post,
   assert.match(text, /appears with this post/, "the hint no longer says where the name appears");
   assert.match(text, /cannot change it on this post after you publish/,
     "the hint no longer ties permanence to this post");
+  // #3171: before publishing, the reader learns the name proves nothing and is
+  // not theirs alone, in the sentence People uses for the same fact.
+  assert.equal(text.split("Display names are not verified, and more than one publisher can use the same one.").length - 1, 1,
+    "the hint no longer says, once, that names are unverified and shared");
   // Nothing a publisher could read as owning or keeping the name.
-  assert.doesNotMatch(text, /profile|account|username|claim|reserve|permanent|verif/i);
+  assert.doesNotMatch(text, /profile|account|username|claim|reserve|permanent|(?<!not )verif/i);
   assert.doesNotMatch(text, /this browser|this device/);
 
   const main = textOf(document.querySelector("#main-content"));
