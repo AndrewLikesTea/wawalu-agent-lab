@@ -386,8 +386,9 @@ test("the post page's loading tab order reaches Social without a placeholder Peo
   const afterExit = sequence.slice(FOOTER_FROM).map((stop) => textOf(stop) || stop.id);
   // The band opens on the sentence that says who Shiplog is for, so its pointer
   // at the worked decision is the first footer stop, and the repository link
-  // #2152 put in the shared block is the second. The third is the post page's
-  // own pointer at Social's follow-up request (#3093). On this page the map is folded
+  // #2152 put in the shared block is the second. The third is the form's
+  // Shiplog-or-Social choice, one stop (#3178; it replaced #3093's link to
+  // Social's form). On this page the map is folded
   // away and, since #2250, sits after the follow-up form rather than before it,
   // so the summary that names it is the last stop on the page. The rows are
   // still listed here because this harness keeps a closed disclosure's contents
@@ -396,7 +397,7 @@ test("the post page's loading tab order reaches Social without a placeholder Peo
   // browser actually gives.
   assert.deepEqual(
     afterExit.slice(0, bandStops.length + 10),
-    [PITCH_LINK, SOURCE_LINK_LABEL, "Social", INTENT_STOP, "site-footer-message", "site-footer-email", "site-footer-name",
+    [PITCH_LINK, SOURCE_LINK_LABEL, "site-footer-subject-shiplog", INTENT_STOP, "site-footer-message", "site-footer-email", "site-footer-name",
       "site-footer-organization", "Request a follow-up", DIRECTORY_SUMMARY, ...bandStops],
   );
   // A disclosure's own summary is its handle, not something inside it, so the
@@ -410,7 +411,7 @@ test("the post page's loading tab order reaches Social without a placeholder Peo
   };
   assert.deepEqual(
     afterExit.filter((_, index) => !closed(sequence[FOOTER_FROM + index])).slice(0, 10),
-    [PITCH_LINK, SOURCE_LINK_LABEL, "Social", INTENT_STOP, "site-footer-message", "site-footer-email", "site-footer-name",
+    [PITCH_LINK, SOURCE_LINK_LABEL, "site-footer-subject-shiplog", INTENT_STOP, "site-footer-message", "site-footer-email", "site-footer-name",
       "site-footer-organization", "Request a follow-up", DIRECTORY_SUMMARY],
     "with the directory closed, the form must still be six stops from the exit",
   );

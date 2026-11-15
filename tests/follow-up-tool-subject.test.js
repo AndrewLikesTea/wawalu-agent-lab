@@ -16,7 +16,7 @@ import { loadPage, pressEnter, textOf, typeText } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 import { createTestD1 } from "./support/d1-sqlite.js";
 import { onRequest } from "../functions/api/leads.js";
-import { FOLLOW_UP_TOOL_TOPICS, FOLLOW_UP_TOPICS } from "../src/leads.js";
+import { FOLLOW_UP_TOOL_TOPICS, FOLLOW_UP_TOPICS, POST_FOLLOW_UP_TOPIC } from "../src/leads.js";
 import {
   FOLLOW_UP_INTENTS, FOLLOW_UP_PRIVACY_WITH_MESSAGE, FOLLOW_UP_REPLY, FOLLOW_UP_USE,
 } from "../src/lead-capture.js";
@@ -28,12 +28,16 @@ const SRC = new URL("../src/", import.meta.url);
 const EMAIL = "lead@example.com";
 const byId = (document, id) => document.getElementById(id);
 
-// Page, purpose, and the tool's name as the radio, the wire and the row carry it.
+// Page, purpose, the tool's name as the radio, the wire and the row carry it,
+// and the page's own Shiplog topic. The post page (#3178) shares Social's
+// purpose and tool name, so a Social question from one post is the request
+// Social sends; only its Shiplog topic names the post page.
 const TOOL_PAGES = [
-  ["coach.html", "follow_up_coach", "Prompt coach (a separate lab tool)"],
-  ["social.html", "follow_up_social", "Social (a separate lab tool)"],
-  ["profile.html", "follow_up_people", "People (a separate lab tool)"],
-  ["agents.html", "follow_up_agents", "Agent observatory (a separate lab tool)"],
+  ["coach.html", "follow_up_coach", "Prompt coach (a separate lab tool)", FOLLOW_UP_TOPICS.follow_up_coach],
+  ["social.html", "follow_up_social", "Social (a separate lab tool)", FOLLOW_UP_TOPICS.follow_up_social],
+  ["post.html", "follow_up_social", "Social (a separate lab tool)", POST_FOLLOW_UP_TOPIC],
+  ["profile.html", "follow_up_people", "People (a separate lab tool)", FOLLOW_UP_TOPICS.follow_up_people],
+  ["agents.html", "follow_up_agents", "Agent observatory (a separate lab tool)", FOLLOW_UP_TOPICS.follow_up_agents],
 ];
 
 const rows = (db) => db.raw.prepare("SELECT email, purpose, topic, message, intent FROM lead_submissions").all()
@@ -81,7 +85,7 @@ test("the tool names on the pages are the endpoint's, one per tool page", () => 
   assert.deepEqual(Object.fromEntries(TOOL_PAGES.map(([, purpose, tool]) => [purpose, tool])), FOLLOW_UP_TOOL_TOPICS);
 });
 
-for (const [file, purpose, tool] of TOOL_PAGES) {
+for (const [file, purpose, tool, pageTopic] of TOOL_PAGES) {
   test(`${file}: the form offers Shiplog, checked, and the page's tool by name`, async (t) => {
     const page = await loadPage(new URL(file, SRC));
     t.after(() => page.restore());
@@ -111,7 +115,7 @@ for (const [file, purpose, tool] of TOOL_PAGES) {
     assert.equal(form.querySelectorAll("#site-footer-subject").length, 1);
     assert.deepEqual([...byId(document, "site-footer-intent").querySelectorAll('input[name="intent"]')]
       .map((radio) => radio.getAttribute("value")), Object.keys(FOLLOW_UP_INTENTS));
-    assert.equal(form.getAttribute("data-follow-up-topic"), FOLLOW_UP_TOPICS[purpose]);
+    assert.equal(form.getAttribute("data-follow-up-topic"), pageTopic);
     assert.equal(textOf(byId(document, "site-footer-note")), FOLLOW_UP_PRIVACY_WITH_MESSAGE);
     assert.equal(textOf(byId(document, "site-footer-use")), FOLLOW_UP_USE);
     assert.equal(textOf(byId(document, "site-footer-reply")), FOLLOW_UP_REPLY);
@@ -129,8 +133,8 @@ for (const [file, purpose, tool] of TOOL_PAGES) {
 
     assert.equal(byId(document, "site-footer-form").dataset.state, "success",
       textOf(byId(document, "site-footer-status")));
-    assert.deepEqual(calls, [{ email: EMAIL, purpose, topic: FOLLOW_UP_TOPICS[purpose], intent: "demo" }]);
-    assert.deepEqual(rows(db), [{ email: EMAIL, purpose, topic: FOLLOW_UP_TOPICS[purpose], message: null, intent: "demo" }]);
+    assert.deepEqual(calls, [{ email: EMAIL, purpose, topic: pageTopic, intent: "demo" }]);
+    assert.deepEqual(rows(db), [{ email: EMAIL, purpose, topic: pageTopic, message: null, intent: "demo" }]);
     const receipt = textOf(byId(document, "site-footer-confirmation"));
     assert.ok(receipt.includes(`${SUBJECT_LEAD}Shiplog. `), receipt);
     assert.ok(receipt.includes(`${INTENT_LEAD}${FOLLOW_UP_INTENTS.demo}. `), receipt);
@@ -175,6 +179,33 @@ for (const [file, purpose, tool] of TOOL_PAGES) {
     assert.equal(byId(document, "site-footer-intent").getAttribute("aria-invalid"), "true");
   });
 }
+
+// #3178: a Social question typed under one post is the request Social sends —
+// same purpose, same topic, same question — so it no longer needs the feed.
+// One page per test: two mounts in one test restore oldest first and leave the
+// first page's globals and fetch stub installed for the rest of the file.
+test("post.html sends a Social question with Social's purpose and topic", async (t) => {
+  const db = await createTestD1();
+  t.after(() => db.close());
+  const { document, calls } = await mountAgainstEndpoint(t, "post.html", db);
+  // A visitor can choose a Shiplog topic before realizing Social is separate.
+  // That stale selection must not leak into the Social request or receipt.
+  byId(document, "site-footer-intent-demo").click();
+  byId(document, "site-footer-subject-tool").click();
+  assert.equal(byId(document, "site-footer-intent").getAttribute("disabled"), "", "Social must disable Shiplog topics");
+  byId(document, "site-footer-message").value = "Can I edit a post after publishing?";
+  sendEmail(document);
+  await settled(document);
+  assert.equal(byId(document, "site-footer-form").dataset.state, "success", textOf(byId(document, "site-footer-status")));
+  assert.deepEqual(calls, [{
+    email: EMAIL, purpose: "follow_up_social", topic: "Social (a separate lab tool)",
+    message: "Can I edit a post after publishing?",
+  }]);
+  assert.deepEqual(rows(db), [{ ...calls[0], intent: null }]);
+  const receipt = textOf(byId(document, "site-footer-confirmation"));
+  assert.ok(receipt.includes(`${SUBJECT_LEAD}Social (a separate lab tool). `), receipt);
+  assert.ok(!receipt.includes(INTENT_LEAD), receipt);
+});
 
 test("no other page offers the subject choice", async () => {
   const files = (await readdir(SRC)).filter((name) => name.endsWith(".html"));
