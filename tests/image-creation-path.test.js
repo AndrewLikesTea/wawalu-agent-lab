@@ -264,18 +264,14 @@ test("Social's route into Paint is the composer's control, and there is no secon
 });
 
 test("People preserves Social and Paint routes in the supporting guidance", () => {
-  // The way back to the whole feed is in the page's opening section, in the
-  // sentence that says what this view leaves out. The way into Paint is one
-  // paragraph above the grid, beside the pictures that prompt it. Each is a
-  // visible link that names its destination, and neither is offered twice: the
-  // hero used to carry a second Paint control with the same four words on it.
+  // Detailed publishing guidance remains below the grid; the hero adds a compact shortcut.
   const guidance = documents.People.querySelector(".profile-lede.hint");
   const toSocial = guidance.querySelectorAll("a").filter((anchor) => anchor.href.startsWith("/social.html"));
   assert.equal(toSocial.length, 1, "People's entry point offers no single way back to Social");
   assert.match(textOf(toSocial[0]), /Social/);
 
-  const toPaint = entryPointsOn("People");
-  assert.equal(toPaint.length, 1, "People offers Paint more than once again");
+  const toPaint = entryPointsOn("People").filter((link) => link.id === "profile-paint-route");
+  assert.equal(toPaint.length, 1, "People keeps one Paint route in the detailed guidance");
   assert.match(textOf(toPaint[0]), /^Create or open an image in Paint/);
   assert.equal(documents.People.querySelectorAll("#profile-paint-cta").length, 0,
     "People's hero offers Paint a second time again");
@@ -343,11 +339,8 @@ test("Social offers Paint exactly once: the composer's in-flow control", () => {
 // its helper sentence named the tool without saying the tab would change. Both
 // pages hand off to Paint the same way, so both say the same thing about it.
 test("every route into Paint on Social and People says in words that it opens a new tab", () => {
-  // Counted first, so a filter that stops matching a page's links fails here
-  // rather than passing an empty loop: one offer on each page. People made it
-  // twice — a hero button and the invitation beside the grid, four identical
-  // words apart — until the invitation was left to make it alone.
-  for (const [name, count] of [["Social", 1], ["People", 1]]) {
+  // Count the composer route on Social and both shortcut and guidance on People.
+  for (const [name, count] of [["Social", 1], ["People", 2]]) {
     assert.equal(entryPointsOn(name).length, count, `${name} offers Paint a different number of times`);
     for (const link of entryPointsOn(name)) {
       // The behaviour first: the tab really does change, so the disclosure is a
@@ -373,7 +366,7 @@ test("every route into Paint on Social and People says in words that it opens a 
 test("the button-shaped routes into Paint carry no arrow beside their new-tab words", () => {
   const buttons = ["Social", "People"].flatMap((name) => entryPointsOn(name))
     .filter((link) => /button-link|secondary-button/.test(link.className ?? ""));
-  assert.equal(buttons.length, 1, "the number of button-shaped routes into Paint changed");
+  assert.equal(buttons.length, 2, "the number of button-shaped routes into Paint changed");
 
   for (const link of buttons) {
     assert.doesNotMatch(textOf(link), /[↗→]/, `${textOf(link)} carries a glyph beside its new-tab words`);
