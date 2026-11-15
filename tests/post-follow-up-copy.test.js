@@ -300,20 +300,21 @@ test("every control the follow-up sentence names is rendered on the page, in bot
   }
 });
 
-// #3093: this form has no Social subject, so the sentence after "not about this
-// post" sends a Social question to Social's form, which has one. It is a
+// #3178: the form takes a Social question itself now (#3093 sent it to Social's
+// form), so the sentence after "not about this post" names the two choices the
+// way their radios read, in Social's words for the Social one. It is a
 // paragraph of its own because the one above is rewritten as text once a post
 // loads, so it is checked in both states.
-const SOCIAL_QUESTIONS = "For questions about Social, a separate lab tool, use the Shiplog follow-up request on Social, which takes them.";
-test("the post page sends Social questions to Social's follow-up request, after the not-about-this-post sentence", async () => {
+const SOCIAL_CHOICE = "Choose Social (a separate lab tool) to ask about Social; those topics do not apply to it, so the form switches them off.";
+const SOCIAL_QUESTIONS = `Choose Shiplog to ask about those Shiplog topics. ${SOCIAL_CHOICE}`;
+test("the post page takes Social questions in its own form, after the not-about-this-post sentence", async () => {
   const markup = await readFile(new URL("../src/post.html", import.meta.url), "utf8");
   assert.ok(markup.indexOf('id="post-social-questions"') > markup.indexOf('id="site-footer"'),
-    "the Social pointer is not in the follow-up section");
+    "the Social choice line is not in the follow-up section");
   assert.ok(markup.indexOf('id="post-detail"') < markup.indexOf('id="post-social-questions"'),
-    "the Social pointer adds a tab stop before #post-detail");
+    "the Social choice line sits before #post-detail");
   const social = await readFile(new URL("../src/social.html", import.meta.url), "utf8");
-  assert.ok(social.includes("Choose Social (a separate lab tool) to ask about Social;"),
-    "Social no longer says its form takes questions about Social");
+  assert.ok(social.includes(SOCIAL_CHOICE), "Social words its Social choice differently now");
   for (const [name, search, answer] of [["waiting", "", null], FLOWS[0]]) {
     const page = await loadPage(new URL("../src/post.html", import.meta.url), { location: { search } });
     const { document } = page;
@@ -330,11 +331,22 @@ test("the post page sends Social questions to Social's follow-up request, after 
       assert.ok(textOf(blocks[0]).includes("— not about this post. "), `${name}: the first paragraph lost "not about this post"`);
       assert.equal(blocks[1].getAttribute("id"), "post-social-questions", `${name}: the Social pointer is not right after it`);
       assert.equal(elements.indexOf(blocks[1]), elements.indexOf(blocks[0]) + 1, `${name}: something sits between the two sentences`);
-      assert.equal(textOf(blocks[1]), SOCIAL_QUESTIONS, `${name}: the Social pointer's words changed`);
-      const links = blocks[1].querySelectorAll("a");
-      assert.equal(links.length, 1, `${name}: the Social pointer has ${links.length} links`);
-      assert.equal(links[0].getAttribute("href"), "/social.html");
-      assert.equal(textOf(links[0]), "Social");
+      assert.equal(textOf(blocks[1]), SOCIAL_QUESTIONS, `${name}: the Social choice line's words changed`);
+      // No detour: the line sends nobody to the feed to ask.
+      assert.equal(blocks[1].querySelectorAll("a").length, 0, `${name}: the Social choice line links off the page`);
+      const footer = textOf(document.getElementById("site-footer"));
+      assert.doesNotMatch(footer, /follow-up request on Social|which takes them/, `${name}: the feed detour is back`);
+      // Each choice is named as its radio reads.
+      for (const id of ["site-footer-subject-shiplog", "site-footer-subject-tool"]) {
+        const labels = document.querySelectorAll(`label[for="${id}"]`);
+        assert.equal(labels.length, 1, `${name}: ${id} has ${labels.length} labels`);
+        assert.ok(textOf(blocks[1]).includes(`Choose ${textOf(labels[0])} to ask about`), `${name}: ${id} is not named`);
+      }
+      // Asking about Social is still not reporting this post.
+      if (answer) {
+        assert.ok(textOf(blocks[0]).includes("To ask the Wawalu team to review this post, select Report post."),
+          `${name}: reporting this post is no longer told apart from asking`);
+      }
     } finally {
       page.restore();
     }
