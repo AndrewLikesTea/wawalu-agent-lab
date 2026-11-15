@@ -10,7 +10,7 @@ const surfaces = [
   // the feed panel. Since #2883 it follows the reporting explanation too, on
   // both pages, so the Shiplog asks come after all of the tool's own content.
   { file: "social", sequence: ["#page-title", "#post-compose-open", "#feed-title", "#post-name-filter", "#post-time-filter", "#feed-state", "#post-feed", ".social-feed-intro", "#feed-source-note", "#post-report-route", "#post-compose-panel", "#post-report-about", "#ask-about-shiplog"], guidance: ".social-feed-intro", state: "#feed-state", label: "Posts are loading." },
-  { file: "profile", sequence: ["#page-title", "#profile-author-label", "#profile-author", "#grid-title", "#profile-feed-status", "#profile-grid", ".profile-lede.hint", ".profile-role", ".feed-create", "#ask-about-shiplog"], guidance: ".profile-lede.hint", state: "#profile-feed-status", label: "Image posts are loading." },
+  { file: "profile", sequence: ["#page-title", "#profile-create-actions", "#profile-create-social", "#profile-create-paint", "#profile-author-label", "#profile-author", "#grid-title", "#profile-feed-status", "#profile-grid", ".profile-lede.hint", ".profile-role", ".feed-create", "#ask-about-shiplog"], guidance: ".profile-lede.hint", state: "#profile-feed-status", label: "Image posts are loading." },
 ];
 
 for (const surface of surfaces) {
@@ -50,7 +50,7 @@ for (const surface of surfaces) {
     assert.deepEqual(stops.slice(-3).map((node) => node.id),
       ["ask-about-shiplog", "ask-about-shiplog-demo", "ask-about-shiplog-pilot"]);
     // People's introduction ends on the lab identity line, whose one link is
-    // the route to Shiplog (#2864); the picker is the stop after it.
+    // the route to Shiplog (#2864); creation shortcuts follow, then the picker.
     // Social's line carries no link, so its hero adds no stop.
     if (surface.file === "profile") {
       assert.equal(stops[0].parentNode.getAttribute("id"), "lab-identity");
@@ -87,4 +87,31 @@ test("390px uses wrapping controls and keeps the document's reading order", asyn
     if (!/hero|workspace|list-panel|social-toolbar|profile-toolbar|profile-lede|social-feed-intro|profile-role/.test(selectors)) continue;
     assert.doesNotMatch(declarations, /(?:^|;)\s*(?:order|grid-area)\s*:|flex-direction\s*:\s*\w+-reverse/, selectors);
   }
+});
+
+test("People offers native creation links before loading filters without repeating guidance", async (t) => {
+  const page = await loadPage(new URL("../src/profile.html", import.meta.url));
+  t.after(() => page.restore());
+  const { document } = page;
+  const group = document.querySelector("#profile-create-actions");
+  assert.equal(group.getAttribute("role"), "group");
+  assert.equal(group.getAttribute("aria-label"), "Create an image post");
+  assert.ok(group.classList.contains("hero-actions"));
+  for (const [id, destination, label] of [
+    ["social", "/social.html#post-form", "Publish an image post on Social"],
+    ["paint", "/paint/?from=profile", "Create an image in Paint (opens in a new tab)"],
+  ]) {
+    const link = document.querySelector(`#profile-create-${id}`);
+    assert.equal(link.tagName, "A");
+    assert.equal(link.getAttribute("href"), destination);
+    assert.equal(textOf(link), label);
+    assert.equal(link.getAttribute("tabindex"), null);
+    assert.equal(link.getAttribute("role"), null);
+    assert.equal(link.getAttribute("target"), id === "paint" ? "_blank" : null);
+    assert.equal(link.getAttribute("rel"), id === "paint" ? "noopener" : null);
+  }
+  assert.doesNotMatch(textOf(group), /description|deleted|Report post|Choose image/);
+  const guidance = textOf(document.querySelector("#profile-create-steps"));
+  for (const phrase of ["required image description", "cannot be edited or deleted", "Report post"])
+    assert.ok(guidance.includes(phrase));
 });

@@ -152,13 +152,14 @@ test("the picker is read and reached before the name, the count, and the results
     assert.ok(at("#profile-author") < at("#profile-summary"));
     assert.ok(at("#profile-author") < at("#profile-grid"));
 
-    // The introduction leads directly into the display-name filters. Before
-    // them, one stop: the lab identity line's route to Shiplog, read with the
+    // The introduction and creation links lead into the display-name filters. Before
+    // them, the lab identity line's route to Shiplog is read with the
     // introduction (#2864). The Shiplog asks (#2807) close the page instead
     // (#2883): they are the last stops in <main>, after every tool control.
     const inMain = tabSequence(document).filter((element) => element.closest("#main-content"));
     assert.equal(inMain[0].parentNode.getAttribute("id"), "lab-identity");
-    assert.deepEqual(inMain.slice(1, 4).map((element) => element.dataset.author), ["Ari", "Bea", "Zed"]);
+    assert.deepEqual(inMain.slice(1, 3).map((element) => element.id), ["profile-create-social", "profile-create-paint"]);
+    assert.deepEqual(inMain.slice(3, 6).map((element) => element.dataset.author), ["Ari", "Bea", "Zed"]);
     assert.deepEqual(inMain.slice(-3).map((element) => element.id),
       ["ask-about-shiplog", "ask-about-shiplog-demo", "ask-about-shiplog-pilot"]);
     for (const chip of chips(page))
@@ -348,7 +349,7 @@ test("no placeholder is still announcing a load once the posts are on screen", a
 // paragraph beside the picker, and the eyebrow over the grid — and offered the
 // same route into Paint twice. A first-time visitor has the rule after the
 // first sentence; every telling after that is a page repeating itself.
-test("People states the images-only rule once and offers each route once", async () => {
+test("People states the images-only rule once and keeps the shortcut separate from guidance", async () => {
   const page = await people();
   try {
     const main = page.document.getElementById("main-content");
@@ -374,7 +375,8 @@ test("People states the images-only rule once and offers each route once", async
     // spare copy of another, so each is pinned to its own sentence, its own
     // destination and its own words.
     const toSocial = anchors.filter((anchor) => (anchor.getAttribute("href") ?? "").startsWith("/social.html"));
-    assert.equal(toSocial.length, 3, "the main content changed how many times it routes to Social");
+    assert.equal(toSocial.length, 4, "the main content changed how many times it routes to Social");
+    assert.equal(toSocial.shift().id, "profile-create-social");
     assert.equal(toSocial[1].getAttribute("href"), "/social.html");
     assert.equal(toSocial[1].parentNode?.classList?.contains("profile-lede"), true,
       "the link to the whole feed is not in the sentence that states the rule");
@@ -980,8 +982,10 @@ test("tabbing from the top reaches the picker, then the posts under the header",
     // Walked, not read off the markup: every stop is a real focus move made by
     // the page harness that boots the shipped markup with the shipped module.
     // The introduction's one link, the lab identity line's route to Shiplog
-    // (#2864); the picker follows it.
+    // (#2864), then both creation shortcuts, then the picker.
     document.querySelectorAll("a").find((node) => node.parentNode?.getAttribute("id") === "lab-identity").focus();
+    assert.equal(pressTab(document).id, "profile-create-social");
+    assert.equal(pressTab(document).id, "profile-create-paint");
     const tiles = drawnTiles(document);
     const walked = [];
     // Two stops per post: the tile, then its Report post button (#2343). Three
@@ -1037,7 +1041,7 @@ test("tabbing from the top reaches the picker, then the posts under the header",
     const inMain = tabSequence(document).filter((element) => element.closest("#main-content"));
     const outsidePanel = inMain.filter((element) => !element.closest(".list-panel"));
     assert.deepEqual(outsidePanel.map((element) => element.dataset?.author ?? element.getAttribute("href")),
-      ["/#decisions-title", "Ari", "Bea", "Zed", "/social.html?author=Zed", "#site-footer-panel", "#site-footer-intent-demo", "#site-footer-intent-pilot"]);
+      ["/#decisions-title", "/social.html#post-form", "/paint/?from=profile", "Ari", "Bea", "Zed", "/social.html?author=Zed", "#site-footer-panel", "#site-footer-intent-demo", "#site-footer-intent-pilot"]);
   } finally {
     page.restore();
   }
@@ -1294,8 +1298,8 @@ test("a selected name with no image posts offers the picker and Social, and the 
     const main = textOf(document.getElementById("main-content"));
     assert.equal((main.match(/Publish a post on Social/g) ?? []).length, 2,
       "People prompts the trip to Social's composer a third time");
-    assert.equal((main.match(/image in Paint/g) ?? []).length, 1,
-      "People offers the route into Paint more than once again");
+    assert.equal((main.match(/image in Paint/g) ?? []).length, 2,
+      "Paint appears in the compact action group and the detailed guidance");
     // The panel the guidance lands in speaks as content: the polite region is
     // the page's one voice, so this is not announced a second time from here.
     const status = document.querySelector("#profile-feed-status");
