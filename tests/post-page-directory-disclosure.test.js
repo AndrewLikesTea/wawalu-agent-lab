@@ -332,9 +332,10 @@ test("the permalink's tab order runs skip, nav, post, exits, follow-up, director
   // page's own: the lab identity line's route to Shiplog, closing the standing
   // frame (#2864). The next two belong to the shared band: its pointer at the
   // worked decision, and the repository link #2152 added beneath it. The last
-  // is the page's own again: the follow-up block's pointer at Social's form (#3093).
-  const between = stops.slice(exits[2] + 1, at(INTENT)).map(textOf);
-  assert.deepEqual(between, ["Shiplog, the decision and release log", PITCH_LINK, SOURCE_LINK_LABEL, "Social"]);
+  // is the form's own: its Shiplog-or-Social choice, one stop, named by id
+  // (#3178; it replaced #3093's link to Social's form).
+  const between = stops.slice(exits[2] + 1, at(INTENT)).map((stop) => textOf(stop) || stop.id);
+  assert.deepEqual(between, ["Shiplog, the decision and release log", PITCH_LINK, SOURCE_LINK_LABEL, "site-footer-subject-shiplog"]);
 
   // The whole sequence, end to end, with the directory shut. The block's fields
   // carry no text of their own — the intent group #2365 added (one stop), the

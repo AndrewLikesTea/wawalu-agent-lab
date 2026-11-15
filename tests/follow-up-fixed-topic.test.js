@@ -63,7 +63,7 @@ const INTENT_FIELDS = ["availability_pricing", "demo", "pilot", "security_data"]
 // The separate lab tools (#2877, Prompt coach since #3110) ask first whether the
 // request is about Shiplog or about the tool on the page — one more radio group,
 // both radios named.
-const ASKS_SUBJECT = new Set(["coach.html", "social.html", "profile.html", "agents.html"]);
+const ASKS_SUBJECT = new Set(["coach.html", "social.html", "post.html", "profile.html", "agents.html"]);
 const SUBJECT_FIELDS = ["INPUT#site-footer-subject-shiplog", "INPUT#site-footer-subject-tool"];
 const withMessage = (baseline) => [...INTENT_FIELDS, MESSAGE_FIELD, ...baseline];
 const expectedStops = (file, baseline) => [

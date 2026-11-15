@@ -164,12 +164,12 @@ const FOOTER_VARIANT = new Map([
     // back out when one does not, because Report post and Copy link to this
     // post are both drawn on the loaded post and nowhere else. What ships is
     // the part that is true in every state.
-    // #3093: this form takes no Social subject, so a second paragraph sends a
-    // Social question to Social's form, which does. It is its own paragraph
-    // because src/post-page.js rewrites the first one as text, which would drop
-    // its link; the invitation slot is markup, so the row carries both.
-    invitation: 'Questions about Shiplog? Send the Wawalu team that operates it a follow-up request. The topics below are about Shiplog — whether it is available for your team, a demonstration, a pilot, and security and data handling — not about this post. Nothing about the post is attached to the request automatically.</p>\n        <p class="site-footer-invitation" id="post-social-questions">For questions about Social, a separate lab tool, use the Shiplog follow-up request on <a href="/social.html">Social</a>, which takes them.',
-    collapsedDemos: true, askMessage: true, offer: true,
+    // #3178: the form offers Social's subject choice, so the second paragraph
+    // names both choices instead of sending a Social question back to the feed
+    // (#3093). It stays its own paragraph because src/post-page.js rewrites the
+    // first one as text once a post loads.
+    invitation: 'Questions about Shiplog? Send the Wawalu team that operates it a follow-up request. The topics below are about Shiplog — whether it is available for your team, a demonstration, a pilot, and security and data handling — not about this post. Nothing about the post is attached to the request automatically.</p>\n        <p class="site-footer-invitation" id="post-social-questions">Choose Shiplog to ask about those Shiplog topics. Choose Social (a separate lab tool) to ask about Social; those topics do not apply to it, so the form switches them off.',
+    collapsedDemos: true, askMessage: true, offer: true, tool: FOLLOW_UP_TOOL_TOPICS.follow_up_social,
   }],
   ["releases.html", {
     followUpType: "follow_up_releases", followUpTopic: FOLLOW_UP_TOPICS.follow_up_releases,
