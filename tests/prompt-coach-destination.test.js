@@ -319,8 +319,8 @@ test("the destination reads as one page about one thing", async () => {
   // sentence under the heading now — the first thing read on arrival, and still
   // above the form rather than in a disclosure the reader has to open.
   const privacy = byId(document, "page-tagline");
-  assert.match(textOf(privacy), /pasted text stays in this browser/i);
-  assert.match(textOf(privacy), /not sent to a model or stored/);
+  assert.match(textOf(privacy), /temporarily keeps your prompt and grades in this browser/i);
+  assert.match(textOf(privacy), /does not upload your prompt or send it to a model/);
   const markup = await read("coach.html");
   assert.ok(markup.indexOf('id="page-tagline"') < markup.indexOf('id="prompt-coaching-input"'),
     "the privacy statement must be read before the prompt field");
@@ -384,11 +384,9 @@ test("the destination reads as one page about one thing", async () => {
 
 /* --------------------- one promise, made once ------------------------------ */
 
-// The claim the page states once, above the field: "Your pasted text stays in
-// this browser. It is not sent to a model or stored." The punctuation is left
-// loose so a near-duplicate that differs only in a colon still counts here and
-// pushes the total past one.
-const PRIVACY_CLAIM = /stays in this browser[.:]\s*(?:It|it) is not sent to a model or stored/g;
+// The temporary retention statement appears once above the field and again
+// in the disclosure, with the same wording.
+const PRIVACY_CLAIM = /This page temporarily keeps your prompt and grades in this browser\./g;
 
 /** Every heading rendered above the prompt field, in reading order. */
 function headingsAboveTheField(document) {
@@ -500,7 +498,7 @@ test("the page names itself, says what it does, and offers a follow-up", async (
 
   const purpose = textOf(byId(document, "page-tagline"));
   assert.match(purpose, /Grade a prompt/, "the sentence under the name must say what the page does");
-  assert.match(purpose, /stays in this browser/, "…and where a visitor's pasted text stays");
+  assert.match(purpose, /temporarily keeps your prompt and grades in this browser/, "…and where a visitor's pasted text stays");
 
   // And the page still introduces itself exactly once before the field: one
   // promise of what a grade is, one statement of where the text stays.
@@ -598,27 +596,26 @@ test("“Start here” names the region for a screen reader and no longer heads 
   }
 });
 
-test("the privacy promise is made once, in one wording, before the field", async () => {
+test("the introduction and disclosure explain the same temporary browser handling", async () => {
   const { document } = await openCoach();
 
-  // Once, where a reader meets it before pasting. A second copy in the
-  // disclosure below said the same thing with different punctuation, which
-  // reads as two promises to compare rather than one to rely on, so the count
-  // is pinned rather than trusted.
   const rendered = textOf(document.querySelector("main"));
-  assert.equal(rendered.match(PRIVACY_CLAIM)?.length, 1,
-    "the privacy claim is stated exactly once on the rendered page");
+  assert.equal(rendered.match(PRIVACY_CLAIM)?.length, 2,
+    "temporary retention is explained in the introduction and disclosure");
+  assert.doesNotMatch(rendered, /not sent to a model or stored/,
+    "the page must not deny the temporary retention it describes");
+  // The search/share preview is read before the page is, so it may not deny it either.
+  assert.doesNotMatch(await read("coach.html"), /uploaded, stored|or stored/);
 
   const beforeTheField = textOf(byId(document, "page-tagline"));
-  assert.match(beforeTheField, /Your pasted text stays in this browser\. It is not sent to a model or stored\./);
+  assert.match(beforeTheField, /This page temporarily keeps your prompt and grades in this browser\. It does not upload your prompt or send it to a model\. Delete prompt and grades or leave the page to clear them\./);
   // And the block before the field, which used to carry it, does not carry it
   // again: the statement moved up into the introduction rather than being
   // copied into it.
   assert.doesNotMatch(textOf(document.querySelector(".prompt-coaching-entry-static")),
     /stays in this browser/, "the instruction block restates where the text stays");
 
-  // The disclosure keeps the facts that statement does not carry: what the
-  // coach reads, and what it never reaches.
+  // The disclosure also explains what the coach reads and never reaches.
   assert.equal(textOf(byId(document, "prompt-coaching-preview-summary")),
     "What the coach reads and keeps");
   const statements = document.querySelectorAll(".prompt-coaching-preview-static")
@@ -636,13 +633,13 @@ test("the privacy promise is made once, in one wording, before the field", async
   // reads on the button — asserted here against the rendered button so the
   // sentence cannot go on quoting a label the page stopped using.
   assert.match(keeps,
-    /keeps your prompt and grades on this page, in this browser, until you press Delete prompt and grades\./,
+    /This page temporarily keeps your prompt and grades in this browser\./,
     "the disclosure must say what the coach keeps and what ends it");
-  assert.match(keeps, /Leaving the page clears them too, and nothing is stored elsewhere\./);
+  assert.match(keeps, /It does not upload your prompt or send it to a model\. Delete prompt and grades or leave the page to clear them\./);
   assert.equal(textOf(byId(document, "prompt-coaching-clear")), "Delete prompt and grades",
     "the kept-until sentence must quote the clear control by its rendered label");
-  assert.doesNotMatch(keeps, /stays in this browser/,
-    "the keeps half states how long, not a second copy of the privacy promise");
+  assert.equal(beforeTheField, `Grade a prompt before you send it. ${keeps}`,
+    "both locations must describe the same data handling");
 });
 
 // The three invitations a visitor reads before opening anything, and the one
@@ -757,8 +754,8 @@ test("the first screen names the result and the next action, before any script r
   // Where the text stays is static too, one block higher, so a dead script
   // never costs a reader the promise they need before pasting.
   const purpose = textOf(byId(document, "page-tagline"));
-  assert.match(purpose, /pasted text stays in this browser/i);
-  assert.match(purpose, /not sent to a model or stored/);
+  assert.match(purpose, /temporarily keeps your prompt and grades in this browser/i);
+  assert.match(purpose, /does not upload your prompt or send it to a model/);
 
   // And the next action, named with the words on the controls a visitor presses,
   // so the instruction and the button cannot be read as two different things.
