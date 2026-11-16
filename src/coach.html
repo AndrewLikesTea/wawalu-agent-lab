@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Grade a prompt against a bundled rubric, in your browser tab. Nothing is uploaded, stored, or sent to a model." />
+    <meta name="description" content="Grade a prompt against a bundled rubric, in your browser tab. Your prompt is kept only temporarily in this browser, and is not uploaded or sent to a model." />
     <title>Prompt coach · Wawalu Lab</title>
     <link rel="stylesheet" href="/styles.css" />
     <!-- The coaching surface's styles live beside the rubric they present, in
@@ -71,7 +71,7 @@
            on load, so it is painted text and not a pre-script fallback. -->
       <section class="coach-hero" aria-labelledby="page-title">
         <h1 id="page-title">Prompt coach</h1>
-        <p id="page-tagline">Grade a prompt before you send it. Your pasted text stays in this browser. It is not sent to a model or stored.</p>
+        <p id="page-tagline">Grade a prompt before you send it. This page temporarily keeps your prompt and grades in this browser. It does not upload your prompt or send it to a model. Delete prompt and grades or leave the page to clear them.</p>
       </section>
       <p class="hint" id="lab-identity">Prompt coach is a separate lab tool, not part of <a href="/#decisions-title">Shiplog, the decision and release log</a>.</p>
 
@@ -246,7 +246,7 @@
         <details class="prompt-coaching-preview" id="prompt-coaching-preview">
           <summary id="prompt-coaching-preview-summary">What the coach reads and keeps</summary>
           <p class="prompt-coaching-preview-static">The coach reads only the text you paste and the optional model tier. It does not access your accounts, files, or customer data.</p>
-          <p class="prompt-coaching-preview-static">It keeps your prompt and grades on this page, in this browser, until you press Delete prompt and grades. Leaving the page clears them too, and nothing is stored elsewhere.</p>
+          <p class="prompt-coaching-preview-static">This page temporarily keeps your prompt and grades in this browser. It does not upload your prompt or send it to a model. Delete prompt and grades or leave the page to clear them.</p>
           <div class="prompt-coaching-preview-body" id="prompt-coaching-preview-body">
             <p class="prompt-coaching-preview-lead">See the example prompt’s own text and the counts read from it.</p>
           </div>

@@ -499,17 +499,14 @@ test("the boundary is stated in the markup, before any script runs", async () =>
     // not once a script has succeeded. The clear control is named by its own
     // rendered label, which ships in the markup beside it.
     assert.match(keeps,
-      /keeps your prompt and grades on this page, in this browser, until you press Delete prompt and grades\./);
-    assert.match(keeps, /Leaving the page clears them too, and nothing is stored elsewhere\./);
+      /This page temporarily keeps your prompt and grades in this browser\./);
+    assert.match(keeps, /It does not upload your prompt or send it to a model\. Delete prompt and grades or leave the page to clear them\./);
     assert.equal(textOf(byId(document, "prompt-coaching-clear")), "Delete prompt and grades");
     assert.doesNotMatch(keeps, /stays in this browser/);
-    // Where the text stays is promised once, in the sentence under the page's
-    // heading, and this block does not say it a second time in different
-    // punctuation. That statement is static too, so the fact is still readable
-    // before any script runs.
+    // The introduction states the same temporary handling before scripts run.
     assert.doesNotMatch(claim, /stays in this browser/);
     assert.match(textOf(byId(document, "page-tagline")),
-      /Your pasted text stays in this browser\. It is not sent to a model or stored\./);
+      /This page temporarily keeps your prompt and grades in this browser\. It does not upload your prompt or send it to a model\. Delete prompt and grades or leave the page to clear them\./);
     // A privacy claim a reader can only see once JavaScript succeeds is a claim
     // they cannot rely on, so this one does not wait for the entry module. And
     // it says how the analysis runs rather than how many files a build emits:
@@ -610,8 +607,8 @@ test("the front door states what this is and what it never reaches, before any s
     // boundary disclosure. What has to survive a dead script is the promise a
     // visitor needs before pasting, and it is the page's opening sentence.
     const privacy = textOf(byId(document, "page-tagline"));
-    assert.match(privacy, /pasted text stays in this browser/i);
-    assert.match(privacy, /not sent to a model or stored/);
+    assert.match(privacy, /temporarily keeps your prompt and grades in this browser/i);
+    assert.match(privacy, /does not upload your prompt or send it to a model/);
   } finally {
     page.restore();
   }
