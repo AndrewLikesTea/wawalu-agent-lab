@@ -246,6 +246,21 @@ test("an image post carries a byline link and a contextual People action", async
   assert.ok(children.indexOf(link) < children.indexOf(card.querySelector(".post-report-button")));
 });
 
+test("the feed guidance points at the image post's display name, which opens People on that name", async (t) => {
+  const { document } = await openSocial(t);
+  // One sentence, once, and the wording it replaced nowhere (#3186).
+  const body = textOf(document.body);
+  const GUIDE = "Select the display name on an image post to open People with that name’s image posts.";
+  assert.equal(body.split(GUIDE).length - 1, 1, "the guidance is missing or repeated");
+  assert.equal(body.split("Open People when you want").length - 1, 0, "the old guidance survived");
+  // What it promises is true of the rendered example image post's byline.
+  const card = drawnCards(document).find((node) => node.dataset?.postId === "p-05");
+  const names = card.querySelectorAll(".post-author");
+  assert.equal(names.length, 1);
+  assert.equal(names[0].getAttribute("href"), profileHref(ARI));
+  assert.equal(requestedProfileAuthor(new URL(names[0].href, "https://labs.wawalu.org").search), ARI);
+});
+
 test("a text-only post links its byline to People without an extra image-post action", async (t) => {
   const { document } = await openSocial(t);
 

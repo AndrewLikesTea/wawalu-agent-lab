@@ -552,7 +552,7 @@ test("where a post with an image lands is said once, at the field that attaches 
   const intro = textOf(page.document.querySelector(".social-feed-intro"));
   assert.equal(intro.split("People").length - 1, 1,
     "the intro names People more than once");
-  assert.match(intro, /Open People when you want the image posts from one display name\./);
+  assert.match(intro, /Select the display name on an image post to open People with that name’s image posts\./);
 });
 
 test("the composer calls its required 280-character text a post throughout", async (t) => {
@@ -683,8 +683,9 @@ test("the feed says who wrote the posts, where the posts are", async (t) => {
   // The hero's tagline says it, in the reading half of what a visitor does
   // here; this paragraph used to define the feed a second time one screen
   // under it. It now opens on the one thing the tagline does not say: which
-  // neighbouring surface to open instead.
-  assert.match(intro, /^Open People when you want the image posts from one display name\./,
+  // neighbouring surface to open instead, and the link on the post that opens it
+  // (#3186).
+  assert.match(intro, /^Select the display name on an image post to open People with that name’s image posts\./,
     "the intro stopped opening on the surface a visitor confuses the feed with");
   assert.doesNotMatch(intro, /Social is a shared feed/,
     "the intro defines Social again, under a hero that already did");
