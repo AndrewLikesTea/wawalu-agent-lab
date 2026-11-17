@@ -108,9 +108,12 @@ export function requestedFeedAuthor(search) {
 
 // People's address carries the name under the same parameter, so People reads
 // it without changing the requested text. profileHref is the write half; both
-// must round-trip every display name a card can link to.
+// must round-trip every display name a card can link to. `?name=` (#3184's
+// spelling) is read too, so a hand-shared link is not silently dropped; any
+// filter change rewrites the address to `author`.
 export function requestedProfileAuthor(search) {
-  return new URLSearchParams(String(search ?? "")).get(FEED_AUTHOR_PARAM) ?? "";
+  const params = new URLSearchParams(String(search ?? ""));
+  return params.get(FEED_AUTHOR_PARAM) ?? params.get("name") ?? "";
 }
 
 export function socialAllPostsLabel(author) {

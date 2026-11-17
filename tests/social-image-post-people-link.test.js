@@ -424,6 +424,21 @@ test("the People address round-trips every awkward name through the one helper b
   }
   assert.equal(requestedProfileAuthor(""), "");
   assert.equal(requestedProfileAuthor("?from=profile"), "");
+  // #3184's `?name=` spelling is read too; `author` wins when both arrive.
+  for (const name of ['<img src=x onerror=1> "Zoë 李"', ...AWKWARD_NAMES]) {
+    assert.equal(requestedProfileAuthor(`?${new URLSearchParams({ name })}`), name, `?name= dropped ${name}`);
+  }
+  assert.equal(requestedProfileAuthor(`?name=${encodeURIComponent(REMY)}&author=${encodeURIComponent(ARI)}`), ARI);
+});
+
+test("a ?name= address filters People, and the next choice rewrites it to ?author=", async (t) => {
+  const people = await openPeople(t, { search: `?${new URLSearchParams({ name: REMY })}` });
+  assert.equal(pressedChip(people.document)?.dataset.author, REMY, "People ignored ?name=");
+  assert.deepEqual(drawnTiles(people.document).map((tile) => tile.dataset?.postId), imagePostIds(REMY));
+  chips(people.document).find((chip) => chip.dataset?.author === ARI).click();
+  await waitFor(() => textOf(people.document.querySelector("#grid-title")) === `${ARI} · 3 image posts`, "People drew the new name");
+  assert.equal(people.replaced.at(-1)?.[2], profileHref(ARI));
+  assert.equal(new URLSearchParams(people.address()).has("name"), false, "the stale ?name= survived a filter change");
 });
 
 test("names that need encoding or look like markup get a People link that carries them whole", async (t) => {
