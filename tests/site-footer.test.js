@@ -762,7 +762,7 @@ test("Social's description, its directory row and its follow-up topic all say sh
     // hero's and this band's row's to say, and the intro stopped repeating it
     // (#2648). The page description still carries the phrase for a search result.
     assert.match(textOf(document.querySelector(".social-feed-intro")),
-      /^Open People when you want the image posts from one display name\./);
+      /^Select the display name on an image post to open People with that name’s image posts\./);
     assert.ok(document.querySelector('meta[name="description"]').getAttribute("content").includes(`about ${PHRASE}, images optional`));
     paintedFooter(document, "social.html");
   } finally {

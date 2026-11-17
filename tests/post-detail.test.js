@@ -446,9 +446,9 @@ test("the post page's two routes out sit after the site frame, and name where th
     readFile(new URL("../src/profile.html", import.meta.url), "utf8"),
   ]);
   // People says it on a link, because there the sentence that offers the rest
-  // of the feed is the sentence that opens it — the verb and the "when" are the
-  // pattern, not what the word is wrapped in.
-  assert.match(social, /Open People when you want/);
+  // of the feed is the sentence that opens it. Social points at the display-name
+  // link each image post already carries (#3186), so it names the act and People.
+  assert.match(social, /Select the display name on an image post to open People/);
   assert.match(people, /Open <a[^>]*>Social<\/a> when you want/);
 });
 

@@ -380,7 +380,9 @@ test("Social and People preserve guidance explaining the other surface", async (
     // Sentence-initial on both, now that the tagline above carries the rule the
     // People clause used to be joined to.
     assert.match(description, new RegExp(`[Oo]pen (<[^>]+>)?${other}`), `${file}: it must name ${other} as somewhere to open`);
-    assert.match(description, new RegExp(`${other}(</a>)? when`), `${file}: it must say when to open ${other} instead`);
+    // Social says how instead (#3186): the display name on an image post opens it.
+    const how = file === "social.html" ? /on an image post to open People with/ : new RegExp(`${other}(</a>)? when`);
+    assert.match(description, how, `${file}: it must say when or how to open ${other}`);
   }
 
   assert.notEqual(descriptions[0], descriptions[1], "the two descriptions must not be the same sentence");
