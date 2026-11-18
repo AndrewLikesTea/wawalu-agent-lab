@@ -160,7 +160,8 @@ test("the homepage names the Decision log and explains browsing and recording", 
   // paragraph before it is the promise's explanation.
   const lede = hero.querySelectorAll("p").filter((p) => p.parentNode === hero && !p.getAttribute("class"));
   assert.equal(lede.length, 2);
-  assert.match(lede[0].textContent, /^Shiplog records decisions, tracks the releases they shape/);
+  assert.match(lede[0].textContent, /^Shiplog is for engineering leads and release managers/);
+  assert.match(lede[0].textContent, /It records decisions, tracks the releases they shape/);
   const ledeText = lede[1].textContent;
   assert.match(ledeText, /Browse existing decisions or record a new one/);
   assert.doesNotMatch(ledeText, /reasoning behind shipped work/);

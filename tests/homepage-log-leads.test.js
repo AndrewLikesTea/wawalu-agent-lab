@@ -218,20 +218,22 @@ test("the painted front door leads with the promise, then names the log", async 
   const order = blocks.map((node) => node.getAttribute("id") || textOf(node).slice(0, 40));
   const at = (prefix) => order.findIndex((label) => label.startsWith(prefix));
   assert.equal(at("page-title"), 0, `the promise must open the hero: ${order.join(" | ")}`);
-  assert.match(textOf(blocks[1]),
-    /^Shiplog records decisions, tracks the releases they shape, and keeps the link between them\./);
-  // #3019: the paragraph under the promise names who it is for and the
-  // situation that makes it worth adopting, on load and above the decision form.
-  assert.match(textOf(blocks[1]),
-    /It is for engineering leads and release managers whose reasoning behind a release is scattered across chat, tickets, and documents\./);
+  // #3188: the buyer and their problem come first, then what Shiplog does,
+  // then one plain sentence on where records live in this build.
+  const lede = textOf(blocks[1]);
+  const sentences = lede.split(/(?<=\.)\s+/);
+  assert.deepEqual(sentences, [
+    "Shiplog is for engineering leads and release managers whose reasoning behind a release is scattered across chat, tickets, and documents.",
+    "It records decisions, tracks the releases they shape, and keeps the link between them.",
+    "In this build, records are saved in your browser and move between teammates as a file.",
+  ]);
+  assert.equal(sentences.filter((s) => /browser|file/.test(s)).length, 1, "one browser-only/file sentence");
   assert.equal((textOf(main).match(/engineering leads and release managers/g) ?? []).length, 1);
   assert.equal(blocks[1].querySelectorAll("a,button,details").length, 0, "the buyer sentence must add no tab stop");
-  // #3082: records are browser-local, so the late teammate gets them through
-  // the same file export and import the Team handoff criterion evaluates. The
-  // stays-in-this-browser claim itself is made once, by the recorder (#2941).
-  // #3148: the export is named by its panel, as Releases names it.
-  assert.match(textOf(blocks[1]),
-    /In this build, you download every record as a JSON file with “Export history”, and a teammate who arrives six months later imports it in their own browser and reads that reasoning in one place\./);
+  // The hero's own prose no longer quotes the file panels or says where the
+  // form is; the pilot scorecard preview inside the hero still names its controls.
+  const prose = blocks.filter((node) => node.tagName === "P").map(textOf).join(" ");
+  assert.doesNotMatch(prose, /Export history|Import history|further down this page/);
   assert.doesNotMatch(textOf(hero), /opens the release/);
   assert.ok(!ancestorIds(document.getElementById("decision-form")).includes("top"),
     "the buyer and trigger sit in the hero, which the decision form follows");
@@ -263,10 +265,16 @@ test("the painted front door leads with the promise, then names the log", async 
   assert.ok(!ancestorIds(sequence[demoAt - 1]).includes("main-content"), "a stop was added above the demo link");
   assert.ok(ancestorIds(sequence[sequence.indexOf(heroStops.at(-1)) + 1]).includes("record-history"), "the recorder follows the evidence links");
 
-  // The directional sentence: the recorder, filters, export, and import still
-  // follow the opening section, and the two file panels go by their own names.
-  assert.match(textOf(hero),
-    /The decision form, search, filters, “Export history”, and “Import history” are all further down this page\./);
+  // #3188: the teammate handoff moved out of the hero to the export control,
+  // as plain text that describes it and adds no tab stop.
+  const handoff = document.getElementById("export-shiplog-handoff");
+  assert.equal(textOf(handoff),
+    "To hand your records to a teammate, send them this file. They import it in their own browser with “Choose JSON file” under “Import history” below.");
+  assert.equal(document.getElementById("export-shiplog").getAttribute("aria-describedby"), "export-shiplog-handoff");
+  assert.equal(handoff.parentNode, document.getElementById("export-shiplog").parentNode);
+  assert.equal(handoff.querySelectorAll("a,button,details").length, 0);
+  assert.equal(handoff.getAttribute("tabindex"), null);
+  assert.ok(!ancestorIds(handoff).includes("top"));
   const panelNames = document.querySelectorAll(".export-panel")
     .flatMap((panel) => panel.querySelectorAll(".eyebrow").map(textOf));
   for (const label of ["Export history", "Import history"]) assert.ok(panelNames.includes(label), label);

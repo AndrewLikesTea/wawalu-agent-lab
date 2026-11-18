@@ -51,7 +51,7 @@
       <section class="hero" id="top" aria-labelledby="page-title">
         <p class="eyebrow">Shiplog · decision and release log</p>
         <h1 id="page-title">Know why it shipped. Decide what’s next.</h1>
-        <p>Shiplog records decisions, tracks the releases they shape, and keeps the link between them. It is for engineering leads and release managers whose reasoning behind a release is scattered across chat, tickets, and documents. In this build, you download every record as a JSON file with “Export history”, and a teammate who arrives six months later imports it in their own browser and reads that reasoning in one place. The decision form, search, filters, “Export history”, and “Import history” are all further down this page.</p>
+        <p>Shiplog is for engineering leads and release managers whose reasoning behind a release is scattered across chat, tickets, and documents. It records decisions, tracks the releases they shape, and keeps the link between them. In this build, records are saved in your browser and move between teammates as a file.</p>
         <!-- The promise leads (#2827); the log keeps its name as the heading of
              what a visitor can do in it. Neither block above adds a tab stop. -->
         <h2 id="home-log-title">Decision log</h2>
@@ -564,7 +564,8 @@
         <p id="shiplog-archive-note" class="hint">Complete archive: every decision and release stored in this browser, regardless of filters. This download sends those records to the Shiplog server to build the file, and the server does not retain them.</p>
         <button id="download-shiplog-archive" type="button" aria-describedby="shiplog-archive-note">Download complete Shiplog archive</button>
         <p id="shiplog-archive-status" role="status" aria-live="polite"></p>
-        <button id="export-shiplog" type="button">Download JSON</button>
+        <button id="export-shiplog" type="button" aria-describedby="export-shiplog-handoff">Download JSON</button>
+        <p class="hint" id="export-shiplog-handoff">To hand your records to a teammate, send them this file. They import it in their own browser with “Choose JSON file” under “Import history” below.</p>
         <!-- Recovery from a filter that matches nothing. Hidden until that
              happens, so it is not a tab stop on the ordinary path, and it runs
              the history's own reset rather than a second idea of "clear". The
