@@ -6,6 +6,7 @@
     <meta name="description" content="Image posts published under one display name in Social, a Wawalu Lab showcase" />
     <title>People · public image posts from Social · Wawalu Lab</title>
     <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/lab-shiplog-followup.css" />
     <link rel="stylesheet" href="/social-states.css" />
   </head>
   <body>
@@ -482,22 +483,19 @@
           </p>
         </div>
       </section>
-      <!-- The Shiplog asks close the page, after the filter, the image posts and
-           the publishing paths (#2883). They used to be the hero's actions, so
-           the first stops on a lab tool were requests for a Shiplog sale. The
-           caption stays in the label's row: a caption stranded away from its
-           control describes something nowhere near it. -->
-      <div class="hero-actions">
-        <a class="text-link" id="ask-about-shiplog" href="#site-footer-panel" aria-describedby="ask-about-shiplog-description">Send a Shiplog follow-up request</a>
-        <p class="hint" id="ask-about-shiplog-description">Send a Shiplog follow-up request, and a person on the Wawalu team that operates it replies by email, usually within two working days.</p>
-        <a class="text-link" id="ask-about-shiplog-demo" data-follow-up-intent="demo" href="#site-footer-intent-demo">Request a Shiplog demonstration</a>
-        <a class="text-link" id="ask-about-shiplog-pilot" data-follow-up-intent="pilot" href="#site-footer-intent-pilot">Discuss a Shiplog pilot</a>
-      </div>
       </main>
     </div>
-    <footer class="site-footer" id="site-footer" aria-labelledby="site-footer-title">
+    <footer class="site-footer" id="site-footer" aria-labelledby="site-footer-title" data-lab-shiplog-followup>
       <div class="site-footer-inner">
         <h2 class="site-footer-title" id="site-footer-title">About Shiplog</h2>
+        <div class="hero-actions" id="ask-about-shiplog-actions">
+          <a class="text-link" id="ask-about-shiplog" href="#site-footer-panel" aria-describedby="ask-about-shiplog-description">Send a Shiplog follow-up request</a>
+          <p class="hint" id="ask-about-shiplog-description">Send a Shiplog follow-up request, and a person on the Wawalu team that operates it replies by email, usually within two working days.</p>
+          <div class="hero-actions" id="ask-about-shiplog-intents">
+            <a class="text-link" id="ask-about-shiplog-demo" data-follow-up-intent="demo" href="#site-footer-intent-demo">Request a Shiplog demonstration</a>
+            <a class="text-link" id="ask-about-shiplog-pilot" data-follow-up-intent="pilot" href="#site-footer-intent-pilot">Discuss a Shiplog pilot</a>
+          </div>
+        </div>
         <p class="site-footer-identity">Shiplog is a decision and release log: it records a decision, tracks the release it shaped, and keeps the two linked. Every destination except Home, Decision log, and Releases is a separate lab tool, not part of Shiplog. Shiplog is a demonstration product, built and operated by Wawalu at labs.wawalu.org.</p>
         <p class="site-footer-identity site-footer-pitch">Shiplog is for engineering teams that have to explain why something shipped. <a href="/decision.html?id=demo-queue">See an example decision and the release it shaped</a>.</p>
         <p class="site-footer-identity"><a id="site-footer-source" href="https://github.com/AndrewLikesTea/wawalu-agent-lab">Open the public repository this site is built from</a></p>

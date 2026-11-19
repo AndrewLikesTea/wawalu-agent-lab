@@ -333,7 +333,7 @@ test("the composer is read after the feed and before the contact route, and adds
       walk(child);
     }
   };
-  walk(document.querySelector("#main-content"));
+  walk(document);
 
   const at = (selector) => {
     const node = document.querySelector(selector);
@@ -350,7 +350,7 @@ test("the composer is read after the feed and before the contact route, and adds
   // The same criterion as text: from "How reporting works" to the sentence it
   // links to, no Shiplog demonstration or pilot ask is read (#2883), and every
   // one of the three Shiplog asks is read after the feed and the composer.
-  const text = textOf(document.querySelector("#main-content"));
+  const text = textOf(document);
   const route = text.indexOf("How reporting works");
   // The heading repeats the link's words (#3096), so the answer is the second.
   const answer = text.indexOf("How reporting works", route + 1);
@@ -367,11 +367,9 @@ test("the composer is read after the feed and before the contact route, and adds
   assert.ok(order.indexOf(cards[cards.length - 1]) < at("#post-compose-panel"),
     "the composer is read before the last post");
 
-  // About Shiplog is the site footer, outside #main-content, so the composer
-  // precedes it by construction. Asserted as an index rather than against the
-  // node, because comparing a parsed element to a value inspects the page.
-  assert.equal(order.indexOf(document.querySelector("#site-footer-title")), -1,
-    "About Shiplog moved inside #main-content, where the walk above no longer bounds it");
+  // The shared Shiplog landmark follows the tool and stays outside its main.
+  assert.ok(!document.querySelector("#site-footer-title").closest("main"));
+  assert.ok(at("#site-footer-title") > at("#post-compose-panel"));
 
   // The criterion the move must not pay for. The composer still has exactly one
   // entry point above the filters — the hero control that was already there.

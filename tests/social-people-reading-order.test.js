@@ -20,7 +20,7 @@ for (const surface of surfaces) {
     const { document } = page;
     const order = [];
     const walk = (node) => { for (const child of node.children) { order.push(child); walk(child); } };
-    walk(document.querySelector("#main-content"));
+    walk(document);
     let previous = -1;
     for (const selector of surface.sequence) {
       const node = document.querySelector(selector);
@@ -46,8 +46,8 @@ for (const surface of surfaces) {
       "the contact route is read before the feed it follows");
     let stops = tabSequence(document).filter((node) => node.closest("#main-content"));
     // #2883: no Shiplog ask is a stop until the tool's own stops are done —
-    // the route and its two direct asks are the last three in <main>.
-    assert.deepEqual(stops.slice(-3).map((node) => node.id),
+    // the route and its two direct asks begin the separate footer.
+    assert.deepEqual(tabSequence(document).filter((node) => node.closest("#site-footer")).slice(0, 3).map((node) => node.id),
       ["ask-about-shiplog", "ask-about-shiplog-demo", "ask-about-shiplog-pilot"]);
     // People's introduction ends on the lab identity line, whose one link is
     // the route to Shiplog (#2864); creation shortcuts follow, then the picker.

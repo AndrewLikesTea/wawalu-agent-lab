@@ -10,22 +10,12 @@ import {
   ASK_ABOUT_SHIPLOG_DESCRIPTION, ASK_ABOUT_SHIPLOG_DESCRIPTION_ID,
 } from "../src/ask-about-shiplog.js";
 
-// The third entry is the region the route belongs to on that page, and the
-// fourth is the class its immediate container carries. The region is the page's
-// introduction wherever the route is the introduction's own action; since #2654
-// the prompt coach carries it below the grade for the same reason, so the page's
-// promise is not separated from the example that keeps it. Social is the one
-// page where the route belongs to no region: it used to close the feed panel's
-// supporting block, and since #2709 the composer is read after the feed, so the
-// route closes the page below the composer instead. Its container is
-// <main> itself, which carries no class — hence the null. Since #2883 People's
-// row closes the page too, after the image posts, so its region is <main>.
-// Since #2884 the observatory's row follows the merged pull request figure
-// rather than sitting in the introduction, so its region is its own row.
+// The third entry identifies the contact region; the fourth its action row.
+// Lab tools keep their existing links together in the footer, after the tool.
 const pages = [
   ["coach", "follow_up_coach", "#ask-about-shiplog-actions", "hero-actions"],
-  ["social", "follow_up_social", "#main-content", null],
-  ["profile", "follow_up_people", "#main-content", "hero-actions"],
+  ["social", "follow_up_social", "#site-footer", "hero-actions"],
+  ["profile", "follow_up_people", "#site-footer", "hero-actions"],
   ["agents", "follow_up_agents", "#ask-about-shiplog-actions", "hero-actions"],
 ];
 

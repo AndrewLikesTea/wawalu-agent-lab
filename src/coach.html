@@ -6,6 +6,7 @@
     <meta name="description" content="Grade a prompt against a bundled rubric, in your browser tab. Your prompt is kept only temporarily in this browser, and is not uploaded or sent to a model." />
     <title>Prompt coach · Wawalu Lab</title>
     <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/lab-shiplog-followup.css" />
     <!-- The coaching surface's styles live beside the rubric they present, in
          the AI FinOps stylesheet, and this page loads the same file rather than
          a second copy of the same rules. -->
@@ -264,33 +265,6 @@
         </details>
       </section>
 
-      <!-- THE ASK, BELOW THE GRADE (#2654). The route and the three sentences
-           explaining it used to close the introduction, which put a paragraph
-           about a follow-up form between this page's one promise and the
-           bundled example that keeps it. The introduction now reads the page's
-           name and that one sentence, the grade answers for itself, and the ask
-           follows it — the shape Social already ships, where the hero carries
-           the page's own action and the contact route closes the supporting
-           material.
-
-           It reads before the "Also on this site" card rather than inside it:
-           that card is about two other destinations, and the errand this route
-           runs is about this one.
-
-           The label and its line move as one unit, in one container, the way
-           every other page carrying this route keeps them — the line is still
-           the label's accessible description through aria-describedby, and it
-           is still static text rather than a disclosure, because this page has
-           no tab stop to spare on a control that only explains another one.
-           Same classes, same bytes, same ids: only the place moved, so the pair
-           still wraps and stacks at narrow widths (.hero-actions in
-           styles.css) and costs no rule. -->
-      <div class="hero-actions" id="ask-about-shiplog-actions">
-        <a class="text-link" id="ask-about-shiplog" href="#site-footer-panel" aria-describedby="ask-about-shiplog-description">Send a Shiplog follow-up request</a>
-        <p class="hint" id="ask-about-shiplog-description">Send a Shiplog follow-up request, and a person on the Wawalu team that operates it replies by email, usually within two working days.</p>
-        <a class="text-link" id="ask-about-shiplog-demo" data-follow-up-intent="demo" href="#site-footer-intent-demo">Request a Shiplog demonstration</a>
-        <a class="text-link" id="ask-about-shiplog-pilot" data-follow-up-intent="pilot" href="#site-footer-intent-pilot">Discuss a Shiplog pilot</a>
-      </div>
 
       <!-- Where the neighbouring surfaces are, said once, at the foot of the
            page rather than beside the workflow: a visitor who came here to
@@ -331,9 +305,17 @@
       </section>
       </main>
     </div>
-    <footer class="site-footer" id="site-footer" aria-labelledby="site-footer-title">
+    <footer class="site-footer" id="site-footer" aria-labelledby="site-footer-title" data-lab-shiplog-followup>
       <div class="site-footer-inner">
         <h2 class="site-footer-title" id="site-footer-title">About Shiplog</h2>
+        <div class="hero-actions" id="ask-about-shiplog-actions">
+          <a class="text-link" id="ask-about-shiplog" href="#site-footer-panel" aria-describedby="ask-about-shiplog-description">Send a Shiplog follow-up request</a>
+          <p class="hint" id="ask-about-shiplog-description">Send a Shiplog follow-up request, and a person on the Wawalu team that operates it replies by email, usually within two working days.</p>
+          <div class="hero-actions" id="ask-about-shiplog-intents">
+            <a class="text-link" id="ask-about-shiplog-demo" data-follow-up-intent="demo" href="#site-footer-intent-demo">Request a Shiplog demonstration</a>
+            <a class="text-link" id="ask-about-shiplog-pilot" data-follow-up-intent="pilot" href="#site-footer-intent-pilot">Discuss a Shiplog pilot</a>
+          </div>
+        </div>
         <p class="site-footer-identity">Shiplog is a decision and release log: it records a decision, tracks the release it shaped, and keeps the two linked. Every destination except Home, Decision log, and Releases is a separate lab tool, not part of Shiplog. Shiplog is a demonstration product, built and operated by Wawalu at labs.wawalu.org.</p>
         <p class="site-footer-identity site-footer-pitch">Shiplog is for engineering teams that have to explain why something shipped. <a href="/decision.html?id=demo-queue">See an example decision and the release it shaped</a>.</p>
         <p class="site-footer-identity"><a id="site-footer-source" href="https://github.com/AndrewLikesTea/wawalu-agent-lab">Open the public repository this site is built from</a></p>

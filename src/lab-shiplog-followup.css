@@ -1,0 +1,18 @@
+/* Lab tools end before the shared Shiplog contentinfo landmark. The rule,
+   spacing and heading make that transition readable without colour. Values
+   reuse the site footer, section heading and foundation surface/ink tokens. */
+[data-lab-shiplog-followup] { border-top:1px solid #898781; background:#fcfcfb; }
+[data-lab-shiplog-followup] .site-footer-inner { gap:18px; padding-top:30px; }
+[data-lab-shiplog-followup] .site-footer-title { color:#171713; font:700 18px/1.4 Inter,ui-sans-serif,system-ui,sans-serif; letter-spacing:normal; text-transform:none; }
+[data-lab-shiplog-followup] .hero-actions { margin:0; }
+[data-lab-shiplog-followup] .hero-actions .hint { flex-basis:100%; margin:0; }
+[data-lab-shiplog-followup] a { overflow-wrap:anywhere; }
+[data-lab-shiplog-followup] .site-footer-field input { border-color:#898781; }
+@media (prefers-color-scheme:dark) {
+  [data-lab-shiplog-followup] { background:#1a1a19; color:#fff; color-scheme:dark; --focus-ring:#8bc2ff; }
+  [data-lab-shiplog-followup] :is(.site-footer-title, .site-footer-invitation) { color:#fff; }
+  [data-lab-shiplog-followup] :is(.site-footer-identity, .site-footer-demos, .hero-actions .hint, summary.site-footer-note) { color:#c3c2b7; }
+  [data-lab-shiplog-followup] :is(.site-footer-inner > a, .site-footer-identity a, .hero-actions a, .site-footer-demos a) { color:#8bc2ff; }
+  /* Preserve the form's existing state and control contrasts on its own surface. */
+  [data-lab-shiplog-followup] .site-footer-panel { background:#fcfcfb; color:#171713; color-scheme:light; --focus-ring:#155f9e; }
+}

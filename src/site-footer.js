@@ -238,22 +238,26 @@ export const FOLLOW_UP_REDIRECT = Object.freeze({
  * `followUpTopic` is always stated in prose. The read-only control that used to
  * be its other shape lost its last page in #2168; tests hold that shape gone.
  *
+ * `labBoundary` separates a lab tool from Shiplog; `followUpActions` moves
+ * its existing contact shortcuts into that landmark, after all tool controls.
+ *
  * `identity` adds the optional name and organization below the address. Only
  * the home page turns it off: its form is email-only by design.
  */
 export function siteFooterMarkup(indent = "    ", {
   redirect = null, followUpType = null, followUpTopic = null,
   collapsedDemos = false, askMessage = false, offer = false, invitation = INVITATION,
-  assets = false, tool = null, identity = true,
+  assets = false, tool = null, identity = true, labBoundary = false, followUpActions = [],
 } = {}) {
   const contact = redirect ? [
     `    <a class="site-footer-redirect-link" href="${redirect.href}">${redirect.label}</a>`,
   ] : contactFormLines(followUpType, followUpTopic, askMessage, offer, invitation, tool, identity);
   const directory = demoListLines(collapsedDemos);
   const lines = [
-    '<footer class="site-footer" id="site-footer" aria-labelledby="site-footer-title">',
+    `<footer class="site-footer" id="site-footer" aria-labelledby="site-footer-title"${labBoundary ? ' data-lab-shiplog-followup' : ''}>`,
     '  <div class="site-footer-inner">',
     '    <h2 class="site-footer-title" id="site-footer-title">About Shiplog</h2>',
+    ...followUpActions,
     `    <p class="site-footer-identity">${IDENTITY}</p>`,
     `    <p class="site-footer-identity site-footer-pitch">${PITCH} <a href="${PITCH_HREF}">${PITCH_LINK}</a>.</p>`,
     `    <p class="site-footer-identity"><a id="site-footer-source" href="${REPOSITORY_URL}">${SOURCE_LINK_LABEL}</a></p>`,
