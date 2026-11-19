@@ -357,7 +357,7 @@ test("the recorder markup groups the picker and never builds HTML from stored te
   // control, so the platform supplies the picker and the format hint; the
   // summary is required in the markup as well as in createRelease().
   assert.match(page, /id="release-released-on" name="releasedOn" type="date" required/);
-  assert.match(page, /<label for="release-released-on">Status date <span class="label-optional label-required">\(required\)<\/span><\/label>/);
+  assert.match(page, /<label for="release-released-on">Date shipped, planned, or cancelled <span class="label-optional label-required">\(required\)<\/span><\/label>/);
   assert.match(page, /<label for="release-description">Summary <span class="label-optional label-required">\(required\)<\/span><\/label>/);
   assert.match(page, /id="release-description" name="description"[^>]*\srequired/);
   // `required` is absent because linking decisions is optional.
