@@ -226,7 +226,14 @@ test("Social: reporting a post is a headed list of steps, then what happens afte
   ]);
   assert.equal(textOf(id("post-report-privacy")), REPORT_EMAIL_NOTE);
   assert.match(textOf(id("post-report-privacy")), /It is not published with the post/);
-  assert.match(textOf(id("post-report-privacy")), /The team sends no automatic confirmation\./);
+  // What happens on submit and what happens after review are two sentences,
+  // not one blended promise (#3191).
+  const confirmation = "You get no confirmation email when you send a report.";
+  const afterReview = "The team emails you only if it needs more detail, and does not email you the outcome of its review.";
+  for (const sentence of [confirmation, afterReview]) {
+    assert.equal(textOf(id("post-report-privacy")).split(sentence).length - 1, 1, `Social's guidance lost: ${sentence}`);
+  }
+  assert.ok(REPORT_EMAIL_NOTE.endsWith(`${confirmation} ${afterReview}`));
   assert.match(textOf(id("post-report-outcome")), /The post stays up unless the team decides after review to remove it\.$/);
   const shiplog = id("post-report-not-shiplog");
   assert.equal(textOf(shiplog),

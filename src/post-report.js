@@ -38,8 +38,10 @@ export const REPORT_SENT_NOTE = "Send report sends this post, your reason, your 
 // confirmation: handlePostReportRequest (src/post-reports-api.js:117-120)
 // stores the row and answers with an id and a status — nothing in this
 // repository sends the reporter mail, so the follow-up form's "a person replies
-// … usually within two working days" would be false here.
-export const REPORT_EMAIL_NOTE = "Your email address is required, and the Wawalu team uses it only to contact you about this report. It is not published with the post, and whoever published the post never sees it. The team sends no automatic confirmation.";
+// … usually within two working days" would be false here. No outcome email
+// either (#3191): migration 0013 lets a report move to "reviewed" or
+// "dismissed", but no code mails the reporter when it does.
+export const REPORT_EMAIL_NOTE = "Your email address is required, and the Wawalu team uses it only to contact you about this report. It is not published with the post, and whoever published the post never sees it. You get no confirmation email when you send a report. The team emails you only if it needs more detail, and does not email you the outcome of its review.";
 // How to file a report, one step per control a reader meets, each named as it
 // is drawn: the card's Report post button, the "Reason" radios, the optional
 // "Note for the team", the "Your email address" field and Send report (#2932).
