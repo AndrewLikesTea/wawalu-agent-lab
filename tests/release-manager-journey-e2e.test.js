@@ -232,8 +232,8 @@ async function recordRelease(t, storage, { linkTitle }) {
 
   const dateField = page.document.querySelector("#release-released-on");
   const dateHint = page.document.getElementById(dateField.getAttribute("aria-describedby"));
-  assert.equal(textOf(dateField.parentNode.querySelector("label")), "Status date (required)");
-  assert.equal(textOf(dateHint), "Completed: ship date. Planned: planned ship date. Cancelled: cancellation date. Enter the status date as YYYY-MM-DD.");
+  assert.equal(textOf(dateField.parentNode.querySelector("label")), "Date shipped, planned, or cancelled (required)");
+  assert.equal(textOf(dateHint), "Completed: the day it shipped. Planned: the day you expect it to ship. Cancelled: the day it was cancelled. Use YYYY-MM-DD.");
   assert.equal(dateHint.parentNode, dateField.parentNode, "date guidance appears beside the release date field");
   for (let node = dateHint; node; node = node.parentNode) {
     assert.ok(!node.hidden, "date guidance is visible before submission");

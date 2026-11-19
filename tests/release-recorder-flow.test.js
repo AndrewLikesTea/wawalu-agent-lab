@@ -571,14 +571,21 @@ test("the date hint names the day to enter for each status, in the stated format
 
   const field = page.document.querySelector("#release-released-on");
   assert.equal(field.getAttribute("aria-describedby"), "release-released-on-hint");
+  // The label names the three dates itself, so a visitor need not decode a
+  // generic "Status date" — and it never says every release shipped.
+  const label = textOf(page.document.querySelector('label[for="release-released-on"]'));
+  assert.equal(label, "Date shipped, planned, or cancelled (required)");
+  assert.doesNotMatch(label, /Status date|^Ship date|Release date/);
   const hint = textOf(page.document.querySelector("#release-released-on-hint"));
   assert.equal(hint,
-    "Completed: ship date. Planned: planned ship date. Cancelled: cancellation date. Enter the status date as YYYY-MM-DD.");
+    "Completed: the day it shipped. Planned: the day you expect it to ship. Cancelled: the day it was cancelled. Use YYYY-MM-DD.");
   // Each status the form offers is answered by the hint: shipped, planned, and
   // cancelled, with the format the field is validated against still stated.
-  assert.match(hint, /Completed: ship date/);
-  assert.match(hint, /Planned: planned ship date/);
-  assert.match(hint, /Cancelled: cancellation date/);
+  const statuses = [...page.document.getElementById("release-form-status").children].map((o) => textOf(o).trim()).filter(Boolean);
+  for (const status of ["Completed", "Planned", "Cancelled"]) assert.ok(statuses.includes(status), status);
+  assert.match(hint, /Completed: the day it shipped\./);
+  assert.match(hint, /Planned: the day you expect it to ship\./);
+  assert.match(hint, /Cancelled: the day it was cancelled\./);
   assert.match(hint, /YYYY-MM-DD/);
   // The one reading it must not permit: a cancelled release having shipped.
   assert.doesNotMatch(hint, /cancelled release shipped/i);
