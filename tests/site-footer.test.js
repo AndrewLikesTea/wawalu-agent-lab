@@ -1,3 +1,4 @@
+import { LAB_SHIPLOG_ACTIONS } from "../src/lab-shiplog-followup.js";
 // One footer, on every page, with one way to reach a person.
 //
 // Two halves, for two different failure modes:
@@ -136,6 +137,7 @@ const FOOTER_VARIANT = new Map([
   }],
   ["executive-briefing.html", { redirect: FOLLOW_UP_REDIRECT.briefing }],
   ["coach.html", {
+    labBoundary: true, followUpActions: LAB_SHIPLOG_ACTIONS,
     followUpType: "follow_up_coach", followUpTopic: FOLLOW_UP_TOPICS.follow_up_coach,
     invitation: TOOL_INVITATION("Prompt coach"),
     collapsedDemos: true, askMessage: true, offer: true, assets: true, tool: FOLLOW_UP_TOOL_TOPICS.follow_up_coach,
@@ -150,6 +152,7 @@ const FOOTER_VARIANT = new Map([
   // tests/footer-directory-order.test.js holds the order and the survival of
   // every row; the twelve remaining pages keep the open list.
   ["post.html", {
+    labBoundary: true,
     followUpType: "follow_up_social", followUpTopic: POST_FOLLOW_UP_TOPIC,
     // #2436: the block used to be headed "Questions about this post from
     // Social?" while every topic under it is about Shiplog, so it promised
@@ -187,11 +190,13 @@ const FOOTER_VARIANT = new Map([
   // ask about that tool instead of Shiplog. The page's tool name is passed here
   // and rendered into its markup, not kept in the shared footer module.
   ["social.html", {
+    labBoundary: true, followUpActions: LAB_SHIPLOG_ACTIONS,
     followUpType: "follow_up_social", followUpTopic: FOLLOW_UP_TOPICS.follow_up_social,
     invitation: FEED_INVITATION("Social"),
     collapsedDemos: true, askMessage: true, offer: true, assets: true, tool: FOLLOW_UP_TOOL_TOPICS.follow_up_social,
   }],
   ["profile.html", {
+    labBoundary: true, followUpActions: LAB_SHIPLOG_ACTIONS,
     followUpType: "follow_up_people", followUpTopic: FOLLOW_UP_TOPICS.follow_up_people,
     invitation: FEED_INVITATION("People"),
     collapsedDemos: true, askMessage: true, offer: true, assets: true, tool: FOLLOW_UP_TOOL_TOPICS.follow_up_people,

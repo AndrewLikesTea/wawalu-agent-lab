@@ -6,6 +6,7 @@
     <meta name="description" content="Social, a Wawalu Lab showcase — a shared demo feed of short posts about shipped work, images optional" />
     <title>Social · Wawalu Lab</title>
     <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/lab-shiplog-followup.css" />
     <link rel="stylesheet" href="/social-states.css" />
     <link rel="stylesheet" href="/social-composer.css" />
     <link rel="stylesheet" href="/state-ui.css" />
@@ -886,24 +887,19 @@
         <p class="hint" id="post-report-outcome">The report goes only to the Wawalu team, who review each one. The post stays up unless the team decides after review to remove it.</p>
         <p class="hint" id="post-report-not-shiplog">Questions about Social or Shiplog that are not about one post go to the <a class="text-link" href="#site-footer-panel">follow-up request</a> at the foot of this page.</p>
       </section>
-      <!-- The contact route closes the page. The feed, the composer and the
-           reporting explanation are this tool's own content, and the Shiplog
-           asks follow all of them (#2883). They used to sit between the
-           composer's Close control and the reporting explanation, so the
-           "How reporting works" link landed past a sales pitch. The label keeps
-           its caption beside it in one container, the invariant
-           tests/social-people-reading-order.test.js holds. -->
-      <a class="text-link" id="ask-about-shiplog" href="#site-footer-panel" aria-describedby="ask-about-shiplog-description">Send a Shiplog follow-up request</a>
-      <p class="hint" id="ask-about-shiplog-description">Send a Shiplog follow-up request, and a person on the Wawalu team that operates it replies by email, usually within two working days.</p>
-      <div class="hero-actions" id="ask-about-shiplog-intents">
-        <a class="text-link" id="ask-about-shiplog-demo" data-follow-up-intent="demo" href="#site-footer-intent-demo">Request a Shiplog demonstration</a>
-        <a class="text-link" id="ask-about-shiplog-pilot" data-follow-up-intent="pilot" href="#site-footer-intent-pilot">Discuss a Shiplog pilot</a>
-      </div>
       </main>
     </div>
-    <footer class="site-footer" id="site-footer" aria-labelledby="site-footer-title">
+    <footer class="site-footer" id="site-footer" aria-labelledby="site-footer-title" data-lab-shiplog-followup>
       <div class="site-footer-inner">
         <h2 class="site-footer-title" id="site-footer-title">About Shiplog</h2>
+        <div class="hero-actions" id="ask-about-shiplog-actions">
+          <a class="text-link" id="ask-about-shiplog" href="#site-footer-panel" aria-describedby="ask-about-shiplog-description">Send a Shiplog follow-up request</a>
+          <p class="hint" id="ask-about-shiplog-description">Send a Shiplog follow-up request, and a person on the Wawalu team that operates it replies by email, usually within two working days.</p>
+          <div class="hero-actions" id="ask-about-shiplog-intents">
+            <a class="text-link" id="ask-about-shiplog-demo" data-follow-up-intent="demo" href="#site-footer-intent-demo">Request a Shiplog demonstration</a>
+            <a class="text-link" id="ask-about-shiplog-pilot" data-follow-up-intent="pilot" href="#site-footer-intent-pilot">Discuss a Shiplog pilot</a>
+          </div>
+        </div>
         <p class="site-footer-identity">Shiplog is a decision and release log: it records a decision, tracks the release it shaped, and keeps the two linked. Every destination except Home, Decision log, and Releases is a separate lab tool, not part of Shiplog. Shiplog is a demonstration product, built and operated by Wawalu at labs.wawalu.org.</p>
         <p class="site-footer-identity site-footer-pitch">Shiplog is for engineering teams that have to explain why something shipped. <a href="/decision.html?id=demo-queue">See an example decision and the release it shaped</a>.</p>
         <p class="site-footer-identity"><a id="site-footer-source" href="https://github.com/AndrewLikesTea/wawalu-agent-lab">Open the public repository this site is built from</a></p>

@@ -114,7 +114,7 @@ test("the Shiplog asks are read after the filter, the image posts and the publis
   try {
     const { document } = page;
     await waitFor(() => drawnTiles(document).length > 0, "the grid drew real tiles");
-    const text = textOf(document.querySelector("#main-content"));
+    const text = textOf(document);
     // The heading's words follow the selection, so it is read off the heading.
     const heading = textOf(document.querySelector("#grid-title")).trim();
     assert.match(heading, /image posts/i);
@@ -155,12 +155,12 @@ test("the picker is read and reached before the name, the count, and the results
     // The introduction and creation links lead into the display-name filters. Before
     // them, the lab identity line's route to Shiplog is read with the
     // introduction (#2864). The Shiplog asks (#2807) close the page instead
-    // (#2883): they are the last stops in <main>, after every tool control.
+    // (#2883): they begin the footer, after every tool control.
     const inMain = tabSequence(document).filter((element) => element.closest("#main-content"));
     assert.equal(inMain[0].parentNode.getAttribute("id"), "lab-identity");
     assert.deepEqual(inMain.slice(1, 3).map((element) => element.id), ["profile-create-social", "profile-create-paint"]);
     assert.deepEqual(inMain.slice(3, 6).map((element) => element.dataset.author), ["Ari", "Bea", "Zed"]);
-    assert.deepEqual(inMain.slice(-3).map((element) => element.id),
+    assert.deepEqual(tabSequence(document).filter((element) => element.closest("footer")).slice(0, 3).map((element) => element.id),
       ["ask-about-shiplog", "ask-about-shiplog-demo", "ask-about-shiplog-pilot"]);
     for (const chip of chips(page))
       assert.equal(chip.getAttribute("tabindex"), null, "the order is markup order, not a tabindex trick");
@@ -185,7 +185,7 @@ test("a first-time visitor learns a display name is not a profile before any pos
   try {
     const { document } = page;
     await waitFor(() => drawnTiles(document).length > 0, "the grid drew real tiles");
-    const text = textOf(document.querySelector("#main-content"));
+    const text = textOf(document);
     const firstTile = textOf(drawnTiles(document)[0]);
     for (const claim of [NOT_A_PROFILE, NOT_VERIFIED]) {
       assert.equal(text.split(claim).length - 1, 1, `the page does not say once: ${claim}`);
@@ -1041,7 +1041,7 @@ test("tabbing from the top reaches the picker, then the posts under the header",
     const inMain = tabSequence(document).filter((element) => element.closest("#main-content"));
     const outsidePanel = inMain.filter((element) => !element.closest(".list-panel"));
     assert.deepEqual(outsidePanel.map((element) => element.dataset?.author ?? element.getAttribute("href")),
-      ["/#decisions-title", "/social.html#post-form", "/paint/?from=profile", "Ari", "Bea", "Zed", "/social.html?author=Zed", "#site-footer-panel", "#site-footer-intent-demo", "#site-footer-intent-pilot"]);
+      ["/#decisions-title", "/social.html#post-form", "/paint/?from=profile", "Ari", "Bea", "Zed", "/social.html?author=Zed"]);
   } finally {
     page.restore();
   }
@@ -1469,7 +1469,7 @@ test("once People has drawn its tiles, the display-name caveat tells both cases 
 // post but the one they were about to publish. Asserted on the painted text, in
 // the states where the module has put the steps back.
 function assertCaveatFollowsProvenance(document, state) {
-  const text = textOf(document.querySelector("#main-content"));
+  const text = textOf(document);
   const invented = "Their display names are invented.";
   const other = "On any other post, whoever published it chose the name.";
   const end = text.indexOf(invented) + invented.length;

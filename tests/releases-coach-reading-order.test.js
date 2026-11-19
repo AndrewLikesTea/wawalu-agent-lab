@@ -124,8 +124,8 @@ const surfaces = [
     purpose: "follow_up_coach",
     // The heading, the promise and the in-browser data line it carries, the
     // region that holds the bundled example, and the example's own score.
-    before: ["#page-title", "#page-tagline", "#prompt-coaching-question", "#prompt-coach-sample-result"],
-    after: ["#coach-neighbour-title"],
+    before: ["#page-title", "#page-tagline", "#prompt-coaching-question", "#prompt-coach-sample-result", "#coach-neighbour-title"],
+    after: [],
   },
 ];
 
@@ -133,7 +133,7 @@ for (const surface of surfaces) {
   test(`${surface.name}: the page's own content is read before the ask that follows it`, async (t) => {
     const page = await surface.open(t);
     const { document } = page;
-    const order = readingOrder(document.getElementById("main-content"));
+    const order = readingOrder(document);
     const at = (selector) => {
       const nodes = document.querySelectorAll(selector);
       assert.equal(nodes.length, 1, `${surface.name}: ${selector} is painted ${nodes.length} times`);

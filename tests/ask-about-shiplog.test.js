@@ -257,15 +257,15 @@ test("all six pages carry their follow-up description once at the label", async 
     // index.html keeps its own caption; the other five render the shared one.
     if (file !== "index.html") assertSaysWhoAndWhen(textOf(described[0]), file);
 
-    // At the entry point and nowhere else. Beside the form it would be a
-    // caption for a destination the reader has already arrived at.
+    // At the entry point and nowhere else. Lab pages group that entry
+    // in the footer, outside the form, after all tool content.
     const route = document.getElementById(ASK_ABOUT_SHIPLOG_ID);
     assert.ok(route, `${file}: the page no longer carries the route this line describes`);
     assert.ok(described[0].parentNode === route.parentNode,
       `${file}: the description is not in the row the label sits in`);
     assert.equal(route.getAttribute("aria-describedby"), ASK_ABOUT_SHIPLOG_DESCRIPTION_ID,
       `${file}: a screen-reader user hears the label without the line explaining it`);
-    assert.equal(document.getElementById("site-footer")
+    assert.equal(document.getElementById("site-footer-form")
       .querySelectorAll(`#${ASK_ABOUT_SHIPLOG_DESCRIPTION_ID}`).length, 0,
       `${file}: the description is repeated beside the form it points at`);
 
