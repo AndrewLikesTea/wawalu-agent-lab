@@ -156,3 +156,52 @@ test('the shipped entry wires the footer and a direct-linked topic independently
   assert.ok(page.document.activeElement === page.document.getElementById('site-footer-email'));
   assert.equal(textOf(page.document.getElementById('site-footer-message-guidance')), NOTE_GUIDANCE.pilot);
 });
+
+for (const keyboard of [false, true]) {
+  test(`introductory demonstration CTA: ${keyboard ? 'Enter' : 'click'} uses the shipped form route`, async (t) => {
+    const page = await loadPage(new URL('../src/releases.html', import.meta.url));
+    t.after(() => page.restore());
+    window.Event = DomEvent;
+    const { importPageModule } = await import('./support/page-module.js');
+    await importPageModule('/releases-discussion-page.js');
+    const { document } = page;
+    const hero = document.querySelector('#top');
+    const link = hero.querySelector('#releases-demo-link');
+    assert.equal(link.tagName, 'A');
+    assert.equal(textOf(link), 'Request a Shiplog demonstration');
+    assert.equal(link.getAttribute('href'), '#site-footer-intent-demo');
+    assert.match(textOf(document.getElementById(link.getAttribute('aria-describedby'))),
+      /Shiplog follow-up form below with “A product demonstration” selected/);
+    assert.ok(link.classList.contains('text-link'));
+    assert.ok(link.parentNode.classList.contains('hero-actions'));
+    const { tabSequence } = await import('./support/browser.js');
+    assert.ok(tabSequence(document).includes(link));
+    document.getElementById('site-footer-intent-pilot').click();
+    link.focus();
+    if (keyboard) pressEnter(document); else link.click();
+    assert.equal(window.location.hash, '#site-footer-intent-demo');
+    assert.equal(document.activeElement?.id, 'site-footer-email');
+    const form = document.getElementById('site-footer-form');
+    assert.equal(document.querySelectorAll('#site-footer-form').length, 1);
+    assert.deepEqual(form.querySelectorAll('input[name="intent"]').filter((radio) => radio.checked)
+      .map((radio) => radio.value), ['demo']);
+    assert.equal(textOf(form.querySelector('label[for="site-footer-intent-demo"]')), 'A product demonstration');
+    // This surface is Shiplog-only: no separate tool can be selected.
+    assert.equal(form.querySelectorAll('input[name="subject"]').length, 0);
+    assert.match(textOf(form.querySelector('#site-footer-note')), /Your request goes to the Wawalu team that operates Shiplog\./);
+    assert.equal(textOf(form.querySelector('#site-footer-reply')),
+      'A person replies by email, usually within two working days.');
+    assert.equal(form.hidden, false);
+  });
+}
+
+test('intro CTA keeps the release log next and inherits wrapping and visible keyboard focus', async () => {
+  const html = await readFile(new URL('../src/releases.html', import.meta.url), 'utf8');
+  assert.ok(html.indexOf('id="releases-promise"') < html.indexOf('id="releases-demo-link"'));
+  assert.ok(html.indexOf('id="releases-demo-link"') < html.indexOf('id="releases-title"'));
+  assert.ok(html.indexOf('id="releases-title"') < html.indexOf('id="record-release"'));
+  const css = await readFile(new URL('../src/styles.css', import.meta.url), 'utf8');
+  assert.match(css, /\.hero-actions\s*\{[^}]*flex-wrap:wrap/);
+  assert.match(css, /\.hero-actions\{[^}]*flex-direction:column/);
+  assert.match(css, /a:focus-visible\s*\{[^}]*outline:3px solid/);
+});
