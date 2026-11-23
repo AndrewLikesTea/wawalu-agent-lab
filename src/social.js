@@ -1771,7 +1771,7 @@ export function mountSocialFeed(root, options = {}) {
     // the receipt would not link to is a link by another name.
     const permalinkUrl = postPermalink(saved?.id, pageLocation?.origin);
 
-    notice.replaceChildren(outcomeShape("success"), el("span", "publish-status", publishedPostLabel(saved)), document.createTextNode(" "));
+    notice.replaceChildren(outcomeShape("success"), el("span", "publish-status", publishedPostLabel(saved)), document.createTextNode(" This post is public. Anyone can read it. Display names are not verified, and more than one publisher can use the same one."));
     if (permalinkUrl) {
       const permalink = document.createElement("a");
       // Relative, and carrying the display name the post was published under:
@@ -1829,6 +1829,7 @@ export function mountSocialFeed(root, options = {}) {
     if (permalinkUrl) {
       notice.append(document.createTextNode(" "), renderPostCopyControl(permalinkUrl, {
         id: "publish-copy",
+        alwaysShowUrl: true,
         tag: "span",
         clipboard: options.clipboard,
       }));
