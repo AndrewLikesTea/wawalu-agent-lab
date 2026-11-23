@@ -19,7 +19,7 @@ assert.equal(OWN_POST_REMOVAL, REMOVAL);
 assert.ok(REPORT_REASONS.some((reason) => reason.label === "Mistaken or posted in error"), "the removal route names a reason the form does not offer");
 for (const file of ["social.html", "profile.html"]) {
   const markup = await readFile(new URL(`../src/${file}`, import.meta.url), "utf8");
-  assert.ok(markup.includes(`${PUBLISHED_POST_TERMS} ${REMOVAL} ${REPORT_CLAUSE}`), `${file} no longer follows the terms with the removal route and ${REPORT_CLAUSE}`);
+  assert.ok(markup.replace(/<[^>]+>/g, "").includes(`${PUBLISHED_POST_TERMS} ${REMOVAL} ${REPORT_CLAUSE}`), `${file} no longer follows the terms with the removal route and ${REPORT_CLAUSE}`);
 }
 
 // The block a shared link lands a stranger on. It used to be headed "Questions

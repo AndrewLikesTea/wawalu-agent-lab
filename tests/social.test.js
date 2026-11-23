@@ -861,7 +861,7 @@ test("People and Social state the terms of publishing in the same bytes", async 
   const social = await readFile(new URL("../src/social.html", import.meta.url), "utf8");
   const people = await readFile(new URL("../src/profile.html", import.meta.url), "utf8");
 
-  assert.equal(social.split(PUBLISH_CONSEQUENCE).length - 1, 1,
+  assert.equal(social.replace(/<[^>]+>/g, "").split(PUBLISH_CONSEQUENCE).length - 1, 1,
     "Social's composer does not carry the terms of publishing exactly once");
   assert.equal(people.split(PUBLISH_CONSEQUENCE).length - 1, 1,
     "People's helper no longer closes on the same terms, byte for byte");
@@ -1978,18 +1978,16 @@ test("with the composer open, only the submit says Publish and the opener says W
   // The consequence is untouched and still stands between the last field and the
   // button, named by the button that costs it. Order by walk, because the
   // harness rejects a descendant selector.
-  const siblings = document.querySelector("#post-form").childElements.map((node) => node.getAttribute("id"));
+  const siblings = documentOrder(document.querySelector("#post-form")).map((node) => node.getAttribute?.("id"));
   assert.ok(siblings.indexOf("post-consequence") >= 0 && siblings.indexOf("post-submit") >= 0,
-    `the composer no longer authors the consequence and the button as siblings: ${siblings}`);
+    `the composer no longer contains both the consequence and the button: ${siblings}`);
   assert.ok(siblings.indexOf("post-consequence") < siblings.indexOf("post-submit"),
     "the consequence moved below the button that costs it");
-  // Immediately above it: the only thing the rename may not have pushed between
-  // the two sentences and the press they are about is the refusal slot, which
-  // ships empty and hidden, and the missing-step slot (#2294), which does too
-  // until an image waits on a description.
-  assert.deepEqual(siblings.slice(siblings.indexOf("post-consequence") + 1, siblings.indexOf("post-submit")),
-    ["post-publish-blocker", "post-publish-reason"],
-    "something now renders between the publish consequence and the button it is about");
+  // Section headings can intervene, but no action may precede these warnings.
+  const between = documentOrder(document.querySelector("#post-form"));
+  assert.equal(between.slice(between.indexOf(id("post-consequence")) + 1,
+    between.indexOf(id("post-submit"))).some(node =>
+      ["BUTTON", "INPUT", "TEXTAREA", "A", "SUMMARY"].includes(node.tagName)), false);
   assert.equal(id("post-publish-blocker").hidden, true);
   assert.equal(id("post-publish-reason").hidden, true);
   assert.equal(textOf(id("post-consequence")), PUBLISH_CONSEQUENCE,
@@ -2577,7 +2575,7 @@ test("the composer says once, in its own name and beside Close, that the draft i
     "the sentence parts Publish post from Close instead of following Close");
   assert.equal(id("post-compose-cancel").getAttribute("aria-describedby"), "post-keyboard-hint");
   const opening = textOf(id("post-compose-panel")).split("Your post (required)")[0]
-    .replace("Write a post", "").trim();
+    .replace("Write a post", "").replace("Post content", "").trim();
   assert.equal(opening, textOf(id("post-form-hint")));
   assert.equal(opening.match(/[.!?](?:\s|$)/g).length, 2);
   assert.doesNotMatch(opening, /Escape|Close|tabs?|draft|wait/i);

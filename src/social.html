@@ -468,6 +468,8 @@
           <p id="paint-draft-note" class="hint" hidden></p>
 
           <form id="post-form" data-publish-state="idle" aria-labelledby="post-form-title" aria-describedby="post-form-hint" novalidate>
+            <section class="composer-section" aria-labelledby="post-content-title">
+              <h3 id="post-content-title">Post content</h3>
             <p class="hint" id="post-form-hint">Write your post. Add an image if you want one — a post with an image also appears on People, under the display name you publish it with.</p>
 
             <div class="field field-wide">
@@ -717,6 +719,9 @@
               </div>
             </fieldset>
 
+            </section>
+            <section class="composer-section" aria-labelledby="post-identity-title">
+              <h3 id="post-identity-title">Publisher identity</h3>
             <div class="field field-wide">
               <label for="post-author">Display name <span class="label-optional">(optional)</span></label>
               <input id="post-author" name="author" type="text" maxlength="60" autocomplete="off"
@@ -732,6 +737,9 @@
               <span class="hint" id="post-author-hint">Your display name appears with this post in the Social feed, on the post's own page and, for an image post, on People. Leave it blank and your post is published under “Guest”. Everyone who leaves it blank shares “Guest”, so People lists all their image posts together. Display names are not verified, and more than one publisher can use the same one. You cannot change it on this post after you publish.</span>
             </div>
 
+            </section>
+            <section class="composer-section" aria-labelledby="post-consequences-title">
+              <h3 id="post-consequences-title">Publishing consequences</h3>
             <!-- Where the bytes go, said before the press that sends them
                  (#2701). The sentence below states the terms of publishing —
                  public, permanent, reportable — and a reader could satisfy all
@@ -805,7 +813,12 @@
                  it. The clause stays here, where it holds whatever the reader
                  does next, and reads the same as before — one sentence later in
                  the paragraph rather than one clause later in the sentence. -->
-            <p class="hint publish-consequence" id="post-consequence">A published post is public and cannot be edited or deleted by the person who published it. To ask the Wawalu team to remove your own post, select Report post on it and choose “Mistaken or posted in error”. Anyone can select Report post on it. Do not include customer or production data.</p>
+            <p class="hint publish-consequence" id="post-consequence"><span class="composer-warning">A published post is public and cannot be edited or deleted by the person who published it.</span> <span>To ask the Wawalu team to remove your own post, select Report post on it and choose “Mistaken or posted in error”. Anyone can select Report post on it.</span> <strong class="composer-warning">Do not include customer or production data.</strong></p>
+            </section>
+            <section class="composer-section" aria-labelledby="post-reporting-title">
+              <h3 id="post-reporting-title">Removal and reporting guidance</h3>
+              <p class="hint">The Wawalu team reviews reports; submitting a report does not immediately remove a post.</p>
+            </section>
             <p class="field-error compose-error" id="post-publish-blocker" hidden></p>
             <!-- Ships empty. src/social.js writes the one step Publish post is
                  still waiting for here while a chosen image has no description,

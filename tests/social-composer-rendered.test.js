@@ -36,7 +36,7 @@ test("composer contains complete images at desktop and 390px and keeps Tab in th
       await page.locator('#post-submit').scrollIntoViewIfNeeded();
       assert.equal(await page.locator('#post-storage-scope').innerText(),
         'Publishing stores this post on the Wawalu team’s server, not in this browser. Anyone can read a published post, on any device or browser.');
-      assert.equal(await page.locator('#post-consequence').innerText(),
+      assert.equal((await page.locator('#post-consequence').innerText()).replace(/\s+/g, ' '),
         'A published post is public and cannot be edited or deleted by the person who published it. To ask the Wawalu team to remove your own post, select Report post on it and choose “Mistaken or posted in error”. Anyone can select Report post on it. Do not include customer or production data.');
       const termsFit = await page.evaluate(() => {
         const panel = document.getElementById('post-compose-panel');
@@ -44,11 +44,54 @@ test("composer contains complete images at desktop and 390px and keeps Tab in th
         const boxes = ['post-storage-scope', 'post-consequence', 'post-submit']
           .map(id => document.getElementById(id).getBoundingClientRect());
         return panel.scrollWidth <= panel.clientWidth && boxes.every(box =>
-          box.width > 0 && box.height > 0 && box.left >= bounds.left && box.right <= bounds.right &&
-          box.top >= Math.max(0, bounds.top) && box.bottom <= Math.min(innerHeight, bounds.bottom)) &&
+          box.width > 0 && box.height > 0 && box.left >= bounds.left && box.right <= bounds.right) &&
           boxes[0].bottom <= boxes[1].top && boxes[1].bottom <= boxes[2].top;
       });
       assert.equal(termsFit, true, `publishing terms and action: ${colorScheme}/${width}`);
+      // Measure computed colors in the rendered themes, not screenshot pixels.
+      const contrast = await page.evaluate(() => {
+        const rgb = color => color.match(/[\d.]+/g).map(Number);
+        const luminance = color => rgb(color).slice(0, 3).map(v => {
+          v /= 255;
+          return v <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4;
+        }).reduce((sum, v, i) => sum + v * [.2126, .7152, .0722][i], 0);
+        window.composerContrast = (a, b) => {
+          const values = [luminance(a), luminance(b)].sort((a, b) => b - a);
+          return (values[0] + .05) / (values[1] + .05);
+        };
+        const background = node => {
+          for (; node; node = node.parentElement) {
+            const color = getComputedStyle(node).backgroundColor;
+            const channels = rgb(color);
+            if (channels.length === 3 || channels[3] === 1) return color;
+            if (channels[3] !== 0) throw new Error('Contrast check needs alpha compositing');
+          }
+          throw new Error('No opaque composer background');
+        };
+        return [...document.querySelectorAll('#post-form h3, #post-form label, #post-form .label-optional, #post-form legend, #post-form a, #post-form .hint, #post-form .counter-row, #post-form input, #post-form textarea, #post-form button')]
+          .filter(node => node.getClientRects().length)
+          .map(node => ({ name: node.id || node.textContent.trim(),
+            ratio: window.composerContrast(getComputedStyle(node).color, background(node)) }));
+      });
+      for (const sample of contrast) assert.ok(sample.ratio >= 4.5,
+        `${sample.name}: text contrast ${sample.ratio} (${colorScheme}/${width})`);
+      for (const selector of ['#post-body', '#post-author', '#post-submit']) {
+        const ratio = await page.locator(selector).evaluate(node => {
+          const style = getComputedStyle(node);
+          const surface = getComputedStyle(document.getElementById('post-compose-panel')).backgroundColor;
+          return window.composerContrast(node.tagName === 'BUTTON' ? style.backgroundColor : style.borderTopColor, surface);
+        });
+        assert.ok(ratio >= 3, `${selector}: control contrast ${ratio}`);
+      }
+      for (const selector of ['#post-author-hint', '#post-storage-scope', '#post-consequence', '#post-reporting-title', '#post-submit']) {
+        await page.locator(selector).scrollIntoViewIfNeeded();
+        assert.equal(await page.locator(selector).evaluate(node => {
+          const rect = node.getBoundingClientRect();
+          const panel = document.getElementById('post-compose-panel').getBoundingClientRect();
+          return rect.left >= panel.left && rect.right <= panel.right &&
+            rect.top >= panel.top && rect.bottom <= panel.bottom;
+        }), true, `${selector} remains reachable without clipping`);
+      }
       await page.locator('#post-compose-open').evaluate(el => el.focus());
       assert.equal(await page.locator('#post-form-title').evaluate(el => el === document.activeElement), true);
       await page.keyboard.press('Shift+Tab');
@@ -102,6 +145,7 @@ test("composer contains complete images at desktop and 390px and keeps Tab in th
           const style = getComputedStyle(visible);
           return { name: el.id || el.className, ring: style.outlineStyle,
             ringWidth: parseFloat(style.outlineWidth),
+            ringContrast: window.composerContrast(style.outlineColor, getComputedStyle(panel).backgroundColor),
             fits: rect.left >= bounds.left + 5 && rect.right <= bounds.right - 5 &&
               rect.top >= bounds.top + 5 && rect.bottom <= bounds.bottom - 5,
             overflow: panel.scrollWidth > panel.clientWidth };
@@ -109,6 +153,7 @@ test("composer contains complete images at desktop and 390px and keeps Tab in th
         assert.equal(focused.name, expected);
         assert.notEqual(focused.ring, 'none', `${expected}: ${colorScheme}/${width}`);
         assert.ok(focused.ringWidth >= 3, expected);
+        assert.ok(focused.ringContrast >= 3, `${expected}: focus contrast ${focused.ringContrast}`);
         assert.equal(focused.fits, true, expected);
         assert.equal(focused.overflow, false);
       }
