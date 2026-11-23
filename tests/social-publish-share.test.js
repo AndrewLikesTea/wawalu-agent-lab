@@ -84,11 +84,18 @@ test("the receipt hands over the same address the permalink page copies", async 
 
   const region = harness.notice();
   assert.equal(region.hidden, false);
+  assert.match(textOf(region), /This post is public\. Anyone can read it\./);
+  assert.match(textOf(region), /Display names are not verified, and more than one publisher can use the same one\./);
+  const manual = region.querySelector("input");
+  assert.equal(manual.value, postPermalink(SAVED_ID, ORIGIN));
+  assert.equal(manual.getAttribute("readonly"), "");
+  assert.ok(tabSequence(harness.document).includes(manual));
 
   // The link, unchanged in shape: relative, and carrying the display name
   // /post.html reads while its own lookup is in flight.
   const links = region.querySelectorAll("a");
   assert.equal(links.length, 1, "one link — the post itself");
+  assert.ok(tabSequence(harness.document).includes(links[0]), "native link is keyboard reachable");
   assert.equal(links[0].getAttribute("href"), postDetailHref(SAVED_ID, "Remy"));
 
   // The control, and only one of it.
@@ -121,6 +128,7 @@ test("the receipt hands over the same address the permalink page copies", async 
 
   // Reported in the permalink page's words, not a second wording of them.
   assert.equal(textOf(copyStatus(region)), POST_COPIED_STATUS);
+  assert.equal(region.querySelector("input").value, postPermalink(SAVED_ID, ORIGIN), "URL remains selectable after success");
   assert.equal(textOf(copyStatus(region)), "Link copied.");
   assert.equal(copyStatus(region).getAttribute("role"), "status");
   assert.equal(copyStatus(region).getAttribute("aria-live"), "polite");
@@ -265,4 +273,61 @@ test("the composer still says, once, what publishing costs", async (t) => {
   assert.ok(document.querySelector("#post-submit").getAttribute("aria-describedby").split(/\s+/).includes("post-consequence"));
   // Once. The receipt does not restate it beside the link it now offers.
   assert.equal(textOf(harness.notice()).includes("cannot be edited or deleted"), false);
+});
+
+test("image and text receipts retain the response URL through copy success, pending, and failure", async (t) => {
+  for (const image of [null, { content_type: "image/png", data: "iVBORw0KGgo=", width: 640, height: 480 }]) {
+    let finish;
+    let attempt = 0;
+    const clipboard = { writeText: () => ++attempt === 1 ? Promise.resolve() : new Promise((resolve, reject) => {
+      finish = () => reject(new Error("denied"));
+    }) };
+    const harness = await composer(t, { image, clipboard });
+    try {
+      const proto = Object.getPrototypeOf(harness.document.createElement("input"));
+      const original = proto.select;
+      proto.select = () => {};
+      try {
+        await harness.publish({ body: "Public in either case.", author: "Shared name", description: "A green row." });
+        const region = harness.notice();
+        const field = region.querySelector("input");
+        const button = copyButtons(region)[0];
+        assert.equal(field.value, `${ORIGIN}/post.html?id=${SAVED_ID}`);
+        assert.equal(field.hidden, false);
+        button.click();
+        await harness.settle();
+        assert.equal(textOf(copyStatus(region)), POST_COPIED_STATUS);
+        button.click();
+        assert.equal(textOf(copyStatus(region)), "", "previous success clears while copying");
+        assert.equal(button.disabled, true);
+        finish();
+        await harness.settle();
+        assert.equal(textOf(copyStatus(region)), POST_COPY_FAILED_STATUS);
+        assert.equal(field.value, postPermalink(SAVED_ID, ORIGIN));
+        assert.equal(button.disabled, false);
+        assert.equal(harness.document.activeElement, field);
+        assert.equal(region.querySelectorAll("input").length, 1, "a refusal does not add a second field");
+      } finally {
+        if (original) proto.select = original;
+        else delete proto.select;
+      }
+    } finally {
+      harness.page.restore();
+    }
+  }
+});
+
+test("unavailable clipboard leaves a selectable public URL and an honest fallback", async (t) => {
+  const harness = await composer(t, { clipboard: {} });
+  t.after(() => harness.page.restore());
+  const proto = Object.getPrototypeOf(harness.document.createElement("input"));
+  proto.select = () => {};
+  t.after(() => { delete proto.select; });
+  await harness.publish({ body: "No clipboard API.", author: "Remy" });
+  const region = harness.notice();
+  copyButtons(region)[0].click();
+  await harness.settle();
+  assert.equal(textOf(copyStatus(region)), POST_COPY_FAILED_STATUS);
+  assert.equal(region.querySelector("input").value, postPermalink(SAVED_ID, ORIGIN));
+  assert.equal(textOf(region).includes(POST_COPIED_STATUS), false);
 });

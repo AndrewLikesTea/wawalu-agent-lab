@@ -71,9 +71,9 @@ export function postPermalink(id, origin) {
 //
 // The fallback field goes beside the flex row rather than in it, so it takes a
 // line of its own with no new rule; an outer element of the same tag holds both.
-// It exists only after a refusal, and one success removes it again — so the
-// states with nothing to copy by hand carry no hidden copy of the link either.
-export function renderPostCopyControl(url, { clipboard, id = "post-copy", tag = "div" } = {}) {
+// The publishing receipt keeps the manual field visible throughout; other
+// callers show it only after a refusal.
+export function renderPostCopyControl(url, { clipboard, id = "post-copy", tag = "div", alwaysShowUrl = false } = {}) {
   const control = document.createElement(tag);
   const group = document.createElement(tag);
   group.className = "share-control";
@@ -89,17 +89,24 @@ export function renderPostCopyControl(url, { clipboard, id = "post-copy", tag = 
   status.setAttribute("aria-live", "polite");
   status.setAttribute("aria-atomic", "true");
   button.setAttribute("aria-describedby", status.id);
-  let manual = null;
+  let manual = alwaysShowUrl ? renderManualCopy(url, `${id}-manual`, tag, status.id) : null;
   button.addEventListener("click", async () => {
     button.disabled = true;
     status.textContent = "";
     // Read at press time, not at render time: a page entry can render before a
     // browser has a clipboard to offer, and a test injects one either way.
-    const copied = await copyRecordUrl(clipboard ?? globalThis.navigator?.clipboard, url);
+    let copied = false;
+    try {
+      copied = await copyRecordUrl(clipboard ?? globalThis.navigator?.clipboard, url);
+    } catch {
+      // Accessing the clipboard itself can be denied before writeText runs.
+    }
     button.disabled = false;
     if (copied) {
-      manual?.remove();
-      manual = null;
+      if (!alwaysShowUrl) {
+        manual?.remove();
+        manual = null;
+      }
       status.textContent = POST_COPIED_STATUS;
       return;
     }
@@ -114,6 +121,7 @@ export function renderPostCopyControl(url, { clipboard, id = "post-copy", tag = 
   });
   group.append(button, status);
   control.append(group);
+  if (manual) control.append(manual);
   return control;
 }
 
