@@ -223,14 +223,13 @@ test("tab order reaches the log's controls before the recorder's fields, and add
   assert.ok(firstToggle >= 0 && firstToggle < at("release-version"),
     "a release row is not reachable before the recorder's first field");
 
-  // The hero's two routes: the page's own action, then the way down to the
-  // deployment check, which #3018 moved below the log. The ask that #2458 put
-  // beside them moved below the deployment record in #2654. Counted, so a third
-  // control has to be added here before it can be added to the hero.
+  // The recorder and deployment routes stay first; #3197 brings the existing
+  // demonstration route into the introduction without moving the log.
   const hero = page.document.querySelector(".hero");
   const heroStops = sequence.filter((node) => isWithin(node, hero));
-  assert.deepEqual(heroStops.map((node) => node.id), ["record-release-link", "deployment-check-link"],
-    "the hero gained a control beyond its two routes");
+  assert.deepEqual(heroStops.map((node) => node.id),
+    ["record-release-link", "deployment-check-link", "releases-demo-link"],
+    "the hero must retain its routes and offer the demonstration once");
   assert.equal(textOf(heroStops[0]), "Open the form to record a release");
   assert.equal(heroStops[0].getAttribute("href"), "#record-release");
 
