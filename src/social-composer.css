@@ -87,3 +87,23 @@ dialog#post-compose-panel::backdrop { background:rgba(0,0,0,.55); }
   #post-compose-panel a { color:#8bc2ff; }
   #post-compose-panel .field-error { color:#ffb4ab; border-color:currentColor; }
 }
+
+/* Native sections keep content, identity and policy in the same reading order.
+   Reuse the product's site-guide heading and field spacing; no status chips
+   for static policy (the design mirror reserves filled chips for live state). */
+#post-form .composer-section { grid-column:1/-1; min-width:0; display:grid; gap:16px; }
+#post-form .composer-section + .composer-section { border-top:1px solid #d1cfc7; padding-top:20px; }
+#post-form .composer-section h3 { margin:0; font-size:14px; }
+#post-form .composer-section p { margin:0; }
+#post-form .composer-warning { display:block; }
+#post-form .composer-warning + span, #post-form span + .composer-warning { margin-top:8px; }
+/* The shared light input border is too faint against the composer surface. */
+#post-form :is(input, textarea) { border-color:#777771; }
+#post-form .counter-row { color:#6a6a65; }
+#post-form .label-optional { color:inherit; }
+@media (prefers-color-scheme:dark) {
+  #post-form :is(input, textarea) { border-color:#898781; }
+  #post-submit { background:#fff; color:#171713; }
+  #post-submit:hover { background:#8bc2ff; }
+  #post-form .counter-row { color:#c3c2b7; }
+}

@@ -166,7 +166,7 @@ test("the reporting clause stays on the two pages that always draw the control",
     // cannot be taken down by its publisher, and this is the route that does
     // end in removal (#2373). Since #3115 the publisher's own removal route
     // sits between them, directly after the terms.
-    assert.equal(times(markup, `${PUBLISHED_POST_TERMS} ${OWN_POST_REMOVAL} ${CLAUSE}`), 1,
+    assert.equal(times(markup.replace(/<[^>]+>/g, ""), `${PUBLISHED_POST_TERMS} ${OWN_POST_REMOVAL} ${CLAUSE}`), 1,
       `${file} parted the reporting route from the terms it qualifies`);
   }
   const post = await read("post.html");
