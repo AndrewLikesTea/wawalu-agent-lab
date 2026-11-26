@@ -43,7 +43,7 @@ test("homepage presents the promise, demo and proof before evaluation material",
   }
   const hero = doc.getElementById("top");
   assert.deepEqual(hero.querySelectorAll("a").map((a) => a.getAttribute("href")),
-    ["#title", "/release.html?id=demo-r-1-3-0&example=1", "#site-footer-form", "#shiplog-evaluation-brief", "/decision.html?id=shiplog-pr-2547", "https://github.com/AndrewLikesTea/wawalu-agent-lab/blob/a1dc0a2dd45b24f8c114dfabed2a31f095f75557/src/build-stamp.js"]);
+    ["#title", "/release.html?id=demo-r-1-3-0&example=1", "#site-footer-form", "#shiplog-evaluation-brief", "/decision.html?id=shiplog-pr-2547", "https://github.com/AndrewLikesTea/wawalu-agent-lab/pull/2547", "https://github.com/AndrewLikesTea/wawalu-agent-lab/blob/a1dc0a2dd45b24f8c114dfabed2a31f095f75557/src/build-stamp.js"]);
   const sections = doc.getElementById("main-content").children.filter((node) => node.tagName === "SECTION");
   assert.deepEqual(sections.slice(0, 5).map((node) => node.id),
     ["top", "record-history", "shiplog-entry", "shiplog-evaluation-brief", "shiplog-pilot-scorecard"]);
@@ -283,4 +283,36 @@ test("evaluation preview wraps in two columns with a single column on mobile", a
   assert.match(css, /#hero-evaluation-kit \.story-link \{[^}]*min-height:44px;[^}]*white-space:normal/);
   const shared = await readFile(file("styles.css"), "utf8");
   assert.match(shared, /a:focus-visible \{ outline:3px solid var\(--focus-ring\)/);
+});
+
+
+test("repository proof links its decision source and release evidence separately", async (t) => {
+  const page = await loadPage(file("index.html"));
+  t.after(() => page.restore());
+  const doc = page.document;
+  const proof = doc.getElementById("repository-last-verified");
+  const links = proof.querySelectorAll("a");
+  assert.deepEqual(links.map((link) => [textOf(link), link.getAttribute("href")]), [
+    ["Mark every record row with whose record it is", "/decision.html?id=shiplog-pr-2547"],
+    ["pull request #2547 on GitHub", "https://github.com/AndrewLikesTea/wawalu-agent-lab/pull/2547"],
+    ["Open the build stamp for 28b2398ff49c on GitHub", "https://github.com/AndrewLikesTea/wawalu-agent-lab/blob/a1dc0a2dd45b24f8c114dfabed2a31f095f75557/src/build-stamp.js"],
+  ]);
+  assert.equal(links[0].parentNode, links[1].parentNode, "PR source sits beside the decision claim");
+  assert.notEqual(links[1].parentNode, links[2].parentNode, "release evidence has its own paragraph");
+  assert.match(textOf(proof), /It comes from Shiplog's own public development history: not a customer outcome or testimonial, not data from any team using Shiplog, and not a claim about what runs today\./);
+  for (const link of links) {
+    assert.equal(link.getAttribute("aria-label"), null, "visible text supplies the accessible name");
+    assert.equal(link.getAttribute("aria-labelledby"), null);
+    assert.ok(tabSequence(doc).includes(link));
+    link.focus();
+    pressEnter(doc);
+    for (let node = link; node; node = node.parentNode) {
+      assert.equal(node.hidden, false);
+      assert.notEqual(node.getAttribute("aria-hidden"), "true");
+    }
+  }
+  assert.deepEqual(doc.navigations, links.map((link) => link.getAttribute("href")));
+  const css = await readFile(file("styles.css"), "utf8");
+  assert.match(css, /\.release-followup-lead \{[^}]*overflow-wrap:anywhere/);
+  assert.match(css, /a:focus-visible \{ outline:3px solid var\(--focus-ring\)/);
 });
