@@ -342,7 +342,7 @@ test("historical proof survives pending, current, failed and stale requests", as
   assert.match(textOf(fallback), /Real decision from Shiplog's repository/);
   assert.match(textOf(fallback), /#2547.*shipped in build 28b2398ff49c/);
   assert.equal(fallback.querySelector("time").getAttribute("datetime"), "2026-09-25T09:08:40.330Z");
-  const link = fallback.querySelectorAll("a")[1];
+  const link = fallback.querySelectorAll("a")[2];
   assert.equal(link.getAttribute("href"), "https://github.com/AndrewLikesTea/wawalu-agent-lab/blob/a1dc0a2dd45b24f8c114dfabed2a31f095f75557/src/build-stamp.js");
   assert.ok(tabSequence(page.document).includes(link));
   assert.equal(fallback.getAttribute("role"), "group");
