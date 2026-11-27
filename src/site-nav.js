@@ -38,13 +38,20 @@
 // Shiplog's path stays visible; the rest of the list uses a native disclosure.
 // Static HTML keeps both groups usable when scripts fail or are disabled.
 //
-// The secondary label names what is inside it and claims nothing else. It read
-// "More lab tools" until #2746, which was false of Social, People and Paint:
-// `separate` in src/site-footer.js is the one place that says which
-// destinations are not Shiplog's, and a group name is not a second place.
+// The secondary label says the same thing the footer says of the same six rows
+// (#3206). It read "More lab tools" until #2746, when the footer still called
+// Social, People and Paint part of Shiplog, and then "More destinations", which
+// named no boundary at all. Since the footer marks every one of them `separate`
+// (SEPARATE_TOOL, and IDENTITY's "Every destination except Home, Decision log,
+// and Releases"), the header names that boundary in the footer's own words, so
+// a first-time visitor reads it before choosing a door. tests/site-footer.test.js
+// holds the two to one classification.
+//
+// The primary set carries no visible caption: the brand link beside it already
+// says Shiplog, and the header says it once (tests/site-header-brand.test.js).
 export const NAV_SETS = [
   { key: "primary", label: "Primary" },
-  { key: "secondary", id: "nav-set-demo", label: "More destinations" },
+  { key: "secondary", id: "nav-set-demo", label: "Separate lab tools" },
 ];
 
 export const SITE_NAV = [

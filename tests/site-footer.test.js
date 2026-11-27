@@ -1076,13 +1076,20 @@ test("the About band exempts exactly the destinations the directory leaves unmar
     assert.equal(paragraph.querySelectorAll("a").length, 0,
       `${where}: the sentence must stay text, not a second site map`);
 
-    // And the header's group name classifies nothing. It is the surface that
-    // contradicted the marks, so it is asserted beside them, not elsewhere.
+    // And the header's group says what the marks say, of exactly the rows they
+    // say it of (#3206). It is the surface that once contradicted them, so it
+    // is asserted beside them, not elsewhere. Personal AI history has no header
+    // door; it is filed under Prompt coach.
     const group = document.getElementById("nav-set-demo");
-    assert.equal(textOf(group), "More destinations", `${where}: the header group was relabelled`);
+    assert.equal(textOf(group), `${SEPARATE_TOOL.slice(0, -1)}s`, `${where}: the header group was relabelled`);
     for (const label of SHIPLOG_LABELS) {
       assert.equal(textOf(group).includes(label), false, `${where}: the group name claims ${label}`);
     }
+    const list = document.querySelector(".site-nav").querySelectorAll("ul")
+      .find((ul) => ul.getAttribute("aria-labelledby") === "nav-set-demo");
+    assert.deepEqual(list.querySelectorAll("a").map(textOf),
+      DEMOS.filter((demo) => demo.separate && !demo.filedUnder).map((demo) => demo.label),
+      `${where}: the header files a destination the directory does not mark separate`);
   };
 
   for (const file of PAGES) {
