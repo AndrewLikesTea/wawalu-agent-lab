@@ -24,19 +24,41 @@ const visibleNavStops = (document) => tabSequence(document).filter((node) => {
   return true;
 });
 
-// The secondary label is true of everything inside it and says nothing about
-// what is or is not Shiplog (#2746). "More lab tools" said the second thing,
-// and said it of Social, People and Paint, which the footer marks as Shiplog's
-// own — so the header and the footer answered "is this page part of Shiplog?"
-// two different ways. The set, its order and its membership are unchanged.
-test("Shiplog leads and the secondary label only says there are more destinations", () => {
-  assert.deepEqual(NAV_SETS.map((set) => set.label), ["Primary", "More destinations"]);
-  const [, group] = NAV_SETS;
-  assert.doesNotMatch(group.label, /Shiplog|lab|tool|demo|other|separate/i,
-    "the group name must not classify the destinations inside it");
+// The secondary label names the boundary a first-time visitor needs before
+// choosing a door (#3206): everything inside it is a separate lab tool, in the
+// footer's own words, and nothing outside it is. #2746 forbade a classifying
+// name while the footer still called Social, People and Paint Shiplog's own;
+// tests/site-footer.test.js now holds the header and the footer to one answer.
+// The set, its order and its membership are unchanged, and each destination
+// sits in exactly one group.
+const GROUP = "Separate lab tools";
+test("Shiplog leads and the secondary label says its destinations are separate lab tools", () => {
+  assert.deepEqual(NAV_SETS.map((set) => set.label), ["Primary", GROUP]);
   assert.deepEqual(SITE_NAV.filter((link) => link.set === "primary").map((link) => link.label), primary);
   assert.deepEqual(SITE_NAV.filter((link) => link.set === "secondary").map((link) => link.label), secondary);
+  const labels = SITE_NAV.map((link) => link.label);
+  assert.deepEqual(labels, [...primary, ...secondary]);
+  assert.equal(new Set(labels).size, labels.length);
+  assert.equal(new Set(SITE_NAV.map((link) => link.href)).size, labels.length);
   assert.equal(pages.length, 17);
+});
+
+// The boundary is words, not a colour: the group's accessible name is the
+// visible summary text, and the summary is the only non-link stop the nav adds.
+test("every page names the lab-tools group in visible text that is its list's label", () => {
+  for (const { file, html } of pages) {
+    const nav = parseHtml(html).querySelector(".site-nav");
+    const summaries = nav.querySelectorAll("summary");
+    assert.equal(summaries.length, 1, file);
+    assert.equal(textOf(summaries[0]), GROUP, file);
+    assert.equal(summaries[0].hasAttribute("hidden"), false, file);
+    assert.equal(summaries[0].getAttribute("aria-hidden"), null, file);
+    const lists = nav.querySelectorAll("ul");
+    assert.equal(lists.length, 2, file);
+    assert.equal(lists[1].getAttribute("aria-labelledby"), summaries[0].getAttribute("id"), file);
+    for (const label of primary) assert.equal(textOf(lists[1]).includes(label), false, `${file}: ${label}`);
+    assert.equal(html.split(`>${GROUP}<`).length - 1, 1, `${file}: the group is named once`);
+  }
 });
 
 test("every global navigation exposes named lists and a native, keyboard-operable disclosure", () => {
@@ -52,7 +74,7 @@ test("every global navigation exposes named lists and a native, keyboard-operabl
     }
     const details = nav.querySelector("details");
     const summary = details.querySelector("summary");
-    assert.equal(textOf(summary), "More destinations");
+    assert.equal(textOf(summary), GROUP);
     // Native details supplies expanded state to assistive technology. Duplicated
     // aria-expanded or menu roles would introduce a second state model.
     assert.equal(summary.getAttribute("aria-expanded"), null);
@@ -67,15 +89,15 @@ test("every global navigation exposes named lists and a native, keyboard-operabl
     assert.equal(details.hasAttribute("open"), startsOpen, file);
     assert.equal(document.activeElement.tagName, "SUMMARY");
     details.removeAttribute("open");
-    assert.deepEqual(visibleNavStops(document).map(textOf), [...primary, "More destinations"], file);
+    assert.deepEqual(visibleNavStops(document).map(textOf), [...primary, GROUP], file);
     summary.focus();
     pressKey(document, "Enter");
-    assert.deepEqual(visibleNavStops(document).map(textOf), [...primary, "More destinations", ...secondary], file);
+    assert.deepEqual(visibleNavStops(document).map(textOf), [...primary, GROUP, ...secondary], file);
     pressKey(document, " ");
-    assert.deepEqual(visibleNavStops(document).map(textOf), [...primary, "More destinations"], file);
+    assert.deepEqual(visibleNavStops(document).map(textOf), [...primary, GROUP], file);
     details.setAttribute("open", "");
     const stops = tabSequence(document).filter((node) => node.closest(".site-nav"));
-    assert.deepEqual(stops.map(textOf), [...primary, "More destinations", ...secondary], file);
+    assert.deepEqual(stops.map(textOf), [...primary, GROUP, ...secondary], file);
     assert.equal(nav.querySelectorAll("[tabindex]").length, 0);
     assert.equal(nav.querySelectorAll('[aria-current="page"]').length, 1);
   }
@@ -105,5 +127,15 @@ test("both header styles keep touch targets, focus, and a disclosure that opens 
     assert.match(mobile, /\.site-nav \{[^}]*width:100%; align-items:flex-start/);
     assert.match(mobile, /details\.nav-set \{[^}]*text-align:left/);
     assert.doesNotMatch(mobile, /position:absolute|overflow:hidden|order:/);
+    // At 390px the group label and every item must wrap, not clip or push the
+    // page sideways. The harness has no layout, so pin the rules that decide it.
+    assert.match(css, /\.nav-set ul \{[^}]*flex-wrap:wrap/);
+    assert.match(css, /\.site-nav \{[^}]*flex-wrap:wrap/);
+    assert.match(mobile, /\.site-nav details a \{[^}]*overflow-wrap:anywhere/);
+    const navRules = css.match(/[^{}]*(?:site-nav|nav-set)[^{}]*\{[^}]*\}/g);
+    assert.ok(navRules.length > 10, file);
+    for (const rule of navRules) {
+      assert.doesNotMatch(rule, /white-space:\s*nowrap|text-overflow|[^-]width:\s*\d+px|overflow:\s*hidden/, `${file}: ${rule.trim()}`);
+    }
   }
 });

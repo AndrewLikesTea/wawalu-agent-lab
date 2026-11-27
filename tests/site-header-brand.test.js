@@ -51,7 +51,7 @@ for (const file of await readdir(root)) {
     const primary = nav.querySelector("ul");
     assert.equal(primary.getAttribute("aria-label"), "Primary");
     assert.deepEqual(primary.querySelectorAll("a").map(textOf), ["Home", "Decision log", "Releases"]);
-    assert.equal(textOf(nav.querySelector("summary")), "More destinations");
+    assert.equal(textOf(nav.querySelector("summary")), "Separate lab tools");
   });
 }
 
