@@ -258,9 +258,9 @@ test("the painted front door leads with the promise, then names the log", async 
   const example = hero.querySelector(".hero-actions").querySelectorAll("a")[1];
   assert.match(textOf(example), /complete example release/);
   assert.deepEqual(heroStops.map((node) => node.id || node.getAttribute("href")), [document.getElementById("hero-security-inquiry"), demo, example, document.getElementById("hero-demonstration"),
-    document.getElementById("hero-evaluation-link"), ...document.getElementById("repository-last-verified").querySelectorAll("a"),
+    ...document.getElementById("repository-last-verified").querySelectorAll("a"),
     // #3054: the card's route to Shiplog's own decisions, last in the card, once the log has loaded.
-    document.getElementById("show-repository-decisions")].map((node) => node.id || node.getAttribute("href")));
+    document.getElementById("show-repository-decisions"), document.getElementById("hero-evaluation-link")].map((node) => node.id || node.getAttribute("href")));
   const demoAt = sequence.indexOf(demo);
   assert.equal(sequence[demoAt - 1].id, "hero-security-inquiry", "the storage inquiry comes immediately before recording");
   assert.ok(ancestorIds(sequence[sequence.indexOf(heroStops.at(-1)) + 1]).includes("record-history"), "the recorder follows the evidence links");
@@ -324,7 +324,7 @@ test("the pilot scorecard's Team handoff names the real controls and the page ea
 
 // #2974: a buyer deciding whether to evaluate meets the brief and the blank
 // scorecard beside the demo actions, not only after scrolling past the log.
-test("the hero links the evaluation brief and blank pilot scorecard right after the demonstration request", async (t) => {
+test("the hero links the evaluation brief and blank pilot scorecard after the repository proof", async (t) => {
   const { document } = await openFrontDoor(t);
   const hero = document.getElementById("top");
   const link = document.getElementById("hero-evaluation-link");
@@ -332,13 +332,13 @@ test("the hero links the evaluation brief and blank pilot scorecard right after 
   assert.equal(link.tagName, "A");
   assert.equal(textOf(link), "Evaluation brief and blank pilot scorecard");
 
-  // Directly after the demo-actions row, and the next tab stop after the
-  // demonstration request.
+  // Repository proof follows the actions; evaluation follows the complete proof.
   const blocks = hero.childElements;
   const actions = blocks.findIndex((node) => node.getAttribute("class") === "hero-actions");
-  assert.equal(blocks[actions + 1].getAttribute("id"), "hero-evaluation-kit");
+  assert.equal(blocks[actions + 1].getAttribute("id"), "repository-last-verified");
+  assert.equal(blocks[actions + 2].getAttribute("id"), "hero-evaluation-kit");
   const sequence = tabSequence(document);
-  assert.equal(sequence.indexOf(link), sequence.indexOf(document.getElementById("hero-demonstration")) + 1);
+  assert.equal(sequence.indexOf(link), sequence.indexOf(document.getElementById("show-repository-decisions")) + 1);
 
   // The href lands on the existing brief, which the scorecard follows.
   const href = link.getAttribute("href");
