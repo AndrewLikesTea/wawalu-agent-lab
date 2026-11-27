@@ -31,13 +31,16 @@ import { FOLLOW_UP_INTENTS } from "/lead-capture.js";
 /** The two a buyer chooses between, in the order the section offers them. */
 export const BUYER_INTENTS = Object.freeze(["demo", "pilot"]);
 
+// Keep the demonstration/pilot pair while allowing the storage inquiry in the form.
+export const DISCUSSION_TOPICS = Object.freeze([...BUYER_INTENTS, "security_data"]);
+
 export const CHOICE_PREFIX = "Discussion topic: ";
 /** The state before anyone chooses, said rather than left blank. */
 export const NOTHING_CHOSEN = `${CHOICE_PREFIX}not chosen yet`;
 
 /** What the section reports back, so a choice can be reviewed before sending. */
 export const choiceLine = (intent) =>
-  (BUYER_INTENTS.includes(intent) ? `${CHOICE_PREFIX}${FOLLOW_UP_INTENTS[intent]}` : NOTHING_CHOSEN);
+  (DISCUSSION_TOPICS.includes(intent) ? `${CHOICE_PREFIX}${FOLLOW_UP_INTENTS[intent]}` : NOTHING_CHOSEN);
 
 // Said beside the field, because a topic printed over a form reads as something
 // the form carries. It does not, and the way to get it to a person is the reply
@@ -112,7 +115,7 @@ export function initBuyerIntent(document) {
       topic = document.createElement("select");
       topic.setAttribute("id", "buyer-intent-topic");
       topic.setAttribute("aria-describedby", "buyer-intent-carried");
-      for (const value of BUYER_INTENTS) {
+      for (const value of DISCUSSION_TOPICS) {
         const option = document.createElement("option");
         option.setAttribute("value", value);
         option.textContent = FOLLOW_UP_INTENTS[value];
@@ -152,11 +155,13 @@ export function initBuyerIntent(document) {
       // Keep native fragment navigation/history and the no-script fallback.
     });
   }
-  const hero = document.getElementById("hero-demonstration");
-  if (hero && form) {
+  // Home is fixed to Shiplog; these routes share its email-only request form.
+  for (const [id, intent] of [["hero-demonstration", "demo"], ["hero-security-inquiry", "security_data"]]) {
+    const hero = document.getElementById(id);
+    if (!hero || !form) continue;
     hero.addEventListener("click", (event) => {
       if (event.button > 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-      choose(BUYER_INTENTS[0], false);
+      choose(intent, false);
       // Suppress native fragment focus after landing; preserve Back and the URL.
       event.preventDefault();
       const view = document.defaultView ?? globalThis.window;
