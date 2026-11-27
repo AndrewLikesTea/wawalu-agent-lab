@@ -470,11 +470,17 @@ export function profileSummaryText(summary) {
 // them, unchanged, and that is every state a reader reaches by choosing a name.
 export const PENDING_RESULTS_HEADING = "Image posts";
 
+// #3207: the heading names a display name, and a page called People reads that
+// as a person. So the heading says, in its own visible words, what the name is
+// not — the picker hint's denial, said where the name is. Plain text: the words
+// carry it, not a colour or a chip. mountProfile writes it with textContent.
+export const DISPLAY_NAME_QUALIFIER = "(unverified display name, not a profile or account)";
+
 export function profileResultsHeading(author, count = null, { pending = false } = {}) {
   if (pending) return PENDING_RESULTS_HEADING;
   const name = String(author ?? "") || DEFAULT_AUTHOR;
   const counted = count === null || count === undefined ? "image posts" : countLabel(count, "image post");
-  return `${name} · ${counted}`;
+  return `${name} · ${counted} ${DISPLAY_NAME_QUALIFIER}`;
 }
 
 // The identity line under the heading: what the page is showing, in the words a

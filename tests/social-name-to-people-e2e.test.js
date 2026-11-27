@@ -320,7 +320,7 @@ test("the forwarded People URL opens cold on that display name, filtered and new
   assert.equal(tiles.length, 2);
   assert.equal(textOf(document.querySelector("#profile-order")), "Newest first");
   assert.equal(document.querySelectorAll(".empty-state").length, 0);
-  assert.equal(textOf(document.querySelector("#grid-title")), `${REMY} · 2 image posts`);
+  assert.equal(textOf(document.querySelector("#grid-title")), `${REMY} · 2 image posts (unverified display name, not a profile or account)`);
 
   // Nothing was written on the visitor's behalf by arriving, and the session
   // really was cold: the URL is the only thing that chose this name.
@@ -351,7 +351,7 @@ test("a forwarded name with no image posts is named, and offered the whole feed"
   // stays on her rather than falling back to the name with images.
   assert.equal(pressedChip(document)?.dataset.author, TESS, "the empty name was silently replaced");
   assert.equal(textOf(document.querySelector("#profile-name")), `${TESS} has no image posts yet.`);
-  assert.equal(textOf(document.querySelector("#grid-title")), `${TESS} · 0 image posts`);
+  assert.equal(textOf(document.querySelector("#grid-title")), `${TESS} · 0 image posts (unverified display name, not a profile or account)`);
 
   // One explained region rather than a blank list.
   assert.equal(document.querySelectorAll(".profile-tile").length, 0);

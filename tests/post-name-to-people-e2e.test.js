@@ -258,7 +258,7 @@ test("the URL the permalink minted opens People on that display name, already na
   // her here would mean the URL lost to the default.
   assert.equal(pressedChip(document)?.dataset.author, REMY, "the cold open did not resolve to the forwarded name");
   assert.equal(chips(document).filter((chip) => chip.getAttribute("aria-pressed") === "true").length, 1);
-  assert.equal(textOf(document.querySelector("#grid-title")), `${REMY} · 2 image posts`);
+  assert.equal(textOf(document.querySelector("#grid-title")), `${REMY} · 2 image posts (unverified display name, not a profile or account)`);
 
   // No second selection step: the grid is already Remy's, newest first, and the
   // expected ids are sorted out of the fixture rather than written down.
@@ -296,7 +296,7 @@ test("a display name with no image posts is named on arrival rather than replace
   // had the most pictures — or on "Guest" — and then tell the reader it had
   // preselected that name for them.
   assert.equal(pressedChip(document)?.dataset.author, TESS, "the empty name was silently replaced");
-  assert.equal(textOf(document.querySelector("#grid-title")), `${TESS} · 0 image posts`);
+  assert.equal(textOf(document.querySelector("#grid-title")), `${TESS} · 0 image posts (unverified display name, not a profile or account)`);
 
   // One explained region rather than a blank list, and it names the name that
   // was asked for.

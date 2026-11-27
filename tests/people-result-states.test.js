@@ -139,7 +139,7 @@ test("Retry announces loading in place, stays on Retry after a repeated failure,
   assert.equal(document.activeElement, retry, "resolution moved keyboard focus");
   assert.equal(textOf(retry), "Reload image posts");
   assert.equal(heading.getAttribute("tabindex"), null);
-  assert.equal(textOf(heading), "Mina · 1 image post");
+  assert.equal(textOf(heading), "Mina · 1 image post (unverified display name, not a profile or account)");
 });
 
 test("Retry does not pull focus back when the reader moved on during the wait", async (t) => {

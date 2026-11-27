@@ -31,6 +31,8 @@ const TESS = "Tess Nakano";
 // A name in neither feed. Nothing in the product mints a link to it; it is what
 // a mangled or hand-edited share URL arrives as.
 const NOBODY = "Wren Ashby";
+// The People heading's own words for what a display name is not (#3207).
+const QUALIFIER = "(unverified display name, not a profile or account)";
 
 const image = (name) => ({
   src: `/media/${name.split(" ")[0].toLowerCase()}.svg`,
@@ -322,7 +324,7 @@ test("following the link opens People already filtered to that display name", as
   // anything about what a real picker would do.
   assert.equal(pressedChip(document)?.dataset.author, REMY, "People did not open on the forwarded display name");
   assert.equal(chips(document).filter((chip) => chip.getAttribute("aria-pressed") === "true").length, 1);
-  assert.equal(textOf(document.querySelector("#grid-title")), `${REMY} · 1 image post`);
+  assert.equal(textOf(document.querySelector("#grid-title")), `${REMY} · 1 image post ${QUALIFIER}`);
 
   // And the list under that heading is that name's image posts, only those, and
   // there is at least one of them.
@@ -382,7 +384,7 @@ test("a display name People does not hold is not an error", async (t) => {
 
   // Nothing in the product sends a reader here: no card in the feed mints a link
   // to a name without pictures, which is the whole point of the change above.
-  assert.equal(textOf(document.querySelector("#grid-title")), `${NOBODY} · 0 image posts`);
+  assert.equal(textOf(document.querySelector("#grid-title")), `${NOBODY} · 0 image posts ${QUALIFIER}`);
 });
 
 test("no display name at all lands on People's own default, unchanged", async (t) => {
@@ -406,7 +408,7 @@ test("choosing a name on People writes it into the address, and that address reo
   chips(people.document).find((chip) => chip.dataset?.author === ARI).click();
   // Settled on the new name before anything is read or reloaded: the heading and
   // the tiles it draws, not the pressed chip alone.
-  await waitFor(() => textOf(people.document.querySelector("#grid-title")) === `${ARI} · 3 image posts`, "People drew the name it was switched to");
+  await waitFor(() => textOf(people.document.querySelector("#grid-title")) === `${ARI} · 3 image posts ${QUALIFIER}`, "People drew the name it was switched to");
   await waitFor(() => drawnTiles(people.document).map((tile) => tile.dataset?.postId).join() === imagePostIds(ARI).join(),
     "People listed the switched-to name's image posts");
   assert.equal(pressedChip(people.document)?.dataset.author, ARI);
@@ -451,7 +453,7 @@ test("a ?name= address filters People, and the next choice rewrites it to ?autho
   assert.equal(pressedChip(people.document)?.dataset.author, REMY, "People ignored ?name=");
   assert.deepEqual(drawnTiles(people.document).map((tile) => tile.dataset?.postId), imagePostIds(REMY));
   chips(people.document).find((chip) => chip.dataset?.author === ARI).click();
-  await waitFor(() => textOf(people.document.querySelector("#grid-title")) === `${ARI} · 3 image posts`, "People drew the new name");
+  await waitFor(() => textOf(people.document.querySelector("#grid-title")) === `${ARI} · 3 image posts ${QUALIFIER}`, "People drew the new name");
   assert.equal(people.replaced.at(-1)?.[2], profileHref(ARI));
   assert.equal(new URLSearchParams(people.address()).has("name"), false, "the stale ?name= survived a filter change");
 });
@@ -479,7 +481,7 @@ for (const { author, id } of AWKWARD_FEED) {
     const { document } = await openPeople(t, { feed: AWKWARD_FEED, search });
     assert.equal(pressedChip(document)?.dataset.author, author, `People did not open on ${author}`);
     assert.deepEqual(drawnTiles(document).map((tile) => tile.dataset?.postId), [id]);
-    assert.equal(document.querySelector("#grid-title").textContent, `${author} · 1 image post`);
+    assert.equal(document.querySelector("#grid-title").textContent, `${author} · 1 image post ${QUALIFIER}`);
   });
 }
 
