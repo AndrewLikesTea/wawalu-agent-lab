@@ -93,6 +93,8 @@ const chipFor = (page, name) => chips(page).find((chip) => chip.dataset.author =
 
 // The results panel's heading, which is also that section's accessible name.
 const resultsHeading = (document) => textOf(document.querySelector("#grid-title"));
+// What the heading says the name is not, in its own visible words (#3207).
+const Q = "(unverified display name, not a profile or account)";
 
 // The tiles the grid actually drew. Counted, never assumed: the whole point of
 // the heading's number is that it agrees with this.
@@ -534,9 +536,20 @@ test("the results heading names the display name and counts the tiles under it",
     for (const name of ["Ari", "Bea", "Zed"]) {
       chipFor(page, name).click();
       const heading = resultsHeading(document);
-      const stated = heading.match(/^(.+) · (\d+) (image posts?)$/);
+      const stated = heading.match(/^(.+) · (\d+) (image posts?) \((.+)\)$/);
       assert.ok(stated, `the heading states no name and no count: ${heading}`);
       assert.equal(stated[1], name, `the heading names someone other than the display name showing: ${heading}`);
+      // #3207: after every filter change the heading still says, in visible
+      // text, that the name is unverified and not a profile or account.
+      assert.equal(`(${stated[4]})`, Q, heading);
+      // The primary result message names the same display name, empty or not
+      // (Ari has none, Bea and Zed have some), from the one existing node.
+      assert.match(textOf(document.querySelector("#profile-name")), new RegExp(`\\b${name}\\b`));
+      assert.equal(document.querySelectorAll("#profile-name").length, 1);
+      const order = documentOrder(document);
+      assert.ok(order.indexOf(document.querySelector("#grid-title")) < order.indexOf(document.querySelector("#profile-grid")),
+        "the heading follows the collection it names");
+      assert.equal(document.querySelector("#grid-title").tagName.toLowerCase(), "h2");
       const drawn = tileCount(document);
       assert.equal(Number(stated[2]), drawn, `the heading claimed ${stated[2]} and the grid drew ${drawn}`);
       // Social's own pluralisation: the singular only for exactly one.
@@ -545,7 +558,7 @@ test("the results heading names the display name and counts the tiles under it",
     // Zed's two, spelled out, so the phrasing itself is pinned and not only the
     // arithmetic — and the ordering stays the eyebrow's to state, once.
     chipFor(page, "Zed").click();
-    assert.equal(resultsHeading(document), "Zed · 2 image posts");
+    assert.equal(resultsHeading(document), `Zed · 2 image posts ${Q}`);
     assert.equal(tileCount(document), 2);
     const ordering = textOf(document.querySelector(".section-heading")).match(/newest first/gi) ?? [];
     assert.equal(ordering.length, 1, "the results panel states the ordering more than once");
@@ -600,7 +613,7 @@ test("an empty display name is named in prose once and counted once", async () =
     // An answered zero, in the same words a populated name gets, and it is the
     // heading that carries it: a reader entering the results region is told
     // whose posts are missing rather than that some feature is empty.
-    assert.equal(resultsHeading(document), "Nova · 0 image posts");
+    assert.equal(resultsHeading(document), `Nova · 0 image posts ${Q}`);
     assert.equal(tileCount(document), 0);
     // Deleted, not hidden: no count chip survives anywhere in the panel.
     assert.equal(document.querySelectorAll("#profile-count").length, 0);
@@ -641,7 +654,7 @@ test("a display name that is markup is rendered as text and forges no second rou
     // the two visible elements this region spends on the display name, and both
     // of the places the name still lands as text. Parsed markup would have left
     // only the anchor's own text behind.
-    assert.equal(resultsHeading(document), `${DECOY_NAME} · 0 image posts`);
+    assert.equal(resultsHeading(document), `${DECOY_NAME} · 0 image posts ${Q}`);
     assert.equal(textOf(document.querySelector("#profile-name")), `${DECOY_NAME} has no image posts yet.`);
     // The header block the name is written into holds no link at all, so a
     // forged one would be the only anchor in it. The page's one route to Social
@@ -922,7 +935,7 @@ test("one section-level heading opens the results region, and it names the displ
     // It is the section's accessible name too, so the region a reader enters is
     // named by the same words the header shows them.
     assert.equal(document.querySelector(".workspace").getAttribute("aria-labelledby"), "grid-title");
-    assert.equal(resultsHeading(document), "Zed · 2 image posts");
+    assert.equal(resultsHeading(document), `Zed · 2 image posts ${Q}`);
     // The ordering label is a label, not a second heading over the same list.
     assert.equal(document.querySelector("#profile-order").tagName, "P");
   } finally {
@@ -944,7 +957,7 @@ test("the display name is visible twice in the results region, and no more", asy
     }
     // The two that are left say different things about the same name: what the
     // results are, and what the reader is looking at, in a sentence.
-    assert.equal(resultsHeading(document), "Ari · 0 image posts");
+    assert.equal(resultsHeading(document), `Ari · 0 image posts ${Q}`);
     assert.equal(textOf(document.querySelector("#profile-name")), "Ari has no image posts yet.");
     // The lines that gave up their copy still say their own thing: Ari has
     // posted, just never a picture, and the counts carry that without a name.
@@ -1209,7 +1222,7 @@ test("choosing a name by keyboard moves the page and announces it once, from one
     pressKey(document, "Enter");
 
     // The three things a reader watches, moved together by the one selection.
-    assert.equal(resultsHeading(document), "Bea · 1 image post");
+    assert.equal(resultsHeading(document), `Bea · 1 image post ${Q}`);
     assert.equal(textOf(document.querySelector("#profile-name")), "Showing 1 image post published as Bea, an example post.");
     assert.equal(tileCount(document), 1);
     // Once, in one voice. Two code paths writing the same news, or a second
@@ -1547,7 +1560,7 @@ test("a feed with one display name says so in words instead of drawing a lone ch
     // The results are still the same results, and the line over the picker does
     // not point at a control that is not there: with nothing to switch to there
     // is no instruction to give, and the sentence in the picker carries the fact.
-    assert.equal(resultsHeading(document), "Ari · 2 image posts");
+    assert.equal(resultsHeading(document), `Ari · 2 image posts ${Q}`);
     assert.equal(pickerNote(document), "");
     assert.equal(tileCount(document), 2);
   } finally {
@@ -1666,7 +1679,7 @@ test("People claims no result before its first image post, and the loaded page i
     release();
     await waitFor(() => document.documentElement.dataset.shiplogProfile === "ready", "the first load settles");
     assert.equal(drawnTiles(document).length, 2);
-    assert.equal(resultsHeading(document), "Zed · 2 image posts");
+    assert.equal(resultsHeading(document), `Zed · 2 image posts ${Q}`);
     // No example clause and no marker: this fixture answers the live API with
     // `source: "shiplog-web"`, so both posts were published by a visitor and the
     // page says nothing about invented content (#2597). The field surviving

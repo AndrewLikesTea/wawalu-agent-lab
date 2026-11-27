@@ -26,7 +26,7 @@ async function openPeople(search) {
   return page;
 }
 function assertSelection(document, name, count = 1) {
-  assert.equal(textOf(document.querySelector("#grid-title")), `${name} · ${count} image ${count === 1 ? "post" : "posts"}`);
+  assert.equal(textOf(document.querySelector("#grid-title")), `${name} · ${count} image ${count === 1 ? "post" : "posts"} (unverified display name, not a profile or account)`);
   const tiles = document.querySelectorAll(".profile-tile").filter((tile) => !tile.classList.contains("profile-tile-skeleton"));
   assert.deepEqual(tiles.map((tile) => tile.dataset.postId), posts.filter((post) => post.author === name).map((post) => post.id));
   const selected = document.querySelector('[aria-pressed="true"]');

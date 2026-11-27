@@ -108,7 +108,7 @@ function assertStatedZero(document, name) {
   assert.ok(textOf(status).length > 0, "the status region answered with nothing at all");
   // The count is drawn, and it is a zero rather than a gap or the last name's
   // number. The heading is where this page states it.
-  assert.equal(textOf(document.querySelector("#grid-title")), `${name} · 0 image posts`);
+  assert.equal(textOf(document.querySelector("#grid-title")), `${name} · 0 image posts (unverified display name, not a profile or account)`);
 }
 
 test("a display name with zero image posts is answered under that name, with a stated zero", async () => {

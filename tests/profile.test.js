@@ -16,7 +16,7 @@ installDocument();
 const { FEED_LOADING_LINE } = await import("../src/social.js");
 
 const {
-  CREATE_STEPS_LABEL, EMPTY_SUMMARY_LINE, NO_IMAGE_POSTS_ANYWHERE, PENDING_RESULTS_HEADING, profileLoadAnnouncement, PUBLISH_ON_SOCIAL, authorChipLabel, authorInitials, captionFor, countLabel, defaultProfileAuthor,
+  CREATE_STEPS_LABEL, DISPLAY_NAME_QUALIFIER, EMPTY_SUMMARY_LINE, NO_IMAGE_POSTS_ANYWHERE, PENDING_RESULTS_HEADING, profileLoadAnnouncement, PUBLISH_ON_SOCIAL, authorChipLabel, authorInitials, captionFor, countLabel, defaultProfileAuthor,
   distinctAuthors, hasExplicitAuthor, imagePostCounts, loadingSummaryText,
   mergePostsById, normalizeProfileApiPosts, normalizeSeedPosts, pickerEntries, pickerNoteText, postDetailHref,
   singleNameNotice, profileActiveFilterLine,
@@ -768,8 +768,8 @@ test("a first load with nothing on screen names no display name and claims no re
 
   // The moment there is something to be true about, both go back to the strings
   // the loaded page has always rendered, byte for byte.
-  assert.equal(profileResultsHeading("Mina Okafor", 3), "Mina Okafor · 3 image posts");
-  assert.equal(profileResultsHeading("Mina Okafor"), "Mina Okafor · image posts");
+  assert.equal(profileResultsHeading("Mina Okafor", 3), "Mina Okafor · 3 image posts (unverified display name, not a profile or account)");
+  assert.equal(profileResultsHeading("Mina Okafor"), "Mina Okafor · image posts (unverified display name, not a profile or account)");
   assert.equal(profileActiveFilterLine("Mina Okafor", 3), "Showing 3 image posts published as Mina Okafor.");
   renderProfileHeader(elements, "Mina Okafor", { total: 3, withImages: 3, likes: 0, latest: null }, { count: 3 });
   assert.equal(elements.avatar.textContent, "MO");
@@ -843,7 +843,7 @@ test("the empty profile says it once across the whole page", () => {
   // the results heading, which states it against a display name
   // (profileResultsHeading) rather than as a figure standing on its own.
   assert.equal(onPage.filter((text) => text.includes(countLabel(0, "image post"))).length, 0);
-  assert.equal(profileResultsHeading("Mina", 0), "Mina · 0 image posts");
+  assert.equal(profileResultsHeading("Mina", 0), "Mina · 0 image posts (unverified display name, not a profile or account)");
   assert.equal(profileAnnouncement("Mina", 0), "The display name “Mina” has no image posts yet.");
   // Social's settled sentence with this page's noun in it, closing clause and
   // all: "Showing 12 posts, newest first." there, this here.
@@ -998,13 +998,47 @@ test("the profile page's static copy does not drift from the module's", async ()
   for (const name of ["Ari", "Zed", "Bea"]) {
     assert.doesNotMatch(html, new RegExp(`published as ${name}`), "the served page still names a display name");
   }
-  assert.equal(profileResultsHeading("Ari", 1), "Ari · 1 image post", "Social's own pluralisation");
-  assert.equal(profileResultsHeading("Ari", 3), "Ari · 3 image posts");
-  assert.equal(profileResultsHeading("Ari", 0), "Ari · 0 image posts");
+  assert.equal(profileResultsHeading("Ari", 1), `Ari · 1 image post ${DISPLAY_NAME_QUALIFIER}`, "Social's own pluralisation");
+  assert.equal(profileResultsHeading("Ari", 3), `Ari · 3 image posts ${DISPLAY_NAME_QUALIFIER}`);
+  assert.equal(profileResultsHeading("Ari", 0), `Ari · 0 image posts ${DISPLAY_NAME_QUALIFIER}`);
   // The results panel's count chip is gone, not hidden: the number is the
   // heading's own text now, where the region it names carries it.
   assert.doesNotMatch(html, /id="profile-count"/);
   assert.doesNotMatch(html, /Start by sharing an image/);
+});
+
+// #3207: the heading names a display name, so it says in visible words that the
+// name is unverified and not a profile or account — and it never claims either.
+test("the People results heading names the display name and qualifies it as unverified", async () => {
+  assert.equal(DISPLAY_NAME_QUALIFIER, "(unverified display name, not a profile or account)");
+  for (const count of [null, 0, 1, 4]) {
+    const heading = profileResultsHeading("Zed", count);
+    assert.ok(heading.startsWith("Zed · "), heading);
+    assert.ok(heading.endsWith(` ${DISPLAY_NAME_QUALIFIER}`), heading);
+    assert.doesNotMatch(heading, /published as|Showing \d+ image post|verified (identity|account)|\bZed's (profile|account)/);
+  }
+  // Markup-like names come back as the same characters: the string is handed to
+  // textContent, never parsed (the harness parses no markup, so pin it here).
+  const forged = `<img src=x onerror="alert(1)">&amp;`;
+  assert.equal(profileResultsHeading(forged, 1), `${forged} · 1 image post ${DISPLAY_NAME_QUALIFIER}`);
+  const source = await readFile(new URL("../src/profile.js", import.meta.url), "utf8");
+  assert.match(source, /elements\.heading\.textContent = profileResultsHeading\(/);
+  // A long name plus the qualifier wraps inside the heading at 390px instead of
+  // overflowing it. The harness has no layout, so the rules are the assertion:
+  // the page's own sheets wrap the heading anywhere and never clip it.
+  const html = await readFile(new URL("../src/profile.html", import.meta.url), "utf8");
+  assert.match(html, /<div class="profile-identity-text">\s*(<!--[\s\S]*?-->\s*)?<h2 id="grid-title">/);
+  const rules = [];
+  for (const sheet of ["styles.css", "social-states.css"]) {
+    const css = (await readFile(new URL(`../src/${sheet}`, import.meta.url), "utf8")).replace(/\/\*[\s\S]*?\*\//g, "");
+    assert.ok(html.includes(`href="/${sheet}"`), `People does not load ${sheet}`);
+    for (const m of css.matchAll(/([^{}]*)\{([^{}]*)\}/g)) {
+      const selectors = m[1].split(",").map((part) => part.trim());
+      if (selectors.some((s) => s === "#grid-title" || s === ".profile-identity-text h2")) rules.push(m[2]);
+    }
+  }
+  assert.ok(rules.some((body) => /overflow-wrap:\s*anywhere/.test(body)), "the results heading does not wrap a long name");
+  for (const body of rules) assert.doesNotMatch(body, /text-overflow:\s*ellipsis|white-space:\s*nowrap|overflow:\s*hidden/);
 });
 
 
