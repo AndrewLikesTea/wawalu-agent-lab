@@ -14,7 +14,8 @@ test("homepage presents the promise, demo and proof before evaluation material",
   t.after(() => page.restore());
   const doc = page.document;
   const html = await readFile(file("index.html"), "utf8");
-  const markers = ['id="top"', 'id="core-demo-link"', 'class="hero-boundary"',
+  const markers = ['id="top"', 'id="core-demo-link"', 'id="hero-demonstration"',
+    'id="repository-last-verified"', 'id="hero-evaluation-kit"', 'class="hero-boundary"',
     'id="record-history"', 'id="evaluation-path-title"', 'id="decision-form"',
     'id="shiplog-entry"', 'One recorded decision, and the release that shipped it',
     'id="deployment-status"', 'id="reasoning-kept-title"', 'id="shiplog-evaluation-brief"',
@@ -43,10 +44,48 @@ test("homepage presents the promise, demo and proof before evaluation material",
   }
   const hero = doc.getElementById("top");
   assert.deepEqual(hero.querySelectorAll("a").map((a) => a.getAttribute("href")),
-    ["#site-footer-form", "#title", "/release.html?id=demo-r-1-3-0&example=1", "#site-footer-form", "#shiplog-evaluation-brief", "/decision.html?id=shiplog-pr-2547", "https://github.com/AndrewLikesTea/wawalu-agent-lab/pull/2547", "https://github.com/AndrewLikesTea/wawalu-agent-lab/blob/a1dc0a2dd45b24f8c114dfabed2a31f095f75557/src/build-stamp.js"]);
+    ["#site-footer-form", "#title", "/release.html?id=demo-r-1-3-0&example=1", "#site-footer-form", "/decision.html?id=shiplog-pr-2547", "https://github.com/AndrewLikesTea/wawalu-agent-lab/pull/2547", "https://github.com/AndrewLikesTea/wawalu-agent-lab/blob/a1dc0a2dd45b24f8c114dfabed2a31f095f75557/src/build-stamp.js", "#shiplog-evaluation-brief"]);
   const sections = doc.getElementById("main-content").children.filter((node) => node.tagName === "SECTION");
   assert.deepEqual(sections.slice(0, 5).map((node) => node.id),
     ["top", "record-history", "shiplog-entry", "shiplog-evaluation-brief", "shiplog-pilot-scorecard"]);
+});
+
+test("all three hero actions stay visible and keyboard accessible before repository proof", async (t) => {
+  const page = await loadPage(file("index.html"));
+  t.after(() => page.restore());
+  const doc = page.document;
+  const hero = doc.getElementById("top");
+  const actionArea = hero.querySelector(".hero-actions");
+  const proof = doc.getElementById("repository-last-verified");
+  const evaluation = doc.getElementById("hero-evaluation-kit");
+  const opening = hero.childElements;
+  assert.equal(opening[opening.indexOf(actionArea) + 1], proof, "proof immediately follows all hero actions");
+  assert.equal(opening[opening.indexOf(proof) + 1], evaluation, "evaluation follows proof");
+  assert.equal(doc.querySelectorAll("#repository-last-verified").length, 1, "reuse the single proof block");
+  const actions = doc.getElementById("top").querySelector(".hero-actions").querySelectorAll("a");
+  assert.deepEqual(actions.map((link) => [textOf(link), link.getAttribute("href")]), [
+    ["Record a decision →", "#title"],
+    ["Explore a complete example release →", "/release.html?id=demo-r-1-3-0&example=1"],
+    ["Request a Shiplog demonstration", "#site-footer-form"],
+  ]);
+  const sequence = tabSequence(doc);
+  const firstProofLink = doc.getElementById("repository-last-verified").querySelector("a");
+  for (const link of actions) {
+    assert.ok(sequence.includes(link));
+    assert.ok(sequence.indexOf(link) < sequence.indexOf(firstProofLink));
+    assert.equal(link.getAttribute("tabindex"), null);
+    for (let node = link; node; node = node.parentNode) {
+      assert.equal(node.hidden, false);
+      assert.notEqual(node.getAttribute("aria-hidden"), "true");
+      assert.notEqual(node.tagName, "DETAILS");
+    }
+    link.focus();
+    pressEnter(doc);
+    assert.equal(doc.navigations.at(-1), link.getAttribute("href"));
+    if (link.getAttribute("href").startsWith("#")) {
+      assert.ok(doc.getElementById(link.getAttribute("href").slice(1)), "fragment destination exists");
+    }
+  }
 });
 
 test("scorecard headings stay visible and native instructions toggle with Enter and Space", async (t) => {
