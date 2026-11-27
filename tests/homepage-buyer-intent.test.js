@@ -312,7 +312,7 @@ for (const keyboard of [false, true]) {
     assert.equal(topic.getAttribute("aria-describedby"), "buyer-intent-carried");
     assert.equal(topic.getAttribute("name"), null, "the topic must never be submitted with the email");
     assert.ok(!tabSequence(document).includes(form));
-    assert.deepEqual(topic.querySelectorAll("option").map(textOf), Object.values(FOLLOW_UP_INTENTS).filter(label => [FOLLOW_UP_INTENTS.demo, FOLLOW_UP_INTENTS.pilot].includes(label)));
+    assert.deepEqual(topic.querySelectorAll("option").map(textOf), Object.values(FOLLOW_UP_INTENTS).filter(label => [FOLLOW_UP_INTENTS.demo, FOLLOW_UP_INTENTS.pilot, FOLLOW_UP_INTENTS.security_data].includes(label)));
     tabTo(document, "buyer-intent-topic");
     pressKey(document, "ArrowDown");
     assert.equal(topic.value, "pilot");
@@ -321,3 +321,49 @@ for (const keyboard of [false, true]) {
     assert.equal(document.navigations.length, 0, "native navigation cannot overwrite focus");
   });
 }
+
+for (const keyboard of [false, true]) {
+  test(`storage security inquiry: ${keyboard ? "Enter" : "click"} selects Shiplog security and focuses its topic repeatedly`, async (t) => {
+    const { document, api } = await openHomepage(t);
+    const link = byId(document, "hero-security-inquiry");
+    const form = byId(document, "site-footer-form");
+    assert.equal(link.tagName, "A");
+    assert.equal(textOf(link), "Ask about Shiplog security or data handling");
+    assert.equal(link.getAttribute("href"), "#site-footer-form");
+    assert.ok(tabSequence(document).includes(link), "visible and keyboard reachable on arrival");
+    const paragraphs = byId(document, "top").childElements;
+    const position = paragraphs.indexOf(link.parentNode);
+    assert.match(textOf(paragraphs[position - 1]), /records are saved in your browser and move between teammates as a file/);
+    let scrolls = 0;
+    form.scrollIntoView = (options) => {
+      scrolls += 1;
+      assert.equal(options.block, "start");
+      assert.notEqual(options.behavior, "smooth", "allow the CSS reduced-motion preference to govern scrolling");
+    };
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      tabTo(document, "hero-security-inquiry");
+      if (keyboard) pressEnter(document); else link.click();
+      const topic = byId(document, "buyer-intent-topic");
+      assert.equal(topic.value, "security_data");
+      assert.equal(document.activeElement, topic);
+      assert.match(textOf(byId(document, "buyer-intent-carried")), /^Discussion topic: Security or data handling\./);
+      assert.equal(form.dataset.followUpType, HOMEPAGE_PURPOSE, "Home's product remains Shiplog");
+      assert.match(textOf(byId(document, "site-footer-note")), /work email address.*Wawalu team that operates Shiplog; nothing else on this page is sent/);
+      assert.equal(textOf(byId(document, "site-footer-use")), "We use your work email only to reply to this request.");
+      assert.equal(textOf(byId(document, "site-footer-reply")), "A person replies by email, usually within two working days.");
+      assert.equal(topic.getAttribute("name"), null, "do not silently change the submitted information");
+      pressKey(document, "ArrowUp");
+      assert.equal(topic.value, "pilot", "topic remains editable");
+    }
+    assert.equal(scrolls, 2);
+    assert.equal(document.navigations.length, 0, "fragment navigation must not steal focus");
+    assert.match(api.carriedLine("security_data"), /sends only your work email/);
+  });
+}
+
+test("security inquiry uses the shared reduced-motion and keyboard focus styles", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
+  assert.match(css, /@media\(prefers-reduced-motion:reduce\)\s*\{\s*html\{scroll-behavior:auto\}/);
+  assert.match(css, /a:focus-visible\s*\{\s*outline:3px solid var\(--focus-ring\)/);
+});

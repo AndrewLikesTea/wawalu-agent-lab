@@ -252,17 +252,17 @@ test("the painted front door leads with the promise, then names the log", async 
   assert.equal(document.getElementById("shiplog-entry").getAttribute("aria-labelledby"), "home-log-title");
   assert.ok(!document.getElementById("shiplog-entry-title"), "the old promise heading id is still on the page");
 
-  // The recording action leads, followed by the complete example, evidence, and recorder.
+  // The security inquiry precedes recording, the complete example, evidence, and recorder.
   const sequence = tabSequence(document);
   const heroStops = sequence.filter((node) => ancestorIds(node).includes("top"));
   const example = hero.querySelector(".hero-actions").querySelectorAll("a")[1];
   assert.match(textOf(example), /complete example release/);
-  assert.deepEqual(heroStops, [demo, example, document.getElementById("hero-demonstration"),
+  assert.deepEqual(heroStops.map((node) => node.id || node.getAttribute("href")), [document.getElementById("hero-security-inquiry"), demo, example, document.getElementById("hero-demonstration"),
     document.getElementById("hero-evaluation-link"), ...document.getElementById("repository-last-verified").querySelectorAll("a"),
     // #3054: the card's route to Shiplog's own decisions, last in the card, once the log has loaded.
-    document.getElementById("show-repository-decisions")]);
+    document.getElementById("show-repository-decisions")].map((node) => node.id || node.getAttribute("href")));
   const demoAt = sequence.indexOf(demo);
-  assert.ok(!ancestorIds(sequence[demoAt - 1]).includes("main-content"), "a stop was added above the demo link");
+  assert.equal(sequence[demoAt - 1].id, "hero-security-inquiry", "the storage inquiry comes immediately before recording");
   assert.ok(ancestorIds(sequence[sequence.indexOf(heroStops.at(-1)) + 1]).includes("record-history"), "the recorder follows the evidence links");
 
   // #3188: the teammate handoff moved out of the hero to the export control,
